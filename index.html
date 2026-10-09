@@ -126,6 +126,25 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:10px}d
 .contact .nums a{display:flex;align-items:center;justify-content:center;gap:10px;color:var(--ink);text-decoration:none;font:400 21px/1.4 var(--serif)}
 .contact .nums svg{width:18px;height:18px;color:var(--wa)}
 .contact .cat{font-size:13px;color:var(--g);text-underline-offset:3px}
+.ov.tl{flex-direction:column;align-items:flex-start}
+.seg{display:flex;gap:6px}
+.arbtn{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 14px;background:var(--g);color:#0b0907;font-size:11px;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.arbtn svg,.arwide svg{width:18px;height:18px}
+.btn.arwide{border-color:var(--g);color:var(--g)}
+.arm{position:fixed;inset:0;z-index:70;background:#0b0907;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+.arm[hidden]{display:none}
+.arm-top{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.arm-top b{display:block;font:400 22px/1.1 var(--serif)}.arm-top span{display:block;font-size:12px;color:var(--mut)}
+#ar-close{margin-left:auto;width:44px;height:44px;border:1px solid var(--line);font:300 28px/1 var(--serif);color:var(--ink)}
+.arm-box{flex:1;position:relative;background:radial-gradient(ellipse 85% 75% at 50% 40%,#776a5b 0%,#463c32 42%,#1b1713 100%)}
+.arm-box model-viewer{width:100%;height:100%;--poster-color:transparent}
+.ar-msg[hidden]{display:none}.ar-msg{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;font-size:15px;color:var(--ink)}
+.ar-go{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;min-height:56px;padding:0 26px;background:var(--g);color:#0b0907;font-size:13px;letter-spacing:.18em;text-transform:uppercase;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.ar-go svg{width:20px;height:20px}
+.ar-desk{position:absolute;left:16px;right:16px;bottom:18px;padding:12px 14px;background:rgba(11,9,7,.75);border-left:2px solid var(--g);font-size:13.5px}
+.arm-help{list-style:none;counter-reset:s;display:grid;gap:6px;padding:14px 16px 16px;font-size:13px;color:var(--mut);border-top:1px solid var(--line)}
+.arm-help[hidden]{display:none}.arm-help li{counter-increment:s;position:relative;padding-left:24px}.arm-help li::before{content:counter(s);position:absolute;left:0;top:0;color:var(--g);font:400 17px/1.2 var(--serif)}
+.arm-help b{color:var(--ink);font-weight:400}
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(11,9,7,.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);
 padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:10px}
 .bar .back{width:46px;height:52px;border:1px solid var(--line);font:300 26px/1 var(--serif);color:var(--mut);flex:none}
@@ -152,7 +171,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
 <div class="grid">
   <div class="stage">
     <div id="viewer">
-      <div class="ov tl" id="escena"><button type="button" class="vb" data-e="estudio">Estudio</button><button type="button" class="vb on" data-e="ambiente">Ambiente</button></div>
+      <div class="ov tl"><div id="escena" class="seg"><button type="button" class="vb" data-e="estudio">Estudio</button><button type="button" class="vb on" data-e="ambiente">Ambiente</button></div><button type="button" class="arbtn" data-ar><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M12 7l5 3v5l-5 3-5-3v-5z M7 10l5 3 5-3M12 13v5"/></svg>Ver en tu espacio</button></div>
       <div class="ov tr"><span class="tag" id="c-size"></span><span class="tag gold" id="c-cap" hidden></span></div>
       <div class="ov bl"><span id="c-from">Diseño propio</span></div>
       <div class="ov br" id="views"><button type="button" class="vb on" data-v="tres">3/4</button><button type="button" class="vb" data-v="frente">Frente</button><button type="button" class="vb" data-v="arriba">Arriba</button></div>
@@ -193,6 +212,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
       <div class="ficha"><span class="k">Ficha de tu diseño</span><dl class="specs" id="sum"></dl>
         <textarea id="notas" rows="2" placeholder="Notas (opcional): ciudad, espacio, número de personas…"></textarea>
         <div class="acts"><a class="btn wa" id="wa0" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>Cotizar con +52 55 5109 0027</a><a class="btn " id="wa1" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>Cotizar con +52 55 8556 1037</a>
+          <button type="button" class="btn arwide" data-ar><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M12 7l5 3v5l-5 3-5-3v-5z M7 10l5 3 5-3M12 13v5"/></svg>Ver mi mesa en mi espacio</button>
           <button type="button" class="btn" id="pdf"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>Descargar PDF de mi mesa</button></div>
         <button type="button" class="copy" id="copy">¿No se abrió WhatsApp? Copiar el mensaje</button>
         <textarea id="msg" rows="9" readonly hidden></textarea>
@@ -203,6 +223,11 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
     </section>
   </div>
 </div></div>
+<div class="arm" id="arm" hidden role="dialog" aria-modal="true" aria-label="Tu mesa en tu espacio">
+  <div class="arm-top"><div><b>Tu mesa en tu espacio</b><span id="ar-title"></span></div><button type="button" id="ar-close" aria-label="Cerrar">×</button></div>
+  <div class="arm-box" id="ar-box"><p class="ar-msg" id="ar-msg">Preparando tu mesa…</p></div>
+  <ol class="arm-help" id="ar-help"><li>Toca <b>«Ponerla en mi espacio»</b>.</li><li>Apunta la cámara al piso y mueve el celular despacio.</li><li>Coloca la mesa con el dedo. Está a <b>tamaño real</b>.</li></ol>
+</div>
 <div class="bar" id="bar">
   <button type="button" class="back" id="prev" aria-label="Paso anterior">‹</button>
   <div class="sum"><b id="sum1">Diseño propio</b><span id="sum2"></span></div>
@@ -650,6 +675,35 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
   }
 
 
+
+  // ---------- "Ver en tu espacio": exports the current table (top + base, real meters) as GLB for AR ----------
+  // UVs are baked so the stone looks the same in apps that ignore texture transforms (AR Quick Look on iPhone).
+  window.DAZK_GLB = function () {
+    return new Promise(function (resolve, reject) {
+      if (!THREE.GLTFExporter) return reject(new Error('GLTFExporter missing'));
+      const root = new THREE.Group(); root.name = 'Mesa DAZK';
+      group.children.forEach(function (c) {
+        const k = c.clone(true);
+        k.traverse(function (o) {
+          if (!o.isMesh) return;
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          const t = mats[0] && mats[0].map;
+          if (t && (t.repeat.x !== 1 || t.offset.x !== 0)) {
+            o.geometry = o.geometry.clone(); const uv = o.geometry.attributes.uv;
+            for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * t.repeat.x + t.offset.x, uv.getY(i) * t.repeat.y + t.offset.y);
+            const nt = t.clone(); nt.repeat.set(1, 1); nt.offset.set(0, 0); nt.needsUpdate = true;
+            const nm = mats.map(function (m, i) { const c2 = m.clone(); if (i === 0) c2.map = nt; return c2; });
+            o.material = Array.isArray(o.material) ? nm : nm[0];
+          }
+        });
+        root.add(k);
+      });
+      root.updateMatrixWorld(true);
+      new THREE.GLTFExporter().parse(root, function (glb) { resolve(glb); }, { binary: true, embedImages: true, maxTextureSize: 2048 });
+    });
+  };
+  window.DAZK_TITLE = function () { return (st.modelo ? D.models[st.modelo].name + ' · ' : '') + dims() + ' · ' + stoneName(); };
+
   // ---------- "Descargar PDF": a one-page sheet of the client's own design (needs jsPDF) ----------
   function snapshot(escena) {
     const keep = { escena: st.escena, az, pol, zoom, auto, azGoal, polGoal };
@@ -743,6 +797,27 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
   $('#pdf').addEventListener('click',function(){var b=this;b.disabled=true;var t=b.lastChild.textContent;b.lastChild.textContent='Generando PDF…';
     function run(){try{DAZK_PDF()}finally{b.disabled=false;b.lastChild.textContent=t}}
     if(window.jspdf)return setTimeout(run,30);var sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';sc.onload=run;sc.onerror=function(){b.disabled=false;b.lastChild.textContent=t;alert('No se pudo descargar. Revisa tu conexión.')};document.head.appendChild(sc)});
+  // ---- realidad aumentada ----
+  var arIcon=document.querySelector('.arbtn svg').outerHTML;
+  function load(src,mod){return new Promise(function(ok,bad){var s=document.createElement('script');if(mod)s.type='module';s.src=src;s.onload=ok;s.onerror=bad;document.head.appendChild(s)})}
+  var arUrl=null;
+  function openAR(){var m=$('#arm'),box=$('#ar-box'),msg=$('#ar-msg');m.hidden=false;document.body.style.overflow='hidden';
+    $('#ar-title').textContent=window.DAZK_TITLE?DAZK_TITLE():'';box.querySelectorAll('model-viewer,.ar-desk').forEach(function(e){e.remove()});msg.hidden=false;msg.textContent='Preparando tu mesa…';
+    var p1=window.THREE&&THREE.GLTFExporter?Promise.resolve():load('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js');
+    var p2=window.customElements&&customElements.get('model-viewer')?Promise.resolve():load('https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js',true);
+    Promise.all([p1,p2]).then(function(){return customElements.whenDefined('model-viewer')}).then(function(){return DAZK_GLB()}).then(function(glb){
+      if(arUrl)URL.revokeObjectURL(arUrl);arUrl=URL.createObjectURL(new Blob([glb],{type:'model/gltf-binary'}));
+      var mv=document.createElement('model-viewer');
+      [['src',arUrl],['ar',''],['ar-modes','webxr quick-look scene-viewer'],['ar-scale','fixed'],['ar-placement','floor'],['camera-controls',''],['touch-action','pan-y'],['shadow-intensity','1'],['shadow-softness','.8'],['exposure','.82'],['tone-mapping','aces'],['environment-image','neutral'],['camera-orbit','35deg 70deg auto'],['alt','Tu mesa DAZK en 3D']].forEach(function(a){mv.setAttribute(a[0],a[1])});
+      var b=document.createElement('button');b.slot='ar-button';b.className='ar-go';b.innerHTML=arIcon+'Ponerla en mi espacio';mv.appendChild(b);
+      mv.addEventListener('load',function(){msg.hidden=true;if(!mv.canActivateAR){var d=document.createElement('p');d.className='ar-desk';d.textContent='Para ver la mesa en tu espacio, abre esta página desde tu celular (iPhone o Android). Aquí puedes girarla con el dedo o el mouse.';box.appendChild(d);$('#ar-help').hidden=true}else{$('#ar-help').hidden=false}});
+      mv.addEventListener('error',function(){msg.hidden=false;msg.textContent='No se pudo cargar la vista. Intenta de nuevo.'});
+      box.appendChild(mv);
+    }).catch(function(e){console.warn('ar',e);msg.hidden=false;msg.textContent='No se pudo preparar la vista en tu espacio. Revisa tu conexión e intenta de nuevo.'});}
+  function closeAR(){$('#arm').hidden=true;document.body.style.overflow=''}
+  $$('[data-ar]').forEach(function(b){b.addEventListener('click',openAR)});
+  $('#ar-close').addEventListener('click',closeAR);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#arm').hidden)closeAR()});
   window.DAZK_ONSYNC=function(st,lines,n){var g=function(k){var l=lines.find(function(x){return x[0]===k});return l?l[1]:''};
     $('#sum1').textContent=(st.modelo?g('Modelo').replace(' (personalizado)',''):'Diseño propio')+' · '+g('Medidas')+(n?' · '+n+' personas':'');
     $('#sum2').textContent=g('Forma')+' · '+g('Piedra')+' · base '+g('Base').toLowerCase()};

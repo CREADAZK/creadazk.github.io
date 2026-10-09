@@ -145,6 +145,10 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:10px}d
 .arm-help{list-style:none;counter-reset:s;display:grid;gap:6px;padding:14px 16px 16px;font-size:13px;color:var(--mut);border-top:1px solid var(--line)}
 .arm-help[hidden]{display:none}.arm-help li{counter-increment:s;position:relative;padding-left:24px}.arm-help li::before{content:counter(s);position:absolute;left:0;top:0;color:var(--g);font:400 17px/1.2 var(--serif)}
 .arm-help b{color:var(--ink);font-weight:400}
+.sharebtn{display:inline-flex;align-items:center;gap:6px}.sharebtn svg{width:15px;height:15px}
+.btn svg{width:20px;height:20px}
+.toast{position:fixed;left:50%;bottom:calc(var(--bar) + 18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:var(--ink);color:#0b0907;padding:12px 18px;font-size:13.5px;max-width:calc(100% - 32px);text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.toast[hidden]{display:none}
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(11,9,7,.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);
 padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:10px}
 .bar .back{width:46px;height:52px;border:1px solid var(--line);font:300 26px/1 var(--serif);color:var(--mut);flex:none}
@@ -171,7 +175,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
 <div class="grid">
   <div class="stage">
     <div id="viewer">
-      <div class="ov tl"><div id="escena" class="seg"><button type="button" class="vb" data-e="estudio">Estudio</button><button type="button" class="vb on" data-e="ambiente">Ambiente</button></div><button type="button" class="arbtn" data-ar><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M12 7l5 3v5l-5 3-5-3v-5z M7 10l5 3 5-3M12 13v5"/></svg>Ver en tu espacio</button></div>
+      <div class="ov tl"><div id="escena" class="seg"><button type="button" class="vb" data-e="estudio">Estudio</button><button type="button" class="vb on" data-e="ambiente">Ambiente</button></div><button type="button" class="arbtn" data-ar><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M12 7l5 3v5l-5 3-5-3v-5z M7 10l5 3 5-3M12 13v5"/></svg>Ver en tu espacio</button><button type="button" class="vb sharebtn" data-share aria-label="Compartir mi diseño"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M12 15V3m0 0-4 4m4-4 4 4M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg>Compartir</button></div>
       <div class="ov tr"><span class="tag" id="c-size"></span><span class="tag gold" id="c-cap" hidden></span></div>
       <div class="ov bl"><span id="c-from">Diseño propio</span></div>
       <div class="ov br" id="views"><button type="button" class="vb on" data-v="tres">3/4</button><button type="button" class="vb" data-v="frente">Frente</button><button type="button" class="vb" data-v="arriba">Arriba</button></div>
@@ -213,6 +217,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
         <textarea id="notas" rows="2" placeholder="Notas (opcional): ciudad, espacio, número de personas…"></textarea>
         <div class="acts"><a class="btn wa" id="wa0" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>Cotizar con +52 55 5109 0027</a><a class="btn " id="wa1" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>Cotizar con +52 55 8556 1037</a>
           <button type="button" class="btn arwide" data-ar><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M12 7l5 3v5l-5 3-5-3v-5z M7 10l5 3 5-3M12 13v5"/></svg>Ver mi mesa en mi espacio</button>
+          <button type="button" class="btn" data-share><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M12 15V3m0 0-4 4m4-4 4 4M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg>Compartir mi diseño</button>
           <button type="button" class="btn" id="pdf"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>Descargar PDF de mi mesa</button></div>
         <button type="button" class="copy" id="copy">¿No se abrió WhatsApp? Copiar el mensaje</button>
         <textarea id="msg" rows="9" readonly hidden></textarea>
@@ -228,6 +233,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
   <div class="arm-box" id="ar-box"><p class="ar-msg" id="ar-msg">Preparando tu mesa…</p></div>
   <ol class="arm-help" id="ar-help"><li>Toca <b>«Ponerla en mi espacio»</b>.</li><li>Apunta la cámara al piso y mueve el celular despacio.</li><li>Coloca la mesa con el dedo. Está a <b>tamaño real</b>.</li></ol>
 </div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <div class="bar" id="bar">
   <button type="button" class="back" id="prev" aria-label="Paso anterior">‹</button>
   <div class="sum"><b id="sum1">Diseño propio</b><span id="sum2"></span></div>
@@ -366,8 +372,39 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
     return [['Modelo', st.modelo ? D.models[st.modelo].name + ' (personalizado)' : 'Diseño propio'], ['Uso', USOS[st.uso].label], ['Forma', FORMAS[st.forma]],
       ['Medidas', dims()], ['Altura', st.H + ' cm'], ...(seating().n ? [['Capacidad', seating().n + ' personas']] : []), ['Piedra', stoneName()], ['Base', baseName()], ['Acabado', ACABADOS[st.acabado][0]]];
   }
+  // ---------- share: the whole design fits in the link ----------
+  const SITE = 'https://creadazk.github.io/';
+  function designLink() {
+    const q = new URLSearchParams();
+    if (st.modelo) q.set('m', st.modelo);
+    q.set('u', st.uso); q.set('f', st.forma); q.set('l', st.L); if (st.forma === 'rect' || st.forma === 'oval') q.set('w', st.W); q.set('h', st.H);
+    q.set('p', st.piedra); if (st.piedra === 'otra' && st.otra.trim()) q.set('o', st.otra.trim().slice(0, 60));
+    q.set('b', st.base); q.set('a', st.acabado);
+    const base = /^https?:/.test(location.protocol) ? location.origin + location.pathname : SITE;
+    return base + '#' + q.toString();
+  }
+  // reads a shared link; anything unknown is ignored and the size rules still apply
+  function fromLink() {
+    const h = location.hash.replace(/^#/, ''); if (!h || h.indexOf('u=') < 0) return false;
+    const q = new URLSearchParams(h), ok = (v, list) => list.includes(v) ? v : null, num = v => { const n = parseInt(v, 10); return isFinite(n) ? n : null; };
+    const u = ok(q.get('u'), Object.keys(USOS)); if (!u) return false;
+    const next = { uso: u };
+    const f = ok(q.get('f'), Object.keys(FORMAS)); if (f) next.forma = f;
+    const m = q.get('m'); next.modelo = m && D.models[m] ? m : null;
+    ['l', 'w', 'h'].forEach((k, i) => { const v = num(q.get(k)); if (v) next[['L', 'W', 'H'][i]] = v; });
+    if (next.L && !next.W) next.W = next.L;
+    const p = ok(q.get('p'), D.stones.map(x => x[0]).concat('otra')); if (p) next.piedra = p;
+    if (q.get('o')) next.otra = q.get('o').slice(0, 60);
+    const b = ok(q.get('b'), ALL_BASES); if (b) next.base = b;
+    const a = ok(q.get('a'), Object.keys(ACABADOS)); if (a) next.acabado = a;
+    Object.assign(st, next);
+    const ot = $('#otra'); if (ot && st.otra) ot.value = st.otra;
+    return true;
+  }
+  window.DAZK_LINK = designLink;
+  window.DAZK_SHARED = false;
   function message() {
-    return 'Hola DAZK, me gustaría cotizar esta mesa:\n' + summaryLines().map(([k, v]) => `• ${k}: ${v}`).join('\n') + (st.notas.trim() ? `\n\nNotas: ${st.notas.trim()}` : '') + '\n\n(Diseñada en el catálogo interactivo DAZK)';
+    return 'Hola DAZK, me gustaría cotizar esta mesa:\n' + summaryLines().map(([k, v]) => `• ${k}: ${v}`).join('\n') + (st.notas.trim() ? `\n\nNotas: ${st.notas.trim()}` : '') + '\n\nVer mi diseño en 3D: ' + designLink();
   }
 
   function updateWa() { D.wa.forEach((w, i) => { const a = $('#wa' + i); if (a) a.href = `https://wa.me/${w.num}?text=${encodeURIComponent(message())}`; }); $$('[data-wa]').forEach(el => { el.href = `https://wa.me/${el.dataset.wa}?text=${encodeURIComponent(message())}`; }); const t = $('#msg'); if (t && !t.hidden) t.value = message(); }
@@ -760,6 +797,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
       doc.setFontSize(10.5); doc.setTextColor(...(i ? ink : [12, 10, 8])); doc.textWithLink('WhatsApp  ' + w.label, x + 38, by + 27.6, { url: link, align: 'center' });
       doc.link(x, by + 21, 76, 10, { url: link });
     });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...gold); doc.textWithLink('Ver este diseño en 3D', Wp / 2, Hp - 16, { url: designLink(), align: 'center' });
     doc.setFontSize(7); doc.setTextColor(...mut);
     doc.text('La vista 3D es ilustrativa. Medida, piedra y detalles se confirman contigo antes de fabricar. Fabricación bajo pedido · Hecho en México.', Wp / 2, Hp - 10, { align: 'center' });
     doc.save('Mi mesa DAZK.pdf');
@@ -767,6 +805,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
 
   window.addEventListener('DOMContentLoaded', () => {
     initUI();
+    window.DAZK_SHARED = fromLink();
     try { init3d(); } catch (e) { $('#viewer').innerHTML = '<p class="no3d">Tu navegador no pudo mostrar la vista 3D, pero puedes armar tu mesa y enviarla igual.</p>'; }
     sync();
     // reveal on scroll
@@ -818,14 +857,22 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
   $$('[data-ar]').forEach(function(b){b.addEventListener('click',openAR)});
   $('#ar-close').addEventListener('click',closeAR);
   document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#arm').hidden)closeAR()});
+  // ---- compartir mi diseño ----
+  function toast(t){var e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(function(){e.hidden=true},3200)}
+  function share(){var url=DAZK_LINK(),title='Mi mesa DAZK',text='Mira la mesa que diseñé en DAZK: '+(window.DAZK_TITLE?DAZK_TITLE():'');
+    if(navigator.share){navigator.share({title:title,text:text,url:url}).catch(function(){});return}
+    var done=function(){toast('Link copiado. Pégalo en WhatsApp o donde quieras.')};
+    var ta=document.createElement('textarea');ta.value=url;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();
+    if(ok)done();else if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(done,function(){prompt('Copia este link:',url)})}else{prompt('Copia este link:',url)}}
+  $$('[data-share]').forEach(function(b){b.addEventListener('click',share)});
   window.DAZK_ONSYNC=function(st,lines,n){var g=function(k){var l=lines.find(function(x){return x[0]===k});return l?l[1]:''};
     $('#sum1').textContent=(st.modelo?g('Modelo').replace(' (personalizado)',''):'Diseño propio')+' · '+g('Medidas')+(n?' · '+n+' personas':'');
     $('#sum2').textContent=g('Forma')+' · '+g('Piedra')+' · base '+g('Base').toLowerCase()};
   if(window.DAZK_SET)DAZK_SET({});
   var w=$('#welcome'),seenW=false;try{seenW=sessionStorage.getItem('dazk-w')==='1'}catch(e){}
   function closeW(){w.classList.add('out');try{sessionStorage.setItem('dazk-w','1')}catch(e){}}
-  if(seenW)w.classList.add('out');
+  if(seenW||window.DAZK_SHARED)w.classList.add('out');
   $('#w-model').addEventListener('click',function(){closeW();go(0,false)});
   $('#w-scratch').addEventListener('click',function(){closeW();if(window.DAZK_SET)DAZK_SET({modelo:null});go(1,false)});
-  go(0,false);
+  if(window.DAZK_SHARED){go(N-1,false);toast('Este es el diseño que te compartieron. Puedes cambiar lo que quieras.')}else go(0,false);
 });</script></body></html>

@@ -383,7 +383,7 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:12px}d
   function setView(v){if(window.DAZK_VIEW)DAZK_VIEW(v);document.querySelectorAll('#views .vb').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)})}
   function go(i,scroll){cur=Math.max(0,Math.min(N-1,i));seen=Math.max(seen,cur);
     steps.forEach(function(s,k){s.hidden=k!==cur});tabs.forEach(function(t,k){t.classList.toggle('on',k===cur);t.classList.toggle('done',k<=seen&&k!==cur)});
-    var tb=document.getElementById('tabs'),t=tabs[cur];tb.scrollLeft=t.offsetLeft-tb.clientWidth/2+t.clientWidth/2;
+    var tb=document.getElementById('tabs'),t=tabs[cur];var r=t.getBoundingClientRect(),q=tb.getBoundingClientRect();tb.scrollLeft+=(r.left+r.width/2)-(q.left+q.width/2);
     document.getElementById('bar').style.width=((cur+1)/N*100)+'%';
     document.getElementById('count').innerHTML='Paso <b>'+(cur+1)+'</b> / '+N;
     document.getElementById('prev').disabled=cur===0;var nx=document.getElementById('next');nx.hidden=cur===N-1;nx.textContent=cur===N-2?'Ver mi mesa':'Siguiente';

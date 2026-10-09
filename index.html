@@ -114,6 +114,15 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:12px}d
 .navwa{display:none}
 .contact[hidden]{display:none}
 @media (max-width:959px){.fab{display:none!important}.navwa{display:grid;place-items:center;flex:none;width:56px;min-height:52px;background:#25d366;color:#08140c;border-radius:0}.navwa svg{width:26px;height:26px}}
+.ov.tr{flex-direction:column;align-items:flex-end}
+.tag.gold{color:#0b0907;background:var(--g);border-color:var(--g);font-weight:400}
+.tag[hidden]{display:none}
+.people{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 16px}
+.people[hidden]{display:none}
+.people span{width:100%;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut)}
+.people button{min-width:52px;min-height:46px;border:1px solid var(--line);font:400 20px/1 var(--serif);color:#d6cdbe}
+.people button.on{border-color:var(--g);background:rgba(194,162,115,.13);color:var(--ink)}
+.cap{margin-top:14px;font-size:14px;color:var(--ink)}
 .cta{margin-left:auto;min-height:40px;padding:0 20px;background:var(--g);color:#0b0907;font-size:12px;letter-spacing:.22em;text-transform:uppercase}
 .cta:hover{background:var(--g2)}
 .ov.br{bottom:10px;right:10px}
@@ -141,7 +150,7 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:12px}d
   <div class="stage">
     <div id="viewer">
       <div class="ov tl" id="escena"><button type="button" class="vb on" data-e="estudio">Estudio</button><button type="button" class="vb" data-e="ambiente">Ambiente</button></div>
-      <div class="ov tr"><span class="tag" id="c-size"></span></div>
+      <div class="ov tr"><span class="tag" id="c-size"></span><span class="tag gold" id="c-cap" hidden></span></div>
       <div class="ov br" id="views"><button type="button" class="vb on" data-v="tres">3/4</button><button type="button" class="vb" data-v="frente">Frente</button><button type="button" class="vb" data-v="arriba">Arriba</button></div>
     </div>
     <div class="under"><span id="c-from">Diseño propio</span><span class="drag">Desliza para girar</span></div>
@@ -154,9 +163,9 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:12px}d
       <button type="button" class="skip" id="scratch">Prefiero diseñar desde cero →</button></section>
     <section class="step" data-step="uso" data-view="tres" hidden><h1>¿Para qué es <em>tu mesa?</em></h1><p class="help">Define la altura y las medidas de inicio.</p><div class="chips" id="c-uso"></div></section>
     <section class="step" data-step="forma" data-view="arriba" hidden><h1>La forma de <em>la cubierta.</em></h1><p class="help">Rectangular, cuadrada, redonda u ovalada.</p><div class="chips" id="c-forma"></div></section>
-    <section class="step" data-step="medidas" data-view="frente" hidden><h1>Las medidas <em>exactas.</em></h1><p class="help">Ajusta largo, ancho y altura en centímetros. Solo te dejamos elegir medidas que funcionan para el uso y la forma de tu mesa.</p><p class="hint" id="size-hint"></p><div class="rng" id="r-L"><label for="in-L"></label><input id="in-L" type="range"><output></output></div>
+    <section class="step" data-step="medidas" data-view="frente" hidden><h1>Las medidas <em>exactas.</em></h1><p class="help">Ajusta largo, ancho y altura en centímetros. Solo te dejamos elegir medidas que funcionan para el uso y la forma de tu mesa.</p><div class="people" id="c-people" hidden></div><p class="hint" id="size-hint"></p><div class="rng" id="r-L"><label for="in-L"></label><input id="in-L" type="range"><output></output></div>
       <div class="rng" id="r-W"><label for="in-W"></label><input id="in-W" type="range"><output></output></div>
-      <div class="rng" id="r-H"><label for="in-H"></label><input id="in-H" type="range"><output></output></div></section>
+      <div class="rng" id="r-H"><label for="in-H"></label><input id="in-H" type="range"><output></output></div><p class="cap" id="cap-hint"></p></section>
     <section class="step" data-step="piedra" data-view="arriba" hidden><h1>La <em>piedra.</em></h1><p class="help">Tonos de referencia. Si tienes otra piedra en mente, elige «Otra piedra» y escríbela.</p><div class="chips" id="c-piedra"></div><div id="otra-wrap" hidden><input type="text" id="otra" placeholder="Ej. ónix miel, mármol verde, cuarzo gris…"></div></section>
     <section class="step" data-step="base" data-view="base" hidden><h1>La base <em>de acero.</em></h1><p class="help">Te mostramos solo las bases que funcionan con la forma y el tamaño de tu mesa. Todas van con cualquier piedra.</p><div id="c-base" class="chips"></div><p class="hint" id="base-hint"></p></section>
     <section class="step" data-step="acabado" data-view="base" hidden><h1>El acabado <em>del acero.</em></h1><p class="help">El color de la base.</p><div class="chips" id="c-acabado"></div></section>
@@ -276,7 +285,11 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:12px}d
     const rn = $('#rules'); if (rn) { rn.textContent = notes.join(' '); rn.hidden = !notes.length; clearTimeout(sync.t); if (notes.length) sync.t = setTimeout(() => { rn.hidden = true; }, 6500); }
     notes = [];
     const bh = $('#base-hint'); if (bh) bh.textContent = okB.length < ALL_BASES.length ? `Para una mesa ${MESA[st.uso]} ${FORMAS[st.forma].toLowerCase()} solo mostramos las bases que tienen sentido estructural.` : '';
+    const cap = seating(), ct = $('#c-cap'); if (ct) { ct.hidden = !cap.n; ct.textContent = cap.n + ' personas'; }
+    const pc = $('#c-people'), PP = (PEOPLE[st.uso] || {})[st.forma];
+    if (pc) { pc.hidden = !PP; pc.innerHTML = PP ? '<span>¿Para cuántas personas?</span>' + Object.keys(PP).map(n => `<button type="button" data-p="${n}" class="${+n === cap.n ? 'on' : ''}">${n}</button>`).join('') : ''; }
     const mh = $('#size-hint'); if (mh) mh.textContent = lim.Wr ? `Largo de ${lim.Lr[0]} a ${lim.Lr[1]} cm · ancho de ${lim.Wr[0]} a ${lim.Wr[1]} cm con este largo · altura de ${lim.Hr[0]} a ${lim.Hr[1]} cm.` : `${round ? 'Diámetro' : 'Lado'} de ${lim.Lr[0]} a ${lim.Lr[1]} cm · altura de ${lim.Hr[0]} a ${lim.Hr[1]} cm.`;
+    const ch = $('#cap-hint'); if (ch) ch.textContent = cap.n ? `Con estas medidas caben ${cap.n} personas cómodas (${st.uso === 'periquera' ? '55 cm por banco' : st.forma === 'round' || st.forma === 'oval' ? '62 cm de orilla por persona' : '60 cm por persona'}).` : '';
     $('#otra-wrap').hidden = st.piedra !== 'otra';
     const m = st.modelo && D.models[st.modelo];
     $('#c-from').innerHTML = m ? `Partiendo del modelo <b>${m.name}</b> <button type="button" id="c-reset">Empezar de cero</button>` : 'Diseño propio';
@@ -297,7 +310,7 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:12px}d
   const dims = () => st.forma === 'round' ? `Ø ${st.L} cm` : `${st.L} × ${st.W} cm`;
   function summaryLines() {
     return [['Modelo', st.modelo ? D.models[st.modelo].name + ' (personalizado)' : 'Diseño propio'], ['Uso', USOS[st.uso].label], ['Forma', FORMAS[st.forma]],
-      ['Medidas', dims()], ['Altura', st.H + ' cm'], ['Piedra', stoneName()], ['Base', baseName()], ['Acabado', ACABADOS[st.acabado][0]]];
+      ['Medidas', dims()], ['Altura', st.H + ' cm'], ...(seating().n ? [['Capacidad', seating().n + ' personas']] : []), ['Piedra', stoneName()], ['Base', baseName()], ['Acabado', ACABADOS[st.acabado][0]]];
   }
   function message() {
     return 'Hola DAZK, me gustaría cotizar esta mesa:\n' + summaryLines().map(([k, v]) => `• ${k}: ${v}`).join('\n') + (st.notas.trim() ? `\n\nNotas: ${st.notas.trim()}` : '') + '\n\n(Diseñada en el catálogo interactivo DAZK)';
@@ -315,6 +328,7 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:12px}d
     ['L', 'W', 'H'].forEach(k => $('#r-' + k + ' input').addEventListener('input', e => {
       st[k] = +e.target.value; if (st.forma === 'round' || st.forma === 'square') st.W = st.L; sync();
     }));
+    const pc = $('#c-people'); if (pc) pc.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const d = PEOPLE[st.uso][st.forma][b.dataset.p]; st.L = d[0]; st.W = d[1] || d[0]; sync(); });
     $('#otra').addEventListener('input', e => { st.otra = e.target.value; sync(); });
     $('#notas').addEventListener('input', e => { st.notas = e.target.value; updateWa(); });
     const cp = $('#copy'); if (cp) cp.addEventListener('click', () => { const t = $('#msg'); t.hidden = false; t.value = message(); t.focus(); t.select(); try { navigator.clipboard.writeText(message()).then(() => cp.textContent = 'Mensaje copiado ✓', () => cp.textContent = 'Selecciona el texto y cópialo'); } catch (e) { cp.textContent = 'Selecciona el texto y cópialo'; } });
@@ -387,6 +401,7 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:12px}d
   // hooks used by the build to render product images with this same engine
   window.DAZK_SET = cfg => { Object.assign(st, cfg); sync(); };
   window.DAZK_STATE = () => st;
+  window.DAZK_COUNT = () => envGroup ? envGroup.children.filter(o => o.type === 'Group').length : 0;
   window.DAZK_FREEZE = (a, p, z) => { auto = false; azGoal = polGoal = null; az = a; pol = p; zoom = z || 1; };
   window.DAZK_SNAP = () => { frame(); R.render(scene, cam); return R.domElement; };
   function resize() { const h = $('#viewer'); const w = h.clientWidth, hh = h.clientHeight; R.setSize(w, hh, false); cam.aspect = w / hh; cam.updateProjectionMatrix(); }
@@ -409,6 +424,49 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:12px}d
     return s;
   }
 
+
+  // ---------- seating: ONE rule used for the capacity text, the people picker and the chairs drawn in the scene ----------
+  // Dining: 60 cm of table edge per person (standard), heads only when the table is ≥ 85 cm wide and ≥ 140 cm long.
+  // Round: 62 cm of circumference per person. Bar: 55 cm per stool. Chairs sit 18 cm outside the edge, facing the table.
+  const SEAT = { comedor: 60, round: 62, bar: 55, gap: .18 };
+  function seating(s) {
+    s = s || st;
+    const L = s.L / 100, W = (s.forma === 'round' || s.forma === 'square' ? s.L : s.W) / 100, out = [];
+    if (s.uso !== 'comedor' && s.uso !== 'periquera') return { n: 0, seats: out, kind: null };
+    const bar = s.uso === 'periquera', per = (bar ? SEAT.bar : SEAT.comedor) / 100, g = bar ? .22 : SEAT.gap;
+    const face = (x, z, nx, nz) => out.push({ x: x + nx * g, z: z + nz * g, ry: Math.atan2(-nx, -nz) });
+    if (s.forma === 'round') {
+      const n = Math.max(2, Math.floor(Math.PI * L / ((bar ? SEAT.bar : SEAT.round) / 100) + 1e-6));
+      for (let i = 0; i < n; i++) { const t = i / n * Math.PI * 2; face(Math.cos(t) * L / 2, Math.sin(t) * L / 2, Math.cos(t), Math.sin(t)); }
+    } else if (s.forma === 'oval') {
+      // racetrack: two straight sides joined by half circles of radius W/2; chairs spaced evenly along the edge
+      const r = W / 2, S = L - W, P = 2 * S + 2 * Math.PI * r;
+      let n = Math.floor(P / (bar ? per : SEAT.round / 100) + 1e-6); if (n % 2) n -= 1;
+      const at = d => { d = ((d % P) + P) % P; const q = Math.PI * r / 2;
+        if (d < q) { const a = d / r; return [S / 2 + Math.cos(a) * r, Math.sin(a) * r, Math.cos(a), Math.sin(a)]; } d -= q;
+        if (d < S) return [S / 2 - d, r, 0, 1]; d -= S;
+        if (d < Math.PI * r) { const a = Math.PI / 2 + d / r; return [-S / 2 + Math.cos(a) * r, Math.sin(a) * r, Math.cos(a), Math.sin(a)]; } d -= Math.PI * r;
+        if (d < S) return [-S / 2 + d, -r, 0, -1]; d -= S;
+        const a = 1.5 * Math.PI + d / r; return [S / 2 + Math.cos(a) * r, Math.sin(a) * r, Math.cos(a), Math.sin(a)]; };
+      for (let i = 0; i < n; i++) { const [x, z, nx, nz] = at(i * P / n); face(x, z, nx, nz); }
+    } else {
+      // rectangular / square: chairs along both long sides, evenly spaced, plus one at each head when it fits (square tables keep 10 cm free at each corner)
+      const side = Math.floor((s.forma === 'square' && !bar ? L - .2 : L) / per + 1e-6), heads = !bar && W * 100 >= 85 && L * 100 >= 140;
+      const both = !bar || W * 100 >= 55;
+      for (let i = 0; i < side; i++) { const x = -L / 2 + L / side * (i + .5); face(x, W / 2, 0, 1); if (both) face(x, -W / 2, 0, -1); }
+      if (heads || s.forma === 'square') {
+        const ends = s.forma === 'square' ? Math.floor((bar ? W : W - .2) / per + 1e-6) : 1;
+        for (let j = 0; j < ends; j++) { const z = -W / 2 + W / ends * (j + .5); face(L / 2, z, 1, 0); face(-L / 2, z, -1, 0); }
+      }
+    }
+    return { n: out.length, seats: out, kind: bar ? 'bancos' : 'sillas' };
+  }
+  // table sizes recommended for a number of people (all of them pass the size rules and give exactly that capacity)
+  const PEOPLE = {
+    comedor: { rect: { 4: [120, 80], 6: [160, 90], 8: [200, 100], 10: [240, 110], 12: [300, 120] },
+      square: { 4: [90], 8: [140] }, round: { 4: [90], 6: [120], 8: [160] }, oval: { 6: [170, 100], 8: [220, 110], 10: [280, 120] } },
+    periquera: { rect: { 4: [120, 60], 6: [180, 60], 8: [240, 70] }, square: { 4: [60] }, round: { 2: [50], 3: [60], 4: [75], 5: [90] }, oval: { 6: [160, 70], 8: [220, 80] } },
+  };
 
   // ---------- ambientes: the table placed in a finished space (dining room, living room or bar) ----------
   let envGroup = null, floorTex = null, shadowFloor = null;
@@ -464,12 +522,9 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:12px}d
       [[-.15, -.15], [.15, -.15], [-.15, .15], [.15, .15]].forEach(([a, b]) => put(new THREE.CylinderGeometry(.012, .012, .7, 8), black, a, .35, b, 0, g));
       put(new THREE.TorusGeometry(.2, .008, 6, 24), black, 0, .3, 0, 0, g).rotation.x = Math.PI / 2; };
 
+    const seatsNow = seating();
     if (st.uso === 'comedor') {
-      if (round) { const n = Math.max(4, Math.min(8, Math.floor(Math.PI * L / .68))), r = L / 2 + .2;
-        for (let i = 0; i < n; i++) { const t = i / n * Math.PI * 2; chair(Math.sin(t) * r, Math.cos(t) * r, t + Math.PI); } }
-      else { const n = Math.max(1, Math.floor((L - .2) / .68)), step = (L - .2) / n;
-        for (let i = 0; i < n; i++) { const x = -L / 2 + .1 + step * (i + .5); chair(x, W / 2 + .18, Math.PI); chair(x, -W / 2 - .18, 0); }
-        if (W >= .85) { chair(L / 2 + .2, 0, -Math.PI / 2); chair(-L / 2 - .2, 0, Math.PI / 2); } }
+      seatsNow.seats.forEach(p => chair(p.x, p.z, p.ry));
       // pendant lamps
       const n = L > 1.8 && !round ? 3 : 1;
       for (let i = 0; i < n; i++) { const x = n === 1 ? 0 : (i - 1) * L / 3;
@@ -478,8 +533,7 @@ dl.specs i{flex:1;border-bottom:1px dotted rgba(194,162,115,.4);min-width:12px}d
         const bulb = put(new THREE.SphereGeometry(.05, 16, 12), new THREE.MeshBasicMaterial({ color: 0xfff1c8 }), x, H + .68, 0); bulb.castShadow = false;
         const pl = new THREE.PointLight(0xffd9a0, .55, 3.2, 2); pl.position.set(x, H + .6, 0); envGroup.add(pl); }
     } else if (st.uso === 'periquera') {
-      if (round) { [0, 1, 2].forEach(i => { const t = i / 3 * Math.PI * 2 + .5; stool(Math.sin(t) * (L / 2 + .25), Math.cos(t) * (L / 2 + .25)); }); }
-      else { const n = Math.max(1, Math.floor(L / .6)); for (let i = 0; i < n; i++) stool(-L / 2 + L / n * (i + .5), W / 2 + .3); }
+      seatsNow.seats.forEach(p => stool(p.x, p.z));
     } else {
       // living room: rug + sofa (+ armchair)
       const rugW = Math.max(L, W) + 1.6;

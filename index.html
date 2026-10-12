@@ -394,7 +394,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
   // Sizes in cm, per use and per shape. ratio = largo / ancho allowed for rectangular and oval tops.
   const USOS = {
     comedor: { label: 'Comedor', H: 75, Hr: [72, 78], start: { rect: [240, 110], square: [120], round: [140], oval: [240, 110] },
-      size: { rect: { L: [120, 300], W: [80, 140] }, square: { L: [90, 150] }, round: { L: [90, 180] }, oval: { L: [160, 300], W: [90, 130] } }, maxRatio: 3.2 },
+      size: { rect: { L: [120, 300], W: [80, 150] }, square: { L: [90, 150] }, round: { L: [90, 180] }, oval: { L: [160, 300], W: [90, 130] } }, maxRatio: 3.2 },
     centro: { label: 'Centro', H: 40, Hr: [30, 50], start: { rect: [120, 70], square: [100], round: [90], oval: [130, 70] },
       size: { rect: { L: [60, 180], W: [50, 120] }, square: { L: [60, 130] }, round: { L: [50, 130] }, oval: { L: [90, 180], W: [50, 100] } }, maxRatio: 2.5 },
     auxiliar: { label: 'Auxiliar', H: 55, Hr: [40, 65], start: { rect: [60, 40], square: [50], round: [50] },
@@ -631,6 +631,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
   // hooks used by the build to render product images with this same engine
   window.DAZK_SET = cfg => { Object.assign(st, cfg); sync(); };
   window.DAZK_STATE = () => st;
+  window.DAZK_PROJECT = (x, y, z) => { frame(); const v = new THREE.Vector3(x, y, z).project(cam), r = R.domElement.getBoundingClientRect(); return [(v.x + 1) / 2 * r.width, (1 - v.y) / 2 * r.height]; };
   window.DAZK_COUNT = () => envGroup ? envGroup.children.filter(o => o.type === 'Group').length : 0;
   window.DAZK_FREEZE = (a, p, z) => { auto = false; azGoal = polGoal = null; az = a; pol = p; zoom = z || 1; };
   window.DAZK_SNAP = () => { frame(); R.render(scene, cam); return R.domElement; };

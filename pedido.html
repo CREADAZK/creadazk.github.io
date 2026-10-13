@@ -58,6 +58,7 @@ details.fab summary .badge{margin:0;letter-spacing:.08em}details.fab form{margin
 .draw svg{width:100%;max-width:420px;display:block;margin:0 auto}
 fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:var(--ink);margin-bottom:8px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0 12px}.grid label.wide{grid-column:1/-1}
+.scroll{overflow-x:auto;margin-top:8px}.tab{border-collapse:collapse;width:100%;font-size:14px}.tab th,.tab td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:right;font-weight:300;font-variant-numeric:tabular-nums}.tab th:first-child{text-align:left;color:var(--g2)}.tab thead th{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}.tab td{font:400 20px/1 var(--serif)}
 #print{display:none}
 @media print{html,body{background:#fff!important}body>*:not(#print){display:none!important}
 #print{display:block;color:#000;font:13px/1.4 Arial,sans-serif;padding:0}
@@ -192,6 +193,9 @@ fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:va
       await db('fichas/' + id + '/' + key, Object.keys(data).length ? 'PUT' : 'DELETE', Object.keys(data).length ? data : undefined, true);
       await this.staffMensaje(id, nota, true);
     },
+    // one record per visit to the client page (no personal data unless that device already sent an order); only staff can read them
+    async visita(id, data, primera) { await db('visitas/' + id, 'PATCH', Object.assign({ ult: TS }, primera ? { t: TS } : {}, data)); },
+    async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=300&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
     async equipo() {
       const [st, so] = await Promise.all([db('staff', 'GET', undefined, true), db('solicitudes', 'GET', undefined, true)]);
       const list = o => Object.entries(o || {}).map(([uid, v]) => Object.assign({ uid }, v));
@@ -232,10 +236,12 @@ fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:va
     async listar() { return ddb().pedidos.map(sortP).sort((a, b) => b.actualizado.localeCompare(a.actualizado)); },
     async staffMensaje(id, texto, interno) { edit(x => x.id === id, (p, ev) => ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: interno ? 'nota' : 'mensaje', texto, interno: !!interno })); },
     async guardarFicha(id, key, data, nota) { edit(x => x.id === id, (p, ev) => { p.fichas = p.fichas || {}; p.fichas[key] = data; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'nota', texto: nota, interno: true }); }); },
+    async visita(id, data, primera) { const d = load('dazk-demo-visitas', {}); d[id] = Object.assign({}, d[id], primera ? { t: Date.now() } : {}, { ult: Date.now() }, data); save('dazk-demo-visitas', d); },
+    async visitas() { return Object.values(load('dazk-demo-visitas', {})).sort((a, b) => b.t - a.t); },
     async staffEstado(id, est) { edit(x => x.id === id, (p, ev) => { p.estado = est; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: estado(est) }); }); },
   };
 
-  window.DAZK_API = Object.assign(FB ? real : demo, { demo: !FB, ESTADOS, estado, waNum, load, save,
+  window.DAZK_API = Object.assign(FB ? real : demo, { demo: !FB, rnd, ESTADOS, estado, waNum, load, save,
     esc: s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
     fecha: t => new Date(t).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
     seguimiento: t => new URL('pedido.html#t=' + t, location.href).href });

@@ -1166,8 +1166,8 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
       return yoCache;
     },
     async listar() {
-      const [ps, ns] = await Promise.all([db('pedidos', 'GET', undefined, true), db('interno', 'GET', undefined, true)]);
-      return Object.entries(ps || {}).map(([t, p]) => shape(t, p, (ns || {})[t])).sort((a, b) => b.actualizado - a.actualizado);
+      const [ps, ns, fs] = await Promise.all(['pedidos', 'interno', 'fichas'].map(n => db(n, 'GET', undefined, true)));
+      return Object.entries(ps || {}).map(([t, p]) => Object.assign(shape(t, p, (ns || {})[t]), { fichas: (fs || {})[t] || {} })).sort((a, b) => b.actualizado - a.actualizado);
     },
     async staffMensaje(id, texto, interno) {
       const me = await this.yo(), ev = { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: interno ? 'nota' : 'mensaje', texto: String(texto).slice(0, 4000) };
@@ -1179,6 +1179,14 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
       await db('pedidos/' + id, 'PATCH', { estado: est, actualizado: TS }, true);
       await db('pedidos/' + id + '/eventos', 'POST', { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: 'estado', texto: estado(est) }, true);
     },
+    // fabrication sheet of one piece ('i0', 'i1'…) or the order's price and delivery ('pago'); staff only, and every save is noted in the history
+    async guardarFicha(id, key, data, nota) {
+      await db('fichas/' + id + '/' + key, Object.keys(data).length ? 'PUT' : 'DELETE', Object.keys(data).length ? data : undefined, true);
+      await this.staffMensaje(id, nota, true);
+    },
+    // one record per visit to the client page (no personal data unless that device already sent an order); only staff can read them
+    async visita(id, data, primera) { await db('visitas/' + id, 'PATCH', Object.assign({ ult: TS }, primera ? { t: TS } : {}, data)); },
+    async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=300&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
     async equipo() {
       const [st, so] = await Promise.all([db('staff', 'GET', undefined, true), db('solicitudes', 'GET', undefined, true)]);
       const list = o => Object.entries(o || {}).map(([uid, v]) => Object.assign({ uid }, v));
@@ -1218,10 +1226,13 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
     async yo() { return who(); },
     async listar() { return ddb().pedidos.map(sortP).sort((a, b) => b.actualizado.localeCompare(a.actualizado)); },
     async staffMensaje(id, texto, interno) { edit(x => x.id === id, (p, ev) => ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: interno ? 'nota' : 'mensaje', texto, interno: !!interno })); },
+    async guardarFicha(id, key, data, nota) { edit(x => x.id === id, (p, ev) => { p.fichas = p.fichas || {}; p.fichas[key] = data; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'nota', texto: nota, interno: true }); }); },
+    async visita(id, data, primera) { const d = load('dazk-demo-visitas', {}); d[id] = Object.assign({}, d[id], primera ? { t: Date.now() } : {}, { ult: Date.now() }, data); save('dazk-demo-visitas', d); },
+    async visitas() { return Object.values(load('dazk-demo-visitas', {})).sort((a, b) => b.t - a.t); },
     async staffEstado(id, est) { edit(x => x.id === id, (p, ev) => { p.estado = est; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: estado(est) }); }); },
   };
 
-  window.DAZK_API = Object.assign(FB ? real : demo, { demo: !FB, ESTADOS, estado, waNum, load, save,
+  window.DAZK_API = Object.assign(FB ? real : demo, { demo: !FB, rnd, ESTADOS, estado, waNum, load, save,
     esc: s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
     fecha: t => new Date(t).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
     seguimiento: t => new URL('pedido.html#t=' + t, location.href).href });
@@ -1290,7 +1301,7 @@ window.addEventListener('DOMContentLoaded', function () {
       const r = await A.crearPedido({ nombre, tel, notas: $('#notas').value, items: its });
       A.save('dazk-yo', { nombre, tel });
       A.save('dazk-pedidos', [{ folio: r.folio, token: r.token, fecha: new Date().toISOString() }].concat(mine()));
-      cart = []; A.save('dazk-cart', cart);
+      cart = []; A.save('dazk-cart', cart); if (window.DAZK_VISITA) window.DAZK_VISITA(r.folio);
       const link = A.seguimiento(r.token);
       const msg = `Hola DAZK, soy ${nombre}. Acabo de enviar mi pedido #${r.folio}:\n` + its.map(i => `• ${i.cantidad > 1 ? i.cantidad + ' × ' : ''}${i.titulo}`).join('\n') + `\n\nSeguimiento: ${link}`;
       $('#ok-folio').textContent = '#' + r.folio; $('#ok-nombre').textContent = nombre.split(' ')[0];
@@ -1304,5 +1315,23 @@ window.addEventListener('DOMContentLoaded', function () {
   $('#sendbar').addEventListener('click', () => { if ($('#p-ok').hidden) { form.scrollIntoView({ behavior: 'smooth', block: 'center' }); form.requestSubmit(); } else location.href = $('#ok-link').href; });
   $('#ok-new').addEventListener('click', () => { $('#p-ok').hidden = true; $('#p-box').hidden = false; extra.sillas = extra.bancos = 0; draw(); window.DAZK_WELCOME(''); });
   draw();
+
+  // ---- visit log for the workshop panel: device, where they came from, what they looked at and how far they got ----
+  (function () {
+    if (A.load('dazk-ses', null) || A.load('dazk-demo-yo', null) || navigator.webdriver && !window.DAZK_TEST) return; // staff browsing their own site are not visitors
+    let v = A.load('dazk-v', null); if (!v) { v = A.rnd(); A.save('dazk-v', v); }
+    const id = A.rnd(), w = Math.min(screen.width, screen.height), ref = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : '';
+    const origen = window.DAZK_SHARED ? 'link compartido' : !ref || ref === location.hostname ? 'directo' : ref.slice(0, 60);
+    let sent = { paso: -1 }, first = true, folio = 0;
+    function push() {
+      const st = window.DAZK_STATE(), paso = [...document.querySelectorAll('.step')].findIndex(s => !s.hidden), nombre = (A.load('dazk-yo', {}).nombre || '').slice(0, 80);
+      const now = Object.assign({ v, disp: w < 600 ? 'celular' : w < 1000 ? 'tablet' : 'computadora', origen, paso: Math.max(sent.paso, paso, 0), uso: st.uso }, st.modelo ? { modelo: st.modelo } : {}, nombre ? { nombre } : {}, folio ? { folio } : {});
+      if (JSON.stringify(now) === JSON.stringify(sent)) return;
+      sent = now; A.visita(id, now, first).catch(() => {}); first = false;
+    }
+    window.DAZK_VISITA = f => { folio = f; push(); };
+    let t; document.addEventListener('click', () => { clearTimeout(t); t = setTimeout(push, 900); });
+    setTimeout(push, 1500);
+  })();
 });
 </script></body></html>

@@ -51,6 +51,21 @@ mark{background:var(--g);color:#0b0907;font:400 10px/1 var(--sans);letter-spacin
 .filters{display:flex;gap:6px;overflow-x:auto;margin:10px -16px 4px;padding:2px 16px 8px;scrollbar-width:none}
 .filters button{flex:none;border:1px solid var(--line);padding:8px 12px;font-size:13px;color:var(--mut);white-space:nowrap}.filters button.on{border-color:var(--g);color:var(--ink);background:rgba(194,162,115,.13)}.filters b{font-weight:400;color:var(--g)}
 .back{display:inline-block;margin-bottom:14px;font-size:13px;text-decoration:none}
+details.fab{margin-top:14px;border-top:1px solid var(--line)}section>details.fab{border:1px solid var(--gl);background:var(--sheet);padding:0 16px;margin-top:12px}
+details.fab summary{cursor:pointer;list-style:none;padding:14px 0;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--g);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+details.fab summary::-webkit-details-marker{display:none}details.fab summary::after{content:'+';margin-left:auto;font:300 24px/1 var(--serif)}details.fab[open] summary::after{content:'–'}
+details.fab summary .badge{margin:0;letter-spacing:.08em}details.fab form{margin:0 0 16px}
+.draw svg{width:100%;max-width:420px;display:block;margin:0 auto}
+fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:var(--ink);margin-bottom:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0 12px}.grid label.wide{grid-column:1/-1}
+#print{display:none}
+@media print{html,body{background:#fff!important}body>*:not(#print){display:none!important}
+#print{display:block;color:#000;font:13px/1.4 Arial,sans-serif;padding:0}
+#print header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:6px;font-size:15px}#print header b{letter-spacing:.3em}#print header span{font-size:12px}
+#print h2{font:700 18px/1.2 Arial,sans-serif;margin:12px 0 2px}#print h3{font:700 13px/1.2 Arial,sans-serif;color:#000;margin:12px 0 4px;text-transform:uppercase}
+#print .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px}#print svg{width:100%;border:1px solid #999}
+#print table{width:100%;border-collapse:collapse;margin-top:6px}#print th,#print td{border:1px solid #999;padding:4px 6px;text-align:left;font-weight:400;font-size:12px}#print th{width:58%;background:#f1f1f1}#print td i{color:#777}
+#print .firma{margin-top:28px}}
 .alt{margin-top:16px;font-size:14px;color:var(--mut)}.alt button,.top a{color:var(--g);text-decoration:underline;text-underline-offset:3px}
 </style></head><body>
 
@@ -159,8 +174,8 @@ mark{background:var(--g);color:#0b0907;font:400 10px/1 var(--sans);letter-spacin
       return yoCache;
     },
     async listar() {
-      const [ps, ns] = await Promise.all([db('pedidos', 'GET', undefined, true), db('interno', 'GET', undefined, true)]);
-      return Object.entries(ps || {}).map(([t, p]) => shape(t, p, (ns || {})[t])).sort((a, b) => b.actualizado - a.actualizado);
+      const [ps, ns, fs] = await Promise.all(['pedidos', 'interno', 'fichas'].map(n => db(n, 'GET', undefined, true)));
+      return Object.entries(ps || {}).map(([t, p]) => Object.assign(shape(t, p, (ns || {})[t]), { fichas: (fs || {})[t] || {} })).sort((a, b) => b.actualizado - a.actualizado);
     },
     async staffMensaje(id, texto, interno) {
       const me = await this.yo(), ev = { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: interno ? 'nota' : 'mensaje', texto: String(texto).slice(0, 4000) };
@@ -171,6 +186,11 @@ mark{background:var(--g);color:#0b0907;font:400 10px/1 var(--sans);letter-spacin
       const me = await this.yo();
       await db('pedidos/' + id, 'PATCH', { estado: est, actualizado: TS }, true);
       await db('pedidos/' + id + '/eventos', 'POST', { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: 'estado', texto: estado(est) }, true);
+    },
+    // fabrication sheet of one piece ('i0', 'i1'…) or the order's price and delivery ('pago'); staff only, and every save is noted in the history
+    async guardarFicha(id, key, data, nota) {
+      await db('fichas/' + id + '/' + key, Object.keys(data).length ? 'PUT' : 'DELETE', Object.keys(data).length ? data : undefined, true);
+      await this.staffMensaje(id, nota, true);
     },
     async equipo() {
       const [st, so] = await Promise.all([db('staff', 'GET', undefined, true), db('solicitudes', 'GET', undefined, true)]);
@@ -211,6 +231,7 @@ mark{background:var(--g);color:#0b0907;font:400 10px/1 var(--sans);letter-spacin
     async yo() { return who(); },
     async listar() { return ddb().pedidos.map(sortP).sort((a, b) => b.actualizado.localeCompare(a.actualizado)); },
     async staffMensaje(id, texto, interno) { edit(x => x.id === id, (p, ev) => ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: interno ? 'nota' : 'mensaje', texto, interno: !!interno })); },
+    async guardarFicha(id, key, data, nota) { edit(x => x.id === id, (p, ev) => { p.fichas = p.fichas || {}; p.fichas[key] = data; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'nota', texto: nota, interno: true }); }); },
     async staffEstado(id, est) { edit(x => x.id === id, (p, ev) => { p.estado = est; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: estado(est) }); }); },
   };
 

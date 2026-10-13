@@ -51,6 +51,21 @@ mark{background:var(--g);color:#0b0907;font:400 10px/1 var(--sans);letter-spacin
 .filters{display:flex;gap:6px;overflow-x:auto;margin:10px -16px 4px;padding:2px 16px 8px;scrollbar-width:none}
 .filters button{flex:none;border:1px solid var(--line);padding:8px 12px;font-size:13px;color:var(--mut);white-space:nowrap}.filters button.on{border-color:var(--g);color:var(--ink);background:rgba(194,162,115,.13)}.filters b{font-weight:400;color:var(--g)}
 .back{display:inline-block;margin-bottom:14px;font-size:13px;text-decoration:none}
+details.fab{margin-top:14px;border-top:1px solid var(--line)}section>details.fab{border:1px solid var(--gl);background:var(--sheet);padding:0 16px;margin-top:12px}
+details.fab summary{cursor:pointer;list-style:none;padding:14px 0;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--g);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+details.fab summary::-webkit-details-marker{display:none}details.fab summary::after{content:'+';margin-left:auto;font:300 24px/1 var(--serif)}details.fab[open] summary::after{content:'–'}
+details.fab summary .badge{margin:0;letter-spacing:.08em}details.fab form{margin:0 0 16px}
+.draw svg{width:100%;max-width:420px;display:block;margin:0 auto}
+fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:var(--ink);margin-bottom:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0 12px}.grid label.wide{grid-column:1/-1}
+#print{display:none}
+@media print{html,body{background:#fff!important}body>*:not(#print){display:none!important}
+#print{display:block;color:#000;font:13px/1.4 Arial,sans-serif;padding:0}
+#print header{display:flex;justify-content:space-between;border-bottom:2px solid #000;padding-bottom:6px;font-size:15px}#print header b{letter-spacing:.3em}#print header span{font-size:12px}
+#print h2{font:700 18px/1.2 Arial,sans-serif;margin:12px 0 2px}#print h3{font:700 13px/1.2 Arial,sans-serif;color:#000;margin:12px 0 4px;text-transform:uppercase}
+#print .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px}#print svg{width:100%;border:1px solid #999}
+#print table{width:100%;border-collapse:collapse;margin-top:6px}#print th,#print td{border:1px solid #999;padding:4px 6px;text-align:left;font-weight:400;font-size:12px}#print th{width:58%;background:#f1f1f1}#print td i{color:#777}
+#print .firma{margin-top:28px}}
 .alt{margin-top:16px;font-size:14px;color:var(--mut)}.alt button,.top a{color:var(--g);text-decoration:underline;text-underline-offset:3px}
 </style></head><body>
 
@@ -159,8 +174,8 @@ mark{background:var(--g);color:#0b0907;font:400 10px/1 var(--sans);letter-spacin
       return yoCache;
     },
     async listar() {
-      const [ps, ns] = await Promise.all([db('pedidos', 'GET', undefined, true), db('interno', 'GET', undefined, true)]);
-      return Object.entries(ps || {}).map(([t, p]) => shape(t, p, (ns || {})[t])).sort((a, b) => b.actualizado - a.actualizado);
+      const [ps, ns, fs] = await Promise.all(['pedidos', 'interno', 'fichas'].map(n => db(n, 'GET', undefined, true)));
+      return Object.entries(ps || {}).map(([t, p]) => Object.assign(shape(t, p, (ns || {})[t]), { fichas: (fs || {})[t] || {} })).sort((a, b) => b.actualizado - a.actualizado);
     },
     async staffMensaje(id, texto, interno) {
       const me = await this.yo(), ev = { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: interno ? 'nota' : 'mensaje', texto: String(texto).slice(0, 4000) };
@@ -171,6 +186,11 @@ mark{background:var(--g);color:#0b0907;font:400 10px/1 var(--sans);letter-spacin
       const me = await this.yo();
       await db('pedidos/' + id, 'PATCH', { estado: est, actualizado: TS }, true);
       await db('pedidos/' + id + '/eventos', 'POST', { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: 'estado', texto: estado(est) }, true);
+    },
+    // fabrication sheet of one piece ('i0', 'i1'…) or the order's price and delivery ('pago'); staff only, and every save is noted in the history
+    async guardarFicha(id, key, data, nota) {
+      await db('fichas/' + id + '/' + key, Object.keys(data).length ? 'PUT' : 'DELETE', Object.keys(data).length ? data : undefined, true);
+      await this.staffMensaje(id, nota, true);
     },
     async equipo() {
       const [st, so] = await Promise.all([db('staff', 'GET', undefined, true), db('solicitudes', 'GET', undefined, true)]);
@@ -211,6 +231,7 @@ mark{background:var(--g);color:#0b0907;font:400 10px/1 var(--sans);letter-spacin
     async yo() { return who(); },
     async listar() { return ddb().pedidos.map(sortP).sort((a, b) => b.actualizado.localeCompare(a.actualizado)); },
     async staffMensaje(id, texto, interno) { edit(x => x.id === id, (p, ev) => ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: interno ? 'nota' : 'mensaje', texto, interno: !!interno })); },
+    async guardarFicha(id, key, data, nota) { edit(x => x.id === id, (p, ev) => { p.fichas = p.fichas || {}; p.fichas[key] = data; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'nota', texto: nota, interno: true }); }); },
     async staffEstado(id, est) { edit(x => x.id === id, (p, ev) => { p.estado = est; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: estado(est) }); }); },
   };
 
@@ -218,6 +239,109 @@ mark{background:var(--g);color:#0b0907;font:400 10px/1 var(--sans);letter-spacin
     esc: s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
     fecha: t => new Date(t).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
     seguimiento: t => new URL('pedido.html#t=' + t, location.href).href });
+})();
+</script><script>/* DAZK · ficha de fabricación: the workshop's paper sheets (cubierta / MDF / base, vista aérea, volados, especificaciones, pago) as part of each order.
+   It starts from what the client designed; every other measure stays empty until the workshop defines it. Volados are calculated, never typed. */
+(function () {
+  const A = window.DAZK_API, esc = A.esc;
+  const num = v => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) && n > 0 ? n : null; };
+  const spec = (it, k) => { const s = (it.specs || []).find(x => x[0] === k); return s ? s[1] : ''; };
+  const SEL = { cMat: ['Piedra sinterizada', 'Mármol', 'Granito', 'Cuarzo', 'Otro'], cAcab: ['Mate', 'Brillante', 'Texturizado'], cCanto: ['Recto', 'Biselado', 'Otro'], cRef: ['Sí', 'No'],
+    bAcab: ['Mate', 'Brillante', 'Texturizado'], bNiv: ['Sí', 'No'], bPlac: ['Sí', 'No'] };
+  const GROUPS = [
+    ['1 · Cubierta', [['cL', 'Largo (cm)', 'n'], ['cW', 'Ancho (cm)', 'n'], ['cEsp', 'Espesor (mm)', 'n'], ['cMat', 'Material'], ['cMarca', 'Marca / modelo'], ['color', 'Color / piedra'], ['cAcab', 'Acabado'], ['cCanto', 'Tipo de canto'], ['cRef', 'Refuerzo inferior']]],
+    ['2 · MDF', [['mL', 'Largo (cm)', 'n'], ['mW', 'Ancho (cm)', 'n'], ['mEsp', 'Espesor (mm)', 'n'], ['mMat', 'Material del MDF']]],
+    ['3 · Base de herrería', [['bL', 'Largo (cm)', 'n'], ['bW', 'Ancho (cm)', 'n'], ['bH', 'Alto (cm)', 'n'], ['bDis', 'Diseño de la base'], ['bColor', 'Color de pintura'], ['bAcab', 'Acabado'], ['bPint', 'Tipo de pintura'], ['bNiv', 'Niveladores'], ['bPlac', 'Placas de montaje']]],
+    ['Mesa terminada', [['alto', 'Altura total (cm)', 'n'], ['obs', 'Observaciones de fabricación', 't']]],
+  ];
+  const PAGO = [['total', 'Precio total ($)', 'n'], ['anticipo', 'Anticipo ($)', 'n'], ['entrega', 'Fecha de entrega', 'd'], ['direccion', 'Dirección de entrega'], ['obs', 'Observaciones', 't']];
+
+  // the client's design, read from the order line
+  function inicio(it) {
+    const m = spec(it, 'Medidas'), r = /Ø\s*(\d+)/.exec(m), d = /(\d+)\s*×\s*(\d+)/.exec(m);
+    return { forma: r ? 'round' : spec(it, 'Forma') === 'Ovalada' ? 'oval' : 'rect', cL: r ? r[1] : d ? d[1] : '', cW: r ? '' : d ? d[2] : '',
+      alto: (/(\d+)/.exec(spec(it, 'Altura')) || [])[1] || '', color: spec(it, 'Piedra'), bDis: spec(it, 'Base'), bColor: spec(it, 'Acabado') };
+  }
+  const valores = (p, it, i) => Object.assign(inicio(it), (p.fichas || {})['i' + i] || {});
+  const medidas = v => ['cL', 'mL', 'bL', 'bH', 'alto', 'cEsp'].concat(v.forma === 'round' ? [] : ['cW', 'mW', 'bW']);
+  const faltan = v => medidas(v).filter(k => !num(v[k])).length;
+  const fmt = n => (Math.round(n * 10) / 10).toString().replace('.', ',');
+
+  // volados and checks, all derived from the three pieces (assumed centred, as in the workshop sheets)
+  function calculo(v) {
+    const g = k => num(v[k]), round = v.forma === 'round', out = [], warn = [];
+    const pair = (a, b, la, mal, eje) => { if (g(a) && g(b)) { const d = (g(a) - g(b)) / 2; out.push([`${la} ${eje}`, fmt(d) + ' cm']); if (d < 0 && !warn.includes(mal)) warn.push(mal); } };
+    const ejeL = round ? 'todo alrededor' : 'izquierdo y derecho', ejeW = 'frontal y posterior';
+    pair('cL', 'mL', 'Volado de la cubierta sobre el MDF,', 'El MDF es más grande que la cubierta.', ejeL); if (!round) pair('cW', 'mW', 'Volado de la cubierta sobre el MDF,', 'El MDF es más grande que la cubierta.', ejeW);
+    pair('cL', 'bL', 'Volado de la cubierta sobre la base,', 'La base es más grande que la cubierta.', ejeL); if (!round) pair('cW', 'bW', 'Volado de la cubierta sobre la base,', 'La base es más grande que la cubierta.', ejeW);
+    pair('mL', 'bL', 'El MDF sobresale de la base,', 'La base es más grande que el MDF.', ejeL); if (!round) pair('mW', 'bW', 'El MDF sobresale de la base,', 'La base es más grande que el MDF.', ejeW);
+    if (g('alto') && g('bH') && g('cEsp')) { const resto = g('alto') - g('bH') - g('cEsp') / 10; out.push(['Queda para MDF y pegamento', fmt(resto) + ' cm']);
+      if (resto < 0) warn.push('La base más la cubierta ya pasan la altura total.'); else if (g('mEsp') && Math.abs(resto - g('mEsp') / 10) > .3) warn.push(`Base + MDF + cubierta suman ${fmt(g('bH') + g('mEsp') / 10 + g('cEsp') / 10)} cm y la altura total dice ${fmt(g('alto'))} cm.`); }
+    return { out, warn };
+  }
+  // vista aérea encimada, to scale
+  function dibujo(v, print) {
+    const g = k => num(v[k]), round = v.forma === 'round', L = g('cL'), W = round ? L : g('cW');
+    if (!L || !W) return '<p class="lead">Escribe las medidas de la cubierta para ver la vista aérea.</p>';
+    const k = Math.min(300 / L, 190 / W), cx = 180, cy = 120, ink = print ? '#000' : '#ece4d6';
+    const shape = (a, b, fill, stroke, sw, rx) => { const w = (g(a) || 0) * k, h = (round ? g(a) || 0 : g(b) || 0) * k; if (!w || !h) return '';
+      return round ? `<circle cx="${cx}" cy="${cy}" r="${w / 2}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>` : `<rect x="${cx - w / 2}" y="${cy - h / 2}" width="${w}" height="${h}" rx="${rx ? Math.min(w, h) / 2 : 0}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`; };
+    return `<svg viewBox="0 0 360 250" role="img" aria-label="Vista aérea: cubierta, MDF y base">${shape('cL', 'cW', '#e9e3d8', '#8a7f6d', 1.5, v.forma === 'oval')}${shape('mL', 'mW', '#c9a06a', '#8a6a3a', 1)}${shape('bL', 'bW', 'none', '#1b1b1b', 4)}
+      <text x="${cx}" y="${cy - W * k / 2 - 8}" text-anchor="middle" font-size="12" fill="${ink}">${round ? 'Ø ' : ''}${fmt(L)} cm</text>${round ? '' : `<text x="${cx + L * k / 2 + 6}" y="${cy + 4}" font-size="12" fill="${ink}">${fmt(W)}</text>`}
+      <g font-size="10" fill="${ink}"><rect x="8" y="232" width="10" height="10" fill="#e9e3d8"/><text x="22" y="241">Cubierta</text><rect x="80" y="232" width="10" height="10" fill="#c9a06a"/><text x="94" y="241">MDF</text><rect x="130" y="232" width="10" height="10" fill="none" stroke="${print ? '#000' : '#888'}" stroke-width="2"/><text x="144" y="241">Base</text></g></svg>`;
+  }
+  function campo(pre, [k, label, tipo], v, round) {
+    if (round && /W$/.test(k)) return '';
+    const id = pre + k, val = esc(v[k] == null ? '' : v[k]), lab = round && /L$/.test(k) ? 'Diámetro (cm)' : label;
+    const inp = SEL[k] ? `<select id="${id}" data-k="${k}"><option value="">Por definir</option>${SEL[k].map(o => `<option ${o === v[k] ? 'selected' : ''}>${o}</option>`).join('')}</select>`
+      : tipo === 't' ? `<textarea id="${id}" data-k="${k}" rows="2" maxlength="600">${val}</textarea>`
+      : `<input id="${id}" data-k="${k}" ${tipo === 'n' ? 'type="text" inputmode="decimal" maxlength="9"' : tipo === 'd' ? 'type="date"' : 'type="text" maxlength="120"'} value="${val}" placeholder="Por definir">`;
+    return `<label for="${id}" class="${tipo === 't' ? 'wide' : ''}">${lab}${inp}</label>`;
+  }
+  const resumen = v => { const c = calculo(v); return `<div class="draw">${dibujo(v)}</div>${c.out.length ? `<dl class="specs">${c.out.map(o => `<div><dt>${o[0]}</dt><i></i><dd>${o[1]}</dd></div>`).join('')}</dl>` : ''}${c.warn.map(w => `<p class="err">${esc(w)}</p>`).join('')}`; };
+  const leer = root => { const v = {}; root.querySelectorAll('[data-k]').forEach(e => { const t = e.value.trim(); if (t) v[e.dataset.k] = t; }); return v; };
+
+  function html(p, it, i) {
+    const v = valores(p, it, i), n = faltan(v), round = v.forma === 'round';
+    return `<details class="fab" data-i="${i}"><summary>Ficha de fabricación <em class="badge ${n ? '' : 'nuevo'}">${n ? 'faltan ' + n + ' medidas' : 'completa'}</em></summary>
+      <form data-forma="${v.forma}"><div class="calc">${resumen(v)}</div>
+      ${GROUPS.map(g => `<fieldset><legend>${g[0]}</legend><div class="grid">${g[1].map(f => campo('f' + i, f, v, round)).join('')}</div></fieldset>`).join('')}
+      <p class="err" role="alert" hidden></p><div class="two"><button type="submit" class="btn gold">Guardar ficha</button><button type="button" class="btn" data-print>Imprimir hoja de taller</button></div></form></details>`;
+  }
+  function pagoHtml(p) {
+    const v = (p.fichas || {}).pago || {}, t = num(v.total), a = num(v.anticipo) || 0;
+    return `<details class="fab" data-i="pago"><summary>Precio, anticipo y entrega <em class="badge">${t ? '$' + t.toLocaleString('es-MX') : 'por definir'}</em></summary>
+      <form><div class="grid">${PAGO.map(f => campo('fp', f, v)).join('')}</div><p class="note" data-saldo>${t ? 'Saldo: $' + (t - a).toLocaleString('es-MX') : 'El saldo se calcula solo: precio total menos anticipo.'}</p>
+      <p class="lead">Esto solo lo ve el taller. Para que el cliente lo sepa, escríbeselo en un mensaje.</p>
+      <p class="err" role="alert" hidden></p><button type="submit" class="btn gold">Guardar</button></form></details>`;
+  }
+  // printable workshop sheet: measures, drawing and specs; no prices
+  function hoja(p, it, v) {
+    const round = v.forma === 'round', c = calculo(v), row = (l, x) => `<tr><th>${esc(l)}</th><td>${x ? esc(x) : '<i>Por definir</i>'}</td></tr>`;
+    const tabla = g => `<h3>${g[0]}</h3><table>${g[1].filter(f => !(round && /W$/.test(f[0]))).map(f => row(round && /L$/.test(f[0]) ? 'Diámetro (cm)' : f[1], v[f[0]])).join('')}</table>`;
+    return `<header><b>DAZK</b> · Furniture &amp; Design<span>Hoja de taller · Pedido #${esc(p.folio)} · ${new Date().toLocaleDateString('es-MX')}</span></header>
+      <h2>${esc(it.titulo)}</h2><p>Cliente: ${esc(p.nombre)}${(p.fichas || {}).pago && p.fichas.pago.entrega ? ' · Entrega: ' + esc(p.fichas.pago.entrega) : ''}</p>
+      <div class="cols"><div>${dibujo(v, true)}<table>${c.out.map(o => row(o[0], o[1])).join('')}</table>${c.warn.map(w => `<p><b>Revisar:</b> ${esc(w)}</p>`).join('')}</div><div>${GROUPS.map(tabla).join('')}</div></div>
+      ${p.notas ? `<p><b>Notas del cliente:</b> ${esc(p.notas)}</p>` : ''}<p class="firma">Revisó: ______________________ &nbsp; Fecha: ____ / ____ / ______</p>`;
+  }
+  function bind(root, p, done) {
+    root.querySelectorAll('details.fab').forEach(d => {
+      const key = d.dataset.i, form = d.querySelector('form'), err = form.querySelector('.err'), it = key === 'pago' ? null : p.items[+key];
+      const now = () => Object.assign(it ? { forma: form.dataset.forma } : {}, leer(form));
+      form.addEventListener('input', () => {
+        if (it) form.querySelector('.calc').innerHTML = resumen(now());
+        else { const v = now(), t = num(v.total); form.querySelector('[data-saldo]').textContent = t ? 'Saldo: $' + (t - (num(v.anticipo) || 0)).toLocaleString('es-MX') : 'El saldo se calcula solo: precio total menos anticipo.'; }
+      });
+      form.addEventListener('submit', async ev => {
+        ev.preventDefault(); const b = form.querySelector('[type=submit]'); b.disabled = true; err.hidden = true;
+        try { await A.guardarFicha(p.id, it ? 'i' + key : 'pago', now(), it ? 'Actualizó la ficha de fabricación de: ' + it.titulo : 'Actualizó precio, anticipo y entrega.'); done(); }
+        catch (e) { err.textContent = e.message; err.hidden = false; b.disabled = false; }
+      });
+      const pr = form.querySelector('[data-print]');
+      if (pr) pr.onclick = () => { let s = document.querySelector('#print'); if (!s) { s = document.createElement('div'); s.id = 'print'; document.body.appendChild(s); } s.innerHTML = hoja(p, it, now()); window.print(); };
+    });
+  }
+  window.DAZK_FICHA = { html, pagoHtml, bind, calculo, faltan, inicio };
 })();
 </script><script>/* DAZK · workshop panel (taller.html): sign in, list of orders, and each order's products, status, history and messages. */
 window.addEventListener('DOMContentLoaded', function () {
@@ -271,15 +395,18 @@ window.addEventListener('DOMContentLoaded', function () {
   function detail() {
     const p = all.find(x => x.id === openId()); if (!p) { location.hash = ''; return; }
     const ta = $('#m-text'); if (ta) draft = ta.value;
+    const abiertas = [...main.querySelectorAll('details.fab[open]')].map(d => d.dataset.i);
     const link = A.seguimiento(p.token), first = esc(p.nombre.split(' ')[0]);
     const wa = `https://wa.me/${A.waNum(p.tel)}?text=${encodeURIComponent(`Hola ${p.nombre.split(' ')[0]}, te escribimos de DAZK sobre tu pedido #${p.folio}. Aquí puedes ver el avance y respondernos: ${link}`)}`;
     main.innerHTML = `<a class="back" href="#">‹ Pedidos</a><span class="k">Pedido #${esc(p.folio)} · ${A.fecha(p.creado)}</span><h1>${esc(p.nombre)}</h1>
       <p class="lead">WhatsApp <a href="https://wa.me/${A.waNum(p.tel)}" target="_blank" rel="noopener">${esc(p.tel)}</a></p>
       <div class="card"><label for="estado">Estado del pedido<select id="estado">${A.ESTADOS.map(e => `<option value="${e[0]}" ${e[0] === p.estado ? 'selected' : ''}>${e[1]}</option>`).join('')}</select></label>
         <div class="two"><a class="btn wa" href="${esc(wa)}" target="_blank" rel="noopener">Avisar a ${first} por WhatsApp</a><a class="btn" href="${esc(link)}" target="_blank" rel="noopener">Ver como cliente</a></div></div>
-      <section><span class="k">Productos</span>${p.items.map(it => `<article class="card"><h3>${it.cantidad > 1 ? esc(it.cantidad) + ' × ' : ''}${esc(it.titulo)}</h3>
+      <section><span class="k">Productos</span>${p.items.map((it, i) => `<article class="card"><h3>${it.cantidad > 1 ? esc(it.cantidad) + ' × ' : ''}${esc(it.titulo)}</h3>
         <dl class="specs">${(it.specs || []).map(s => `<div><dt>${esc(s[0])}</dt><i></i><dd>${esc(s[1])}</dd></div>`).join('')}</dl>
-        ${/^https?:\/\//.test(it.link || '') ? `<a class="link" href="${esc(it.link)}" target="_blank" rel="noopener">Abrir el diseño en 3D →</a>` : ''}</article>`).join('')}
+        ${/^https?:\/\//.test(it.link || '') ? `<a class="link" href="${esc(it.link)}" target="_blank" rel="noopener">Abrir el diseño en 3D →</a>` : ''}
+        ${it.tipo === 'mesa' ? window.DAZK_FICHA.html(p, it, i) : ''}</article>`).join('')}
+        ${window.DAZK_FICHA.pagoHtml(p)}
         ${p.notas ? `<p class="note"><b>Notas del cliente:</b> ${esc(p.notas)}</p>` : ''}</section>
       <section><span class="k">Historial</span><ol class="tl">${p.eventos.map(e => `<li class="${e.autor === 'cliente' ? 'cliente' : 'dazk'}${e.tipo === 'mensaje' ? ' msg' : ''}${e.interno ? ' int' : ''}">
         <div><b>${e.autor === 'cliente' ? esc(e.autor_nombre) + ' (cliente)' : esc(e.autor_nombre)}${e.interno ? ' · nota interna' : ''}</b><time>${A.fecha(e.creado)}</time></div>
@@ -288,6 +415,8 @@ window.addEventListener('DOMContentLoaded', function () {
         <label class="chk"><input type="checkbox" id="m-int"> Nota interna (el cliente no la ve)</label>
         <p class="err" id="m-err" role="alert" hidden></p><button class="btn gold" type="submit">Guardar en el historial</button></form></section>`;
     $('#m-text').value = draft;
+    main.querySelectorAll('details.fab').forEach(d => { d.open = abiertas.includes(d.dataset.i); });
+    window.DAZK_FICHA.bind(main, p, () => reload());
     $('#estado').onchange = async e => { e.target.disabled = true; try { await A.staffEstado(p.id, e.target.value); } catch (x) { alert(x.message); } await reload(); };
     $('#m-form').addEventListener('submit', async ev => {
       ev.preventDefault(); const el = $('#m-text'), txt = el.value.trim(); if (!txt) return el.focus();

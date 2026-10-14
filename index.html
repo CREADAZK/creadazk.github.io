@@ -231,7 +231,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
     </section>
 
     <section class="step" data-view="tres" hidden>
-      <h1>Tu pedido <em>DAZK.</em></h1><p class="lead">Revisa tu diseño, dinos quién eres y envíalo. Te respondemos con propuesta y cotización.</p>
+      <h1>Tu pedido <em>DAZK.</em></h1><p class="lead">Revisa tu diseño y apártalo con tu nombre. Te respondemos con propuesta y cotización.</p>
       <div class="ficha"><span class="k">Ficha de esta mesa</span><dl class="specs" id="sum"></dl>
         <div class="acts">
           <button type="button" class="btn arwide" data-ar><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M12 7l5 3v5l-5 3-5-3v-5z M7 10l5 3 5-3M12 13v5"/></svg>Ver mi mesa en mi espacio</button>
@@ -245,20 +245,20 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
             <div class="row"><span>Sillas</span><button type="button" data-x="sillas" data-d="-1" aria-label="Menos sillas">–</button><output id="x-sillas">0</output><button type="button" data-x="sillas" data-d="1" aria-label="Más sillas">+</button></div>
             <div class="row"><span>Bancos de periquera</span><button type="button" data-x="bancos" data-d="-1" aria-label="Menos bancos">–</button><output id="x-bancos">0</output><button type="button" data-x="bancos" data-d="1" aria-label="Más bancos">+</button></div>
             <p class="small">Modelo y tapiz se definen contigo al cotizar.</p></div></div>
-        <form class="ficha" id="f-ped" novalidate><span class="k">Tus datos</span>
-          <label for="p-nombre">Tu nombre<input type="text" id="p-nombre" autocomplete="name" maxlength="80" placeholder="Nombre y apellido"></label>
-          <label for="p-tel">Tu WhatsApp<input type="tel" id="p-tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="10 dígitos"></label>
+        <form class="ficha" id="f-ped" novalidate><span class="k">Aparta tu mesa</span>
+          <label for="p-nombre">Apartar a nombre de<input type="text" id="p-nombre" autocomplete="name" maxlength="80" placeholder="Nombre y apellido"></label>
+          <label for="p-tel">Tu WhatsApp (opcional, para avisarte)<input type="tel" id="p-tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="10 dígitos"></label>
           <textarea id="notas" rows="2" maxlength="1000" placeholder="Notas (opcional): ciudad, espacio, fecha en que la necesitas…"></textarea>
           <p class="err" id="p-err" role="alert" hidden></p>
-          <button type="submit" class="btn gold" id="enviar">Enviar mi cotización</button>
-          <p class="small">Usamos tu nombre y WhatsApp solo para atender este pedido.</p>
+          <button type="submit" class="btn gold" id="enviar">Apartar mi mesa</button>
+          <p class="small">Sin registro ni contraseña. Con tu link de seguimiento ves el avance y nos escribes.</p>
           <details class="solo"><summary>Prefiero solo escribir por WhatsApp</summary>
             <div class="acts"><a class="btn wa" id="wa0" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>Escribir a +52 55 5109 0027</a><a class="btn " id="wa1" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>Escribir a +52 55 8556 1037</a></div>
             <button type="button" class="copy" id="copy">¿No se abrió WhatsApp? Copiar el mensaje</button>
             <textarea id="msg" rows="9" readonly hidden></textarea></details>
         </form>
       </div>
-      <div class="ficha" id="p-ok" hidden><span class="k">Pedido recibido</span>
+      <div class="ficha" id="p-ok" hidden><span class="k">Mesa apartada</span>
         <h2>Gracias, <span id="ok-nombre"></span>. Tu pedido es el <b id="ok-folio"></b></h2>
         <p>Guarda tu link de seguimiento: ahí ves el avance, el historial y puedes escribirnos.</p>
         <div class="acts"><a class="btn gold" id="ok-link">Ver el avance de mi pedido</a><div class="acts" id="ok-wa" style="margin-top:0"></div>
@@ -279,7 +279,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
   <button type="button" class="back" id="prev" aria-label="Paso anterior">‹</button>
   <div class="sum"><b id="sum1">Diseño propio</b><span id="sum2"></span></div>
   <button type="button" class="next" id="next">Siguiente</button>
-  <button type="button" class="next" id="sendbar" hidden>Enviar</button>
+  <button type="button" class="next" id="sendbar" hidden>Apartar</button>
 </div><script>/**
  * @license
  * Copyright 2010-2021 Three.js Authors
@@ -1066,7 +1066,8 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
 });</script><script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};</script><script>/* DAZK · pedidos: one data layer for the client page, the client's tracking page and the workshop panel.
    With window.DAZK_FB = { apiKey, db } it talks to Firebase (Realtime Database + Auth over REST; rules in firebase/database.rules.json).
    Without it, it runs in demo mode: everything stays in this browser's localStorage.
-   Clients are anonymous: an order lives at pedidos/<secret token>, readable only by whoever has the token. Staff sign in and must be listed in staff/. */
+   Clients are anonymous: an order lives at pedidos/<secret token>, readable only by whoever has the token.
+   The workshop enters with one shared 8-digit code (the password of a single Auth account listed in staff/); each person also types their name, which signs the history. */
 (function () {
   const FB = window.DAZK_FB || null, SITE = 'https://creadazk.github.io/';
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
@@ -1080,10 +1081,10 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
   const rnd = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
   function cliente(p) {
     const nombre = String(p.nombre || '').trim().slice(0, 80), tel = digits(p.tel);
-    if (nombre.length < 2) throw new Error('Escribe tu nombre.');
-    if (tel.length < 10 || tel.length > 13) throw new Error('Revisa tu número de WhatsApp.');
+    if (nombre.length < 2) throw new Error('Escribe a nombre de quién apartamos la mesa.');
+    if (tel && (tel.length < 10 || tel.length > 13)) throw new Error('Revisa tu número de WhatsApp (10 dígitos) o déjalo vacío.');
     if (!p.items || !p.items.length || p.items.length > 12) throw new Error('El pedido debe tener entre 1 y 12 productos.');
-    return { nombre, tel, notas: String(p.notas || '').trim().slice(0, 1000) };
+    return Object.assign({ nombre, notas: String(p.notas || '').trim().slice(0, 1000) }, tel ? { tel } : {});
   }
 
   // ---------- Firebase ----------
@@ -1118,10 +1119,8 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
       .sort((a, b) => a.creado - b.creado || (a.key < b.key ? -1 : 1));
     return Object.assign({}, p, { id: t, token: t, notas: p.notas || '', items: Object.values(p.items || {}).map((it, i) => Object.assign({ cantidad: 1 }, it, { pos: i + 1 })), eventos: ev.map((e, i) => Object.assign(e, { id: i + 1 })) });
   }
-  const AUTH_ERR = { EMAIL_EXISTS: 'Ese correo ya tiene cuenta. Entra con tu contraseña.', EMAIL_NOT_FOUND: 'Correo o contraseña incorrectos.', INVALID_PASSWORD: 'Correo o contraseña incorrectos.',
-    INVALID_LOGIN_CREDENTIALS: 'Correo o contraseña incorrectos.', INVALID_EMAIL: 'Revisa el correo.', MISSING_PASSWORD: 'Escribe tu contraseña.', USER_DISABLED: 'Esta cuenta está desactivada.' };
-  const authErr = e => new Error(/WEAK_PASSWORD/.test(e.code) ? 'La contraseña debe tener al menos 6 caracteres.' : /TOO_MANY_ATTEMPTS/.test(e.code) ? 'Demasiados intentos. Espera unos minutos.' : AUTH_ERR[e.code] || e.message);
-  const PENDIENTE = 'Tu cuenta ya existe, pero falta que el administrador de DAZK te dé acceso al taller.';
+  const ACCESO = 'acceso@dazk-pedidos.firebaseapp.com', quien = () => load('dazk-quien', '');
+  const codigoOk = c => { if (!/^[0-9]{8}$/.test(String(c))) throw new Error('El código son 8 números.'); };
   const real = {
     async crearPedido(p) {
       const c = cliente(p);
@@ -1144,26 +1143,24 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
       await db('pedidos/' + t + '/eventos', 'POST', { creado: TS, autor: 'cliente', autor_nombre: nombre, tipo: 'mensaje', texto: String(texto).slice(0, 2000) });
       await db('pedidos/' + t + '/actualizado', 'PUT', TS);
     },
-    async login(email, pass) {
-      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email, password: pass, returnSecureToken: true })); } catch (e) { throw authErr(e); }
-      const me = await this.yo(); if (!me) throw new Error(PENDIENTE);
+    async login(codigo, nombre) {
+      codigoOk(codigo); nombre = String(nombre || '').trim().slice(0, 60); if (nombre.length < 2) throw new Error('Escribe tu nombre: así queda en el historial quién hizo cada cosa.');
+      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email: ACCESO, password: codigo, returnSecureToken: true })); }
+      catch (e) { throw new Error(/TOO_MANY_ATTEMPTS/.test(e.code) ? 'Demasiados intentos. Espera unos minutos.' : e.status ? 'Código incorrecto.' : e.message); }
+      save('dazk-quien', nombre);
+      const me = await this.yo(); if (!me) { setSes(null); throw new Error('Este código no tiene acceso al taller.'); }
       return me;
     },
-    // each person creates their own account; the very first one becomes the administrator, the rest wait for approval
-    async registrar(nombre, email, pass) {
-      nombre = String(nombre || '').trim().slice(0, 60); if (nombre.length < 2) throw new Error('Escribe tu nombre.');
-      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signUp', { email, password: pass, returnSecureToken: true })); } catch (e) { throw authErr(e); }
-      try { await db('staff/' + ses.uid, 'PUT', { nombre, rol: 'admin', email }, true); return this.yo(); }
-      catch (e) { if (!denied(e)) throw e; }
-      await db('solicitudes/' + ses.uid, 'PUT', { nombre, email }, true);
-      throw new Error(PENDIENTE);
+    async cambiarCodigo(codigo) {
+      codigoOk(codigo);
+      try { const j = await idp('identitytoolkit.googleapis.com/v1/accounts:update', { idToken: await idToken(), password: codigo, returnSecureToken: true }); setSes(Object.assign({ email: ACCESO }, j)); }
+      catch (e) { throw new Error(/CREDENTIAL_TOO_OLD|TOKEN_EXPIRED/.test(e.code) ? 'Por seguridad, sal y vuelve a entrar con el código actual antes de cambiarlo.' : e.message); }
     },
-    async recuperar(email) { try { await idp('identitytoolkit.googleapis.com/v1/accounts:sendOobCode', { requestType: 'PASSWORD_RESET', email }); } catch (e) { throw authErr(e); } },
     logout() { setSes(null); },
     async yo() {
       if (!ses) return null;
-      if (!yoCache) { const s = await db('staff/' + ses.uid, 'GET', undefined, true).catch(e => { if (denied(e)) return null; throw e; }); yoCache = s && Object.assign({ uid: ses.uid }, s); }
-      return yoCache;
+      if (!yoCache) { const s = await db('staff/' + ses.uid, 'GET', undefined, true).catch(e => { if (denied(e)) return null; throw e; }); yoCache = s && { uid: ses.uid, rol: s.rol }; }
+      return yoCache && Object.assign({ nombre: quien() || 'DAZK' }, yoCache);
     },
     async listar() {
       const [ps, ns, fs] = await Promise.all(['pedidos', 'interno', 'fichas'].map(n => db(n, 'GET', undefined, true)));
@@ -1187,14 +1184,6 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
     // one record per visit to the client page (no personal data unless that device already sent an order); only staff can read them
     async visita(id, data, primera) { await db('visitas/' + id, 'PATCH', Object.assign({ ult: TS }, primera ? { t: TS } : {}, data)); },
     async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=300&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
-    async equipo() {
-      const [st, so] = await Promise.all([db('staff', 'GET', undefined, true), db('solicitudes', 'GET', undefined, true)]);
-      const list = o => Object.entries(o || {}).map(([uid, v]) => Object.assign({ uid }, v));
-      return { staff: list(st), solicitudes: list(so) };
-    },
-    async aprobar(s) { await db('staff/' + s.uid, 'PUT', { nombre: s.nombre, rol: 'taller', email: s.email || '' }, true); await db('solicitudes/' + s.uid, 'DELETE', undefined, true); },
-    async rechazar(uid) { await db('solicitudes/' + uid, 'DELETE', undefined, true); },
-    async quitar(uid) { await db('staff/' + uid, 'DELETE', undefined, true); },
   };
 
   // ---------- demo (this browser only) ----------
@@ -1219,9 +1208,8 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
       return sortP(Object.assign({}, p, { eventos: p.eventos.filter(e => !e.interno) }));
     },
     async clienteMensaje(t, texto) { edit(x => x.token === t, (p, ev) => ev({ autor: 'cliente', autor_nombre: p.nombre, tipo: 'mensaje', texto })); },
-    async login(email) { const me = { nombre: String(email).split('@')[0] || 'Demo', rol: 'taller' }; save('dazk-demo-yo', me); return me; },
-    async registrar(nombre, email) { return this.login(nombre || email); },
-    async recuperar() {},
+    async login(codigo, nombre) { codigoOk(codigo); nombre = String(nombre || '').trim(); if (nombre.length < 2) throw new Error('Escribe tu nombre.'); const me = { nombre, rol: 'admin' }; save('dazk-demo-yo', me); return me; },
+    async cambiarCodigo(codigo) { codigoOk(codigo); },
     logout() { save('dazk-demo-yo', null); },
     async yo() { return who(); },
     async listar() { return ddb().pedidos.map(sortP).sort((a, b) => b.actualizado.localeCompare(a.actualizado)); },
@@ -1255,7 +1243,7 @@ window.addEventListener('DOMContentLoaded', function () {
     $('#cart').innerHTML = cart.map((it, i) => `<li><span>${esc(it.titulo)}</span><button type="button" data-rm="${i}" aria-label="Quitar ${esc(it.titulo)}">Quitar</button></li>`).join('') +
       (skipCur ? '' : `<li class="cur"><span>${esc(cur.titulo)}<small>La que estás viendo en 3D</small></span>${cart.length ? '<button type="button" data-rm="cur" aria-label="Quitar esta mesa">Quitar</button>' : ''}</li>`);
     Object.keys(extra).forEach(k => { $('#x-' + k).textContent = extra[k]; });
-    const n = items().length; $('#sendbar').textContent = !$('#p-ok').hidden ? 'Ver mi pedido' : n > 1 ? 'Enviar (' + n + ')' : 'Enviar';
+    const n = items().length; $('#sendbar').textContent = !$('#p-ok').hidden ? 'Ver mi pedido' : n > 1 ? 'Apartar (' + n + ')' : 'Apartar';
   }
   $('#cart').addEventListener('click', e => {
     const b = e.target.closest('[data-rm]'); if (!b) return;
@@ -1294,16 +1282,16 @@ window.addEventListener('DOMContentLoaded', function () {
   form.addEventListener('submit', async e => {
     e.preventDefault(); err.hidden = true;
     const nombre = $('#p-nombre').value.trim(), tel = $('#p-tel').value.replace(/\D/g, '');
-    if (nombre.length < 2) return fail('Escribe tu nombre para saber a quién responderle.', $('#p-nombre'));
-    if (tel.length < 10 || tel.length > 13) return fail('Escribe tu WhatsApp a 10 dígitos.', $('#p-tel'));
+    if (nombre.length < 2) return fail('Escribe a nombre de quién apartamos la mesa.', $('#p-nombre'));
+    if (tel && (tel.length < 10 || tel.length > 13)) return fail('Tu WhatsApp debe tener 10 dígitos, o déjalo vacío.', $('#p-tel'));
     const its = items(), label = btn.textContent; btn.disabled = true; btn.textContent = 'Enviando…';
     try {
       const r = await A.crearPedido({ nombre, tel, notas: $('#notas').value, items: its });
-      A.save('dazk-yo', { nombre, tel });
+      A.save('dazk-yo', Object.assign({ nombre }, tel ? { tel } : {}));
       A.save('dazk-pedidos', [{ folio: r.folio, token: r.token, fecha: new Date().toISOString() }].concat(mine()));
       cart = []; A.save('dazk-cart', cart); if (window.DAZK_VISITA) window.DAZK_VISITA(r.folio);
       const link = A.seguimiento(r.token);
-      const msg = `Hola DAZK, soy ${nombre}. Acabo de enviar mi pedido #${r.folio}:\n` + its.map(i => `• ${i.cantidad > 1 ? i.cantidad + ' × ' : ''}${i.titulo}`).join('\n') + `\n\nSeguimiento: ${link}`;
+      const msg = `Hola DAZK, soy ${nombre}. Acabo de apartar mi pedido #${r.folio}:\n` + its.map(i => `• ${i.cantidad > 1 ? i.cantidad + ' × ' : ''}${i.titulo}`).join('\n') + `\n\nSeguimiento: ${link}`;
       $('#ok-folio').textContent = '#' + r.folio; $('#ok-nombre').textContent = nombre.split(' ')[0];
       $('#ok-link').href = link;
       $('#ok-wa').innerHTML = D.wa.map((w, i) => `<a class="btn ${i ? '' : 'wa'}" target="_blank" rel="noopener" href="https://wa.me/${w.num}?text=${encodeURIComponent(msg)}">Avisar a DAZK · ${esc(w.label)}</a>`).join('');

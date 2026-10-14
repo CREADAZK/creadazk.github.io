@@ -75,7 +75,8 @@ fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:va
 <script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};</script><script>/* DAZK · pedidos: one data layer for the client page, the client's tracking page and the workshop panel.
    With window.DAZK_FB = { apiKey, db } it talks to Firebase (Realtime Database + Auth over REST; rules in firebase/database.rules.json).
    Without it, it runs in demo mode: everything stays in this browser's localStorage.
-   Clients are anonymous: an order lives at pedidos/<secret token>, readable only by whoever has the token. Staff sign in and must be listed in staff/. */
+   Clients are anonymous: an order lives at pedidos/<secret token>, readable only by whoever has the token.
+   The workshop enters with one shared 8-digit code (the password of a single Auth account listed in staff/); each person also types their name, which signs the history. */
 (function () {
   const FB = window.DAZK_FB || null, SITE = 'https://creadazk.github.io/';
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
@@ -89,10 +90,10 @@ fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:va
   const rnd = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
   function cliente(p) {
     const nombre = String(p.nombre || '').trim().slice(0, 80), tel = digits(p.tel);
-    if (nombre.length < 2) throw new Error('Escribe tu nombre.');
-    if (tel.length < 10 || tel.length > 13) throw new Error('Revisa tu número de WhatsApp.');
+    if (nombre.length < 2) throw new Error('Escribe a nombre de quién apartamos la mesa.');
+    if (tel && (tel.length < 10 || tel.length > 13)) throw new Error('Revisa tu número de WhatsApp (10 dígitos) o déjalo vacío.');
     if (!p.items || !p.items.length || p.items.length > 12) throw new Error('El pedido debe tener entre 1 y 12 productos.');
-    return { nombre, tel, notas: String(p.notas || '').trim().slice(0, 1000) };
+    return Object.assign({ nombre, notas: String(p.notas || '').trim().slice(0, 1000) }, tel ? { tel } : {});
   }
 
   // ---------- Firebase ----------
@@ -127,10 +128,8 @@ fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:va
       .sort((a, b) => a.creado - b.creado || (a.key < b.key ? -1 : 1));
     return Object.assign({}, p, { id: t, token: t, notas: p.notas || '', items: Object.values(p.items || {}).map((it, i) => Object.assign({ cantidad: 1 }, it, { pos: i + 1 })), eventos: ev.map((e, i) => Object.assign(e, { id: i + 1 })) });
   }
-  const AUTH_ERR = { EMAIL_EXISTS: 'Ese correo ya tiene cuenta. Entra con tu contraseña.', EMAIL_NOT_FOUND: 'Correo o contraseña incorrectos.', INVALID_PASSWORD: 'Correo o contraseña incorrectos.',
-    INVALID_LOGIN_CREDENTIALS: 'Correo o contraseña incorrectos.', INVALID_EMAIL: 'Revisa el correo.', MISSING_PASSWORD: 'Escribe tu contraseña.', USER_DISABLED: 'Esta cuenta está desactivada.' };
-  const authErr = e => new Error(/WEAK_PASSWORD/.test(e.code) ? 'La contraseña debe tener al menos 6 caracteres.' : /TOO_MANY_ATTEMPTS/.test(e.code) ? 'Demasiados intentos. Espera unos minutos.' : AUTH_ERR[e.code] || e.message);
-  const PENDIENTE = 'Tu cuenta ya existe, pero falta que el administrador de DAZK te dé acceso al taller.';
+  const ACCESO = 'acceso@dazk-pedidos.firebaseapp.com', quien = () => load('dazk-quien', '');
+  const codigoOk = c => { if (!/^[0-9]{8}$/.test(String(c))) throw new Error('El código son 8 números.'); };
   const real = {
     async crearPedido(p) {
       const c = cliente(p);
@@ -153,26 +152,24 @@ fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:va
       await db('pedidos/' + t + '/eventos', 'POST', { creado: TS, autor: 'cliente', autor_nombre: nombre, tipo: 'mensaje', texto: String(texto).slice(0, 2000) });
       await db('pedidos/' + t + '/actualizado', 'PUT', TS);
     },
-    async login(email, pass) {
-      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email, password: pass, returnSecureToken: true })); } catch (e) { throw authErr(e); }
-      const me = await this.yo(); if (!me) throw new Error(PENDIENTE);
+    async login(codigo, nombre) {
+      codigoOk(codigo); nombre = String(nombre || '').trim().slice(0, 60); if (nombre.length < 2) throw new Error('Escribe tu nombre: así queda en el historial quién hizo cada cosa.');
+      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email: ACCESO, password: codigo, returnSecureToken: true })); }
+      catch (e) { throw new Error(/TOO_MANY_ATTEMPTS/.test(e.code) ? 'Demasiados intentos. Espera unos minutos.' : e.status ? 'Código incorrecto.' : e.message); }
+      save('dazk-quien', nombre);
+      const me = await this.yo(); if (!me) { setSes(null); throw new Error('Este código no tiene acceso al taller.'); }
       return me;
     },
-    // each person creates their own account; the very first one becomes the administrator, the rest wait for approval
-    async registrar(nombre, email, pass) {
-      nombre = String(nombre || '').trim().slice(0, 60); if (nombre.length < 2) throw new Error('Escribe tu nombre.');
-      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signUp', { email, password: pass, returnSecureToken: true })); } catch (e) { throw authErr(e); }
-      try { await db('staff/' + ses.uid, 'PUT', { nombre, rol: 'admin', email }, true); return this.yo(); }
-      catch (e) { if (!denied(e)) throw e; }
-      await db('solicitudes/' + ses.uid, 'PUT', { nombre, email }, true);
-      throw new Error(PENDIENTE);
+    async cambiarCodigo(codigo) {
+      codigoOk(codigo);
+      try { const j = await idp('identitytoolkit.googleapis.com/v1/accounts:update', { idToken: await idToken(), password: codigo, returnSecureToken: true }); setSes(Object.assign({ email: ACCESO }, j)); }
+      catch (e) { throw new Error(/CREDENTIAL_TOO_OLD|TOKEN_EXPIRED/.test(e.code) ? 'Por seguridad, sal y vuelve a entrar con el código actual antes de cambiarlo.' : e.message); }
     },
-    async recuperar(email) { try { await idp('identitytoolkit.googleapis.com/v1/accounts:sendOobCode', { requestType: 'PASSWORD_RESET', email }); } catch (e) { throw authErr(e); } },
     logout() { setSes(null); },
     async yo() {
       if (!ses) return null;
-      if (!yoCache) { const s = await db('staff/' + ses.uid, 'GET', undefined, true).catch(e => { if (denied(e)) return null; throw e; }); yoCache = s && Object.assign({ uid: ses.uid }, s); }
-      return yoCache;
+      if (!yoCache) { const s = await db('staff/' + ses.uid, 'GET', undefined, true).catch(e => { if (denied(e)) return null; throw e; }); yoCache = s && { uid: ses.uid, rol: s.rol }; }
+      return yoCache && Object.assign({ nombre: quien() || 'DAZK' }, yoCache);
     },
     async listar() {
       const [ps, ns, fs] = await Promise.all(['pedidos', 'interno', 'fichas'].map(n => db(n, 'GET', undefined, true)));
@@ -196,14 +193,6 @@ fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:va
     // one record per visit to the client page (no personal data unless that device already sent an order); only staff can read them
     async visita(id, data, primera) { await db('visitas/' + id, 'PATCH', Object.assign({ ult: TS }, primera ? { t: TS } : {}, data)); },
     async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=300&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
-    async equipo() {
-      const [st, so] = await Promise.all([db('staff', 'GET', undefined, true), db('solicitudes', 'GET', undefined, true)]);
-      const list = o => Object.entries(o || {}).map(([uid, v]) => Object.assign({ uid }, v));
-      return { staff: list(st), solicitudes: list(so) };
-    },
-    async aprobar(s) { await db('staff/' + s.uid, 'PUT', { nombre: s.nombre, rol: 'taller', email: s.email || '' }, true); await db('solicitudes/' + s.uid, 'DELETE', undefined, true); },
-    async rechazar(uid) { await db('solicitudes/' + uid, 'DELETE', undefined, true); },
-    async quitar(uid) { await db('staff/' + uid, 'DELETE', undefined, true); },
   };
 
   // ---------- demo (this browser only) ----------
@@ -228,9 +217,8 @@ fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:va
       return sortP(Object.assign({}, p, { eventos: p.eventos.filter(e => !e.interno) }));
     },
     async clienteMensaje(t, texto) { edit(x => x.token === t, (p, ev) => ev({ autor: 'cliente', autor_nombre: p.nombre, tipo: 'mensaje', texto })); },
-    async login(email) { const me = { nombre: String(email).split('@')[0] || 'Demo', rol: 'taller' }; save('dazk-demo-yo', me); return me; },
-    async registrar(nombre, email) { return this.login(nombre || email); },
-    async recuperar() {},
+    async login(codigo, nombre) { codigoOk(codigo); nombre = String(nombre || '').trim(); if (nombre.length < 2) throw new Error('Escribe tu nombre.'); const me = { nombre, rol: 'admin' }; save('dazk-demo-yo', me); return me; },
+    async cambiarCodigo(codigo) { codigoOk(codigo); },
     logout() { save('dazk-demo-yo', null); },
     async yo() { return who(); },
     async listar() { return ddb().pedidos.map(sortP).sort((a, b) => b.actualizado.localeCompare(a.actualizado)); },
@@ -358,23 +346,17 @@ window.addEventListener('DOMContentLoaded', function () {
   const espera = p => { const v = p.eventos.filter(e => !e.interno); return v.length && v[v.length - 1].autor === 'cliente'; };
   const cerrado = p => p.estado === 'entregado' || p.estado === 'cancelado';
 
-  // sign in, or create your own account (the first account becomes the administrator; the rest wait for approval)
-  function login(msg, nuevo) {
-    main.innerHTML = `<span class="k">Taller DAZK</span><h1>${nuevo ? 'Crear mi <em>cuenta.</em>' : 'Entrar al <em>sistema.</em>'}</h1>
-      ${A.demo ? '<p class="note">Modo demo: entra con cualquier correo. Los pedidos son solo los de este navegador.</p>' : nuevo ? '<p class="lead">Cada persona del taller crea su cuenta con su correo y su propia contraseña. El administrador le da acceso.</p>' : ''}
-      <form id="l-form" class="card">${nuevo ? '<label for="l-nom">Tu nombre<input type="text" id="l-nom" autocomplete="name" maxlength="60" required></label>' : ''}
-      <label for="l-mail">Correo<input type="email" id="l-mail" autocomplete="username" required></label>
-      <label for="l-pass">Contraseña${nuevo ? ' (mínimo 6 caracteres)' : ''}<input type="password" id="l-pass" autocomplete="${nuevo ? 'new-password' : 'current-password'}" required></label>
-      <p class="err" id="l-err" role="alert" ${msg ? '' : 'hidden'}>${esc(msg || '')}</p><button class="btn gold" type="submit">${nuevo ? 'Crear mi cuenta' : 'Entrar'}</button></form>
-      ${A.demo ? '' : `<p class="alt"><button type="button" id="l-sw">${nuevo ? 'Ya tengo cuenta' : 'Crear mi cuenta'}</button>${nuevo ? '' : ' · <button type="button" id="l-rec">Olvidé mi contraseña</button>'}</p>`}`;
-    const say = t => { $('#l-err').textContent = t; $('#l-err').hidden = false; };
-    if ($('#l-sw')) $('#l-sw').onclick = () => login('', !nuevo);
-    if ($('#l-rec')) $('#l-rec').onclick = async () => { const m = $('#l-mail').value.trim(); if (!m) { say('Escribe tu correo arriba y vuelve a tocar "Olvidé mi contraseña".'); return $('#l-mail').focus(); }
-      try { await A.recuperar(m); say('Si ese correo tiene cuenta, te llegó un mensaje para cambiar tu contraseña.'); } catch (e) { say(e.message); } };
+  // the workshop enters with the 8-digit code; the name signs what each person does in the history
+  function login(msg) {
+    main.innerHTML = `<span class="k">Taller DAZK</span><h1>Entrar al <em>taller.</em></h1>
+      ${A.demo ? '<p class="note">Modo demo: cualquier código de 8 números entra. Los pedidos son solo los de este navegador.</p>' : ''}
+      <form id="l-form" class="card"><label for="l-code">Código de acceso<input type="password" id="l-code" inputmode="numeric" autocomplete="current-password" maxlength="8" pattern="[0-9]{8}" placeholder="8 números" required></label>
+      <label for="l-nom">Tu nombre<input type="text" id="l-nom" autocomplete="name" maxlength="60" required value="${esc(A.load('dazk-quien', ''))}"></label>
+      <p class="err" id="l-err" role="alert" ${msg ? '' : 'hidden'}>${esc(msg || '')}</p><button class="btn gold" type="submit">Entrar</button></form>`;
     $('#l-form').addEventListener('submit', async ev => {
       ev.preventDefault(); const b = ev.target.querySelector('button'); b.disabled = true;
-      try { me = nuevo ? await A.registrar($('#l-nom').value, $('#l-mail').value.trim(), $('#l-pass').value) : await A.login($('#l-mail').value.trim(), $('#l-pass').value); await reload(); }
-      catch (e) { say(e.message); b.disabled = false; }
+      try { me = await A.login($('#l-code').value.trim(), $('#l-nom').value); await reload(); }
+      catch (e) { $('#l-err').textContent = e.message; $('#l-err').hidden = false; b.disabled = false; }
     });
   }
   async function reload(quiet) {
@@ -382,7 +364,7 @@ window.addEventListener('DOMContentLoaded', function () {
     const sig = JSON.stringify(all.map(p => [p.id, p.estado, p.eventos.length])); if (quiet && sig === last) return; last = sig;
     render();
   }
-  function render() { $('#who').innerHTML = `${esc(me.nombre)} · <a href="#visitas">Visitas</a>${me.rol === 'admin' ? ' · <a href="#equipo">Equipo</a>' : ''} · <button type="button" id="out">Salir</button>`; $('#out').onclick = () => { A.logout(); me = null; $('#who').textContent = ''; login(); }; location.hash === '#visitas' ? visitas() : location.hash === '#equipo' && me.rol === 'admin' ? equipo() : openId() ? detail() : list(); }
+  function render() { $('#who').innerHTML = `${esc(me.nombre)} · <a href="#visitas">Visitas</a> · <a href="#codigo">Código</a> · <button type="button" id="out">Salir</button>`; $('#out').onclick = () => { A.logout(); me = null; $('#who').textContent = ''; login(); }; location.hash === '#visitas' ? visitas() : location.hash === '#codigo' ? codigo() : openId() ? detail() : list(); }
 
   function list() {
     const F = [['abiertos', 'Abiertos', p => !cerrado(p)], ['espera', 'Por responder', p => !cerrado(p) && espera(p)]].concat(A.ESTADOS.map(e => [e[0], e[1], p => p.estado === e[0]]));
@@ -405,9 +387,9 @@ window.addEventListener('DOMContentLoaded', function () {
     const link = A.seguimiento(p.token), first = esc(p.nombre.split(' ')[0]);
     const wa = `https://wa.me/${A.waNum(p.tel)}?text=${encodeURIComponent(`Hola ${p.nombre.split(' ')[0]}, te escribimos de DAZK sobre tu pedido #${p.folio}. Aquí puedes ver el avance y respondernos: ${link}`)}`;
     main.innerHTML = `<a class="back" href="#">‹ Pedidos</a><span class="k">Pedido #${esc(p.folio)} · ${A.fecha(p.creado)}</span><h1>${esc(p.nombre)}</h1>
-      <p class="lead">WhatsApp <a href="https://wa.me/${A.waNum(p.tel)}" target="_blank" rel="noopener">${esc(p.tel)}</a></p>
+      <p class="lead">${p.tel ? `WhatsApp <a href="https://wa.me/${A.waNum(p.tel)}" target="_blank" rel="noopener">${esc(p.tel)}</a>` : 'No dejó WhatsApp: contéstale aquí y lo verá en su link de seguimiento.'}</p>
       <div class="card"><label for="estado">Estado del pedido<select id="estado">${A.ESTADOS.map(e => `<option value="${e[0]}" ${e[0] === p.estado ? 'selected' : ''}>${e[1]}</option>`).join('')}</select></label>
-        <div class="two"><a class="btn wa" href="${esc(wa)}" target="_blank" rel="noopener">Avisar a ${first} por WhatsApp</a><a class="btn" href="${esc(link)}" target="_blank" rel="noopener">Ver como cliente</a></div></div>
+        <div class="two">${p.tel ? `<a class="btn wa" href="${esc(wa)}" target="_blank" rel="noopener">Avisar a ${first} por WhatsApp</a>` : ''}<a class="btn" href="${esc(link)}" target="_blank" rel="noopener">Ver como cliente</a></div></div>
       <section><span class="k">Productos</span>${p.items.map((it, i) => `<article class="card"><h3>${it.cantidad > 1 ? esc(it.cantidad) + ' × ' : ''}${esc(it.titulo)}</h3>
         <dl class="specs">${(it.specs || []).map(s => `<div><dt>${esc(s[0])}</dt><i></i><dd>${esc(s[1])}</dd></div>`).join('')}</dl>
         ${/^https?:\/\//.test(it.link || '') ? `<a class="link" href="${esc(it.link)}" target="_blank" rel="noopener">Abrir el diseño en 3D →</a>` : ''}
@@ -446,21 +428,19 @@ window.addEventListener('DOMContentLoaded', function () {
         <span>${esc(USO[x.uso] || 'Sin elegir')}${x.modelo ? ' · modelo ' + esc(x.modelo.charAt(0).toUpperCase() + x.modelo.slice(1)) : ''} · ${PASO[x.paso] || PASO[0]}</span>
         <span class="meta">${A.fecha(x.t)} · ${esc(x.disp || '')} · llegó por: ${esc(x.origen || 'directo')}${x.ult - x.t > 60000 ? ' · estuvo ' + Math.round((x.ult - x.t) / 60000) + ' min' : ''}</span></a></li>`).join('')}</ul>` : '<p class="lead" id="v-list">Todavía no hay visitas registradas.</p>'}</section>`;
   }
-  // administrator: who can enter the workshop panel
-  async function equipo() {
-    main.innerHTML = '<a class="back" href="#">‹ Pedidos</a><span class="k">Taller DAZK</span><h1>Equipo</h1><p class="lead">Cargando…</p>';
-    let d; try { d = await A.equipo(); } catch (e) { main.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
-    const link = location.href.split('#')[0];
-    main.innerHTML = `<a class="back" href="#">‹ Pedidos</a><span class="k">Taller DAZK</span><h1>Equipo</h1>
-      <p class="lead">Para sumar a alguien, pásale este link y que toque "Crear mi cuenta": <b>${esc(link)}</b>. Después aparece aquí para que lo apruebes.</p>
-      <section><span class="k">Esperando acceso</span>${d.solicitudes.length ? d.solicitudes.map(s => `<div class="card"><h3>${esc(s.nombre)}</h3><p class="lead">${esc(s.email)}</p>
-        <div class="two"><button type="button" class="btn gold" data-ok="${esc(s.uid)}">Dar acceso</button><button type="button" class="btn" data-no="${esc(s.uid)}">Rechazar</button></div></div>`).join('') : '<p class="lead">Nadie por ahora.</p>'}</section>
-      <section><span class="k">Con acceso</span>${d.staff.map(s => `<div class="card"><h3>${esc(s.nombre)}${s.rol === 'admin' ? ' · administrador' : ''}</h3><p class="lead">${esc(s.email || '')}</p>
-        ${s.uid === me.uid || s.rol === 'admin' ? '' : `<button type="button" class="btn" data-rm="${esc(s.uid)}">Quitar acceso</button>`}</div>`).join('')}</section>`;
-    const act = (sel, key, fn) => main.querySelectorAll(sel).forEach(b => b.onclick = async () => { b.disabled = true; try { await fn(b.dataset[key]); } catch (e) { alert(e.message); } equipo(); });
-    act('[data-ok]', 'ok', uid => A.aprobar(d.solicitudes.find(s => s.uid === uid)));
-    act('[data-no]', 'no', uid => A.rechazar(uid));
-    act('[data-rm]', 'rm', uid => A.quitar(uid));
+  // change the shared code (everyone else uses the new one from then on)
+  function codigo() {
+    main.innerHTML = `<a class="back" href="#">‹ Pedidos</a><span class="k">Taller DAZK</span><h1>Código de <em>acceso.</em></h1>
+      <p class="lead">Todos los de DAZK entran con el mismo código de 8 números. Si alguien deja de trabajar con ustedes, cámbialo y pásale el nuevo solo a quien deba entrar.</p>
+      <form id="c-form" class="card"><label for="c-1">Nuevo código<input type="password" id="c-1" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" autocomplete="new-password" required></label>
+      <label for="c-2">Repítelo<input type="password" id="c-2" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" autocomplete="new-password" required></label>
+      <p class="err" id="c-err" role="alert" hidden></p><button class="btn gold" type="submit">Cambiar código</button></form>`;
+    $('#c-form').addEventListener('submit', async ev => {
+      ev.preventDefault(); const b = ev.target.querySelector('button'), say = t => { $('#c-err').textContent = t; $('#c-err').hidden = false; };
+      if ($('#c-1').value !== $('#c-2').value) return say('Los dos códigos no coinciden.');
+      b.disabled = true;
+      try { await A.cambiarCodigo($('#c-1').value.trim()); ev.target.outerHTML = '<p class="note">Listo. Desde ahora se entra con el código nuevo.</p>'; } catch (e) { say(e.message); b.disabled = false; }
+    });
   }
   window.addEventListener('hashchange', () => { draft = ''; if (me) render(); window.scrollTo(0, 0); });
   setInterval(() => { if (me && !document.hidden) reload(true); }, 30000);

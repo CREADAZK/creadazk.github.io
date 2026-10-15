@@ -23,7 +23,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .mis{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--g);text-underline-offset:4px}.mis[hidden]{display:none}
 .top .mis{margin-left:auto}.top .mis:not([hidden])+.cta{margin-left:0}
 .models button[hidden]{display:none}
-#p-box .ficha,#p-ok{margin-top:14px}
+#p-box .ficha,#p-ok,#resenas{margin-top:14px}#resenas[hidden]{display:none}
+.avg{display:flex;align-items:baseline;gap:8px;color:var(--g);font-size:15px;margin-bottom:10px}.avg b{font:400 30px/1 var(--serif);color:var(--ink)}.avg span{color:var(--mut);font-size:12.5px}
+.rs{display:flex;gap:10px;overflow-x:auto;margin:0 -16px;padding:0 16px 6px;scroll-snap-type:x mandatory;scrollbar-width:none}.rs::-webkit-scrollbar{display:none}
+.rs figure{flex:none;width:min(78vw,280px);scroll-snap-align:start;border:1px solid var(--line);padding:14px;background:rgba(194,162,115,.05)}
+.rs .st{color:var(--g);letter-spacing:.1em}.rs blockquote{font:300 18px/1.35 var(--serif);margin:8px 0}.rs figcaption{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
 #cart{list-style:none}#cart li{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14.5px}
 #cart li span{flex:1;min-width:0}#cart small{display:block;font-size:11.5px;color:var(--mut)}#cart li.cur span{color:var(--g2)}
 #cart button{font-size:12px;color:var(--mut);text-decoration:underline;text-underline-offset:3px;min-height:36px}
@@ -238,6 +242,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
           <button type="button" class="btn" data-share><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M12 15V3m0 0-4 4m4-4 4 4M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg>Compartir mi diseño</button>
           <button type="button" class="btn" id="pdf"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>Descargar PDF de mi mesa</button></div>
         <p class="small">La vista 3D es ilustrativa. Medida, piedra y detalles se confirman contigo antes de fabricar.</p></div>
+      <div class="ficha" id="resenas" hidden></div>
       <div id="p-box">
         <div class="ficha"><span class="k">Tu pedido</span><ul id="cart"></ul>
           <div class="acts"><button type="button" class="btn" id="add-more">+ Agregar otra mesa o periquera</button></div>
@@ -1079,12 +1084,22 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
   const waNum = t => { const d = digits(t); return d.length === 10 ? '52' + d : d; };
   const sortP = p => { p.items = (p.items || []).slice().sort((a, b) => a.pos - b.pos); p.eventos = (p.eventos || []).slice().sort((a, b) => a.id - b.id); return p; };
   const rnd = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+  // where a visitor came from, as a short channel name: a campaign link (?c=instagram) or the site that sent them
+  function canalDe(x) {
+    const s = String(x || '').toLowerCase();
+    if (/instagram/.test(s)) return 'instagram'; if (/facebook|fb\.(com|me)|messenger/.test(s)) return 'facebook'; if (/whatsapp|wa\.me/.test(s)) return 'whatsapp';
+    if (/tiktok/.test(s)) return 'tiktok'; if (/google/.test(s)) return 'google'; if (s === 'link compartido') return 'compartido';
+    return s.replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 30);
+  }
+  // first name and last initial for public reviews
+  const corto = n => { const w = String(n).trim().split(/\s+/); return w[0] + (w[1] ? ' ' + w[1][0].toUpperCase() + '.' : ''); };
   function cliente(p) {
     const nombre = String(p.nombre || '').trim().slice(0, 80), tel = digits(p.tel);
     if (nombre.length < 2) throw new Error('Escribe a nombre de quién apartamos la mesa.');
     if (tel && (tel.length < 10 || tel.length > 13)) throw new Error('Revisa tu número de WhatsApp (10 dígitos) o déjalo vacío.');
     if (!p.items || !p.items.length || p.items.length > 12) throw new Error('El pedido debe tener entre 1 y 12 productos.');
-    return Object.assign({ nombre, notas: String(p.notas || '').trim().slice(0, 1000) }, tel ? { tel } : {});
+    const canal = canalDe(p.canal);
+    return Object.assign({ nombre, notas: String(p.notas || '').trim().slice(0, 1000) }, tel ? { tel } : {}, canal ? { canal } : {});
   }
 
   // ---------- Firebase ----------
@@ -1163,13 +1178,29 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
       return yoCache && Object.assign({ nombre: quien() || 'DAZK' }, yoCache);
     },
     async listar() {
-      const [ps, ns, fs] = await Promise.all(['pedidos', 'interno', 'fichas'].map(n => db(n, 'GET', undefined, true)));
-      return Object.entries(ps || {}).map(([t, p]) => Object.assign(shape(t, p, (ns || {})[t]), { fichas: (fs || {})[t] || {} })).sort((a, b) => b.actualizado - a.actualizado);
+      const [ps, ns, fs, rp] = await Promise.all(['pedidos', 'interno', 'fichas', 'resenas_publicas'].map(n => db(n, 'GET', undefined, true)));
+      return Object.entries(ps || {}).map(([t, p]) => Object.assign(shape(t, p, (ns || {})[t]), { fichas: (fs || {})[t] || {}, resenaPublica: !!(rp || {})[t] })).sort((a, b) => b.actualizado - a.actualizado);
     },
     async staffMensaje(id, texto, interno) {
       const me = await this.yo(), ev = { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: interno ? 'nota' : 'mensaje', texto: String(texto).slice(0, 4000) };
       await db((interno ? 'interno/' + id : 'pedidos/' + id + '/eventos'), 'POST', ev, true);
       await db('pedidos/' + id + '/actualizado', 'PUT', TS, true);
+    },
+    // the quote the client sees in their link; sending it marks the order as quoted
+    async enviarCotizacion(id, cot) {
+      const me = await this.yo(), k = Date.now().toString(36) + rnd().slice(0, 6);
+      await db('pedidos/' + id, 'PATCH', { cotizacion: Object.assign({}, cot, { enviada: TS }), estado: 'cotizado', actualizado: TS,
+        ['eventos/' + k]: { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: 'estado', texto: 'Cotizado' },
+        ['eventos/' + k + 'm']: { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: 'mensaje', texto: 'Te enviamos tu cotización. Revísala arriba y, si estás de acuerdo, toca «Acepto la cotización».' } }, true);
+    },
+    async dejarResena(t, r) { await db('pedidos/' + t, 'PATCH', { resena: Object.assign({}, r, { creado: TS }), actualizado: TS }); },
+    async publicarResena(p) { await db('resenas_publicas/' + p.id, 'PUT', { nombre: corto(p.nombre), estrellas: p.resena.estrellas, texto: p.resena.texto || '', fecha: TS }, true); },
+    async quitarResena(id) { await db('resenas_publicas/' + id, 'DELETE', undefined, true); },
+    async resenas() { return Object.values((await jfetch(FB.db + '/resenas_publicas.json?orderBy=' + encodeURIComponent('"fecha"') + '&limitToLast=12')) || {}).sort((a, b) => b.fecha - a.fecha); },
+    async aceptarCotizacion(p) {
+      const k = Date.now().toString(36) + rnd().slice(0, 6);
+      await db('pedidos/' + p.token, 'PATCH', Object.assign({ 'cotizacion/aceptada': TS, actualizado: TS,
+        ['eventos/' + k]: { creado: TS, autor: 'cliente', autor_nombre: p.nombre, tipo: 'acepto', texto: 'Aceptó la cotización.' } }, p.estado === 'cotizado' ? { estado: 'confirmado' } : {}));
     },
     async staffEstado(id, est) {
       const me = await this.yo();
@@ -1183,7 +1214,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
     },
     // one record per visit to the client page (no personal data unless that device already sent an order); only staff can read them
     async visita(id, data, primera) { await db('visitas/' + id, 'PATCH', Object.assign({ ult: TS }, primera ? { t: TS } : {}, data)); },
-    async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=300&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
+    async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=1000&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
   };
 
   // ---------- demo (this browser only) ----------
@@ -1212,17 +1243,25 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
     async cambiarCodigo(codigo) { codigoOk(codigo); },
     logout() { save('dazk-demo-yo', null); },
     async yo() { return who(); },
-    async listar() { return ddb().pedidos.map(sortP).sort((a, b) => b.actualizado.localeCompare(a.actualizado)); },
+    async listar() { const rp = load('dazk-demo-resenas', {}); return ddb().pedidos.map(p => Object.assign(sortP(p), { resenaPublica: !!rp[p.id] })).sort((a, b) => b.actualizado.localeCompare(a.actualizado)); },
     async staffMensaje(id, texto, interno) { edit(x => x.id === id, (p, ev) => ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: interno ? 'nota' : 'mensaje', texto, interno: !!interno })); },
     async guardarFicha(id, key, data, nota) { edit(x => x.id === id, (p, ev) => { p.fichas = p.fichas || {}; p.fichas[key] = data; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'nota', texto: nota, interno: true }); }); },
     async visita(id, data, primera) { const d = load('dazk-demo-visitas', {}); d[id] = Object.assign({}, d[id], primera ? { t: Date.now() } : {}, { ult: Date.now() }, data); save('dazk-demo-visitas', d); },
     async visitas() { return Object.values(load('dazk-demo-visitas', {})).sort((a, b) => b.t - a.t); },
+    async enviarCotizacion(id, cot) { edit(x => x.id === id, (p, ev) => { p.cotizacion = Object.assign({}, cot, { enviada: Date.now() }); p.estado = 'cotizado'; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: 'Cotizado' }); ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'mensaje', texto: 'Te enviamos tu cotización. Revísala arriba y, si estás de acuerdo, toca «Acepto la cotización».' }); }); },
+    async dejarResena(t, r) { edit(x => x.token === t, p => { p.resena = Object.assign({}, r, { creado: Date.now() }); }); },
+    async publicarResena(q) { const d = load('dazk-demo-resenas', {}); d[q.id] = { nombre: corto(q.nombre), estrellas: q.resena.estrellas, texto: q.resena.texto || '', fecha: Date.now() }; save('dazk-demo-resenas', d); },
+    async quitarResena(id) { const d = load('dazk-demo-resenas', {}); delete d[id]; save('dazk-demo-resenas', d); },
+    async resenas() { return Object.values(load('dazk-demo-resenas', {})).sort((a, b) => b.fecha - a.fecha); },
+    async aceptarCotizacion(q) { edit(x => x.token === q.token, (p, ev) => { p.cotizacion.aceptada = Date.now(); if (p.estado === 'cotizado') p.estado = 'confirmado'; ev({ autor: 'cliente', autor_nombre: p.nombre, tipo: 'acepto', texto: 'Aceptó la cotización.' }); }); },
     async staffEstado(id, est) { edit(x => x.id === id, (p, ev) => { p.estado = est; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: estado(est) }); }); },
   };
 
-  window.DAZK_API = Object.assign(FB ? real : demo, { demo: !FB, rnd, ESTADOS, estado, waNum, load, save,
+  window.DAZK_API = Object.assign(FB ? real : demo, { demo: !FB, rnd, canal: canalDe, ESTADOS, estado, waNum, load, save,
     esc: s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
     fecha: t => new Date(t).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+    pesos: n => '$' + Number(n).toLocaleString('es-MX', { maximumFractionDigits: 2 }),
+    dia: d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
     seguimiento: t => new URL('pedido.html#t=' + t, location.href).href });
 })();
 </script><script>/* DAZK · the order on the "Cotizar" step: several pieces, chairs and stools, the client's name and WhatsApp, and sending it to the workshop. */
@@ -1286,7 +1325,7 @@ window.addEventListener('DOMContentLoaded', function () {
     if (tel && (tel.length < 10 || tel.length > 13)) return fail('Tu WhatsApp debe tener 10 dígitos, o déjalo vacío.', $('#p-tel'));
     const its = items(), label = btn.textContent; btn.disabled = true; btn.textContent = 'Enviando…';
     try {
-      const r = await A.crearPedido({ nombre, tel, notas: $('#notas').value, items: its });
+      const r = await A.crearPedido({ nombre, tel, notas: $('#notas').value, items: its, canal: A.load('dazk-canal', '') });
       A.save('dazk-yo', Object.assign({ nombre }, tel ? { tel } : {}));
       A.save('dazk-pedidos', [{ folio: r.folio, token: r.token, fecha: new Date().toISOString() }].concat(mine()));
       cart = []; A.save('dazk-cart', cart); if (window.DAZK_VISITA) window.DAZK_VISITA(r.folio);
@@ -1304,12 +1343,22 @@ window.addEventListener('DOMContentLoaded', function () {
   $('#ok-new').addEventListener('click', () => { $('#p-ok').hidden = true; $('#p-box').hidden = false; extra.sillas = extra.bancos = 0; draw(); window.DAZK_WELCOME(''); });
   draw();
 
+  // ---- reviews from real clients, published by DAZK ----
+  A.resenas().then(l => {
+    if (!l.length) return;
+    const avg = l.reduce((s, r) => s + r.estrellas, 0) / l.length, st = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+    const box = $('#resenas'); box.hidden = false;
+    box.innerHTML = `<span class="k">Lo que dicen nuestros clientes</span><p class="avg"><b>${avg.toFixed(1).replace('.', ',')}</b> ${st(Math.round(avg))} <span>${l.length} ${l.length === 1 ? 'opinión' : 'opiniones'}</span></p>
+      <div class="rs">${l.map(r => `<figure><div class="st">${st(r.estrellas)}</div>${r.texto ? `<blockquote>${esc(r.texto)}</blockquote>` : ''}<figcaption>${esc(r.nombre)}</figcaption></figure>`).join('')}</div>`;
+  }).catch(() => {});
+
   // ---- visit log for the workshop panel: device, where they came from, what they looked at and how far they got ----
   (function () {
     if (A.load('dazk-ses', null) || A.load('dazk-demo-yo', null) || navigator.webdriver && !window.DAZK_TEST) return; // staff browsing their own site are not visitors
     let v = A.load('dazk-v', null); if (!v) { v = A.rnd(); A.save('dazk-v', v); }
     const id = A.rnd(), w = Math.min(screen.width, screen.height), ref = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : '';
-    const origen = window.DAZK_SHARED ? 'link compartido' : !ref || ref === location.hostname ? 'directo' : ref.slice(0, 60);
+    const camp = new URLSearchParams(location.search).get('c'), origen = A.canal(camp || (window.DAZK_SHARED ? 'link compartido' : !ref || ref === location.hostname ? 'directo' : ref)) || 'directo';
+    if (!A.load('dazk-canal', '')) A.save('dazk-canal', origen); // first touch: the channel that brought them gets the sale
     let sent = { paso: -1 }, first = true, folio = 0;
     function push() {
       const st = window.DAZK_STATE(), paso = [...document.querySelectorAll('.step')].findIndex(s => !s.hidden), nombre = (A.load('dazk-yo', {}).nombre || '').slice(0, 80);

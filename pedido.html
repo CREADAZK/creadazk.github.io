@@ -64,6 +64,11 @@ fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:va
 .ok{margin-top:14px;padding:10px 12px;border-left:2px solid var(--wa);background:rgba(37,211,102,.1);font-size:14.5px}
 @media print{body:has(#cot)>*:not(main),body:has(#cot) main>*:not(#cot),#cot .btn,#cot .lead,#cot .two,#cot .err,#cot>.k{display:none!important}
 body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;color:#000;padding:0}#cot *{color:#000!important}#cot dl.specs i{border-color:#999}}
+.funnel .fl{display:grid;grid-template-columns:minmax(110px,38%) 1fr 44px 44px;align-items:center;gap:8px;padding:6px 0;font-size:13.5px}.funnel .fl i{display:block;height:10px;background:var(--g);min-width:2px}
+.funnel .fl b{font:400 20px/1 var(--serif);text-align:right}.funnel .fl em{font-style:normal;font-size:12px;color:var(--mut);text-align:right}
+.canales{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0 10px}.canal{padding:12px}.canal h3{font-size:18px}.canal .two{grid-template-columns:1fr;gap:0}.canal .btn{min-height:44px;margin-top:8px;font-size:11px;letter-spacing:.1em}.canal code{display:block;font-size:12px;color:var(--mut);overflow-wrap:anywhere;margin:4px 0 10px}
+.qr{background:#fff;padding:8px;width:120px;margin:0 auto}.qr img,.qr canvas{width:100%!important;height:auto!important;display:block}
+.stars{display:flex;gap:6px}.stars button{font-size:34px;line-height:1;color:var(--line);min-width:44px;min-height:44px}.stars button.on{color:var(--g)}
 #print{display:none}
 @media print{html,body{background:#fff!important}body>*:not(#print){display:none!important}
 #print{display:block;color:#000;font:13px/1.4 Arial,sans-serif;padding:0}
@@ -93,12 +98,22 @@ body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;col
   const waNum = t => { const d = digits(t); return d.length === 10 ? '52' + d : d; };
   const sortP = p => { p.items = (p.items || []).slice().sort((a, b) => a.pos - b.pos); p.eventos = (p.eventos || []).slice().sort((a, b) => a.id - b.id); return p; };
   const rnd = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+  // where a visitor came from, as a short channel name: a campaign link (?c=instagram) or the site that sent them
+  function canalDe(x) {
+    const s = String(x || '').toLowerCase();
+    if (/instagram/.test(s)) return 'instagram'; if (/facebook|fb\.(com|me)|messenger/.test(s)) return 'facebook'; if (/whatsapp|wa\.me/.test(s)) return 'whatsapp';
+    if (/tiktok/.test(s)) return 'tiktok'; if (/google/.test(s)) return 'google'; if (s === 'link compartido') return 'compartido';
+    return s.replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 30);
+  }
+  // first name and last initial for public reviews
+  const corto = n => { const w = String(n).trim().split(/\s+/); return w[0] + (w[1] ? ' ' + w[1][0].toUpperCase() + '.' : ''); };
   function cliente(p) {
     const nombre = String(p.nombre || '').trim().slice(0, 80), tel = digits(p.tel);
     if (nombre.length < 2) throw new Error('Escribe a nombre de quién apartamos la mesa.');
     if (tel && (tel.length < 10 || tel.length > 13)) throw new Error('Revisa tu número de WhatsApp (10 dígitos) o déjalo vacío.');
     if (!p.items || !p.items.length || p.items.length > 12) throw new Error('El pedido debe tener entre 1 y 12 productos.');
-    return Object.assign({ nombre, notas: String(p.notas || '').trim().slice(0, 1000) }, tel ? { tel } : {});
+    const canal = canalDe(p.canal);
+    return Object.assign({ nombre, notas: String(p.notas || '').trim().slice(0, 1000) }, tel ? { tel } : {}, canal ? { canal } : {});
   }
 
   // ---------- Firebase ----------
@@ -177,8 +192,8 @@ body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;col
       return yoCache && Object.assign({ nombre: quien() || 'DAZK' }, yoCache);
     },
     async listar() {
-      const [ps, ns, fs] = await Promise.all(['pedidos', 'interno', 'fichas'].map(n => db(n, 'GET', undefined, true)));
-      return Object.entries(ps || {}).map(([t, p]) => Object.assign(shape(t, p, (ns || {})[t]), { fichas: (fs || {})[t] || {} })).sort((a, b) => b.actualizado - a.actualizado);
+      const [ps, ns, fs, rp] = await Promise.all(['pedidos', 'interno', 'fichas', 'resenas_publicas'].map(n => db(n, 'GET', undefined, true)));
+      return Object.entries(ps || {}).map(([t, p]) => Object.assign(shape(t, p, (ns || {})[t]), { fichas: (fs || {})[t] || {}, resenaPublica: !!(rp || {})[t] })).sort((a, b) => b.actualizado - a.actualizado);
     },
     async staffMensaje(id, texto, interno) {
       const me = await this.yo(), ev = { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: interno ? 'nota' : 'mensaje', texto: String(texto).slice(0, 4000) };
@@ -192,6 +207,10 @@ body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;col
         ['eventos/' + k]: { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: 'estado', texto: 'Cotizado' },
         ['eventos/' + k + 'm']: { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: 'mensaje', texto: 'Te enviamos tu cotización. Revísala arriba y, si estás de acuerdo, toca «Acepto la cotización».' } }, true);
     },
+    async dejarResena(t, r) { await db('pedidos/' + t, 'PATCH', { resena: Object.assign({}, r, { creado: TS }), actualizado: TS }); },
+    async publicarResena(p) { await db('resenas_publicas/' + p.id, 'PUT', { nombre: corto(p.nombre), estrellas: p.resena.estrellas, texto: p.resena.texto || '', fecha: TS }, true); },
+    async quitarResena(id) { await db('resenas_publicas/' + id, 'DELETE', undefined, true); },
+    async resenas() { return Object.values((await jfetch(FB.db + '/resenas_publicas.json?orderBy=' + encodeURIComponent('"fecha"') + '&limitToLast=12')) || {}).sort((a, b) => b.fecha - a.fecha); },
     async aceptarCotizacion(p) {
       const k = Date.now().toString(36) + rnd().slice(0, 6);
       await db('pedidos/' + p.token, 'PATCH', Object.assign({ 'cotizacion/aceptada': TS, actualizado: TS,
@@ -209,7 +228,7 @@ body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;col
     },
     // one record per visit to the client page (no personal data unless that device already sent an order); only staff can read them
     async visita(id, data, primera) { await db('visitas/' + id, 'PATCH', Object.assign({ ult: TS }, primera ? { t: TS } : {}, data)); },
-    async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=300&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
+    async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=1000&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
   };
 
   // ---------- demo (this browser only) ----------
@@ -238,17 +257,21 @@ body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;col
     async cambiarCodigo(codigo) { codigoOk(codigo); },
     logout() { save('dazk-demo-yo', null); },
     async yo() { return who(); },
-    async listar() { return ddb().pedidos.map(sortP).sort((a, b) => b.actualizado.localeCompare(a.actualizado)); },
+    async listar() { const rp = load('dazk-demo-resenas', {}); return ddb().pedidos.map(p => Object.assign(sortP(p), { resenaPublica: !!rp[p.id] })).sort((a, b) => b.actualizado.localeCompare(a.actualizado)); },
     async staffMensaje(id, texto, interno) { edit(x => x.id === id, (p, ev) => ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: interno ? 'nota' : 'mensaje', texto, interno: !!interno })); },
     async guardarFicha(id, key, data, nota) { edit(x => x.id === id, (p, ev) => { p.fichas = p.fichas || {}; p.fichas[key] = data; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'nota', texto: nota, interno: true }); }); },
     async visita(id, data, primera) { const d = load('dazk-demo-visitas', {}); d[id] = Object.assign({}, d[id], primera ? { t: Date.now() } : {}, { ult: Date.now() }, data); save('dazk-demo-visitas', d); },
     async visitas() { return Object.values(load('dazk-demo-visitas', {})).sort((a, b) => b.t - a.t); },
     async enviarCotizacion(id, cot) { edit(x => x.id === id, (p, ev) => { p.cotizacion = Object.assign({}, cot, { enviada: Date.now() }); p.estado = 'cotizado'; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: 'Cotizado' }); ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'mensaje', texto: 'Te enviamos tu cotización. Revísala arriba y, si estás de acuerdo, toca «Acepto la cotización».' }); }); },
+    async dejarResena(t, r) { edit(x => x.token === t, p => { p.resena = Object.assign({}, r, { creado: Date.now() }); }); },
+    async publicarResena(q) { const d = load('dazk-demo-resenas', {}); d[q.id] = { nombre: corto(q.nombre), estrellas: q.resena.estrellas, texto: q.resena.texto || '', fecha: Date.now() }; save('dazk-demo-resenas', d); },
+    async quitarResena(id) { const d = load('dazk-demo-resenas', {}); delete d[id]; save('dazk-demo-resenas', d); },
+    async resenas() { return Object.values(load('dazk-demo-resenas', {})).sort((a, b) => b.fecha - a.fecha); },
     async aceptarCotizacion(q) { edit(x => x.token === q.token, (p, ev) => { p.cotizacion.aceptada = Date.now(); if (p.estado === 'cotizado') p.estado = 'confirmado'; ev({ autor: 'cliente', autor_nombre: p.nombre, tipo: 'acepto', texto: 'Aceptó la cotización.' }); }); },
     async staffEstado(id, est) { edit(x => x.id === id, (p, ev) => { p.estado = est; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: estado(est) }); }); },
   };
 
-  window.DAZK_API = Object.assign(FB ? real : demo, { demo: !FB, rnd, ESTADOS, estado, waNum, load, save,
+  window.DAZK_API = Object.assign(FB ? real : demo, { demo: !FB, rnd, canal: canalDe, ESTADOS, estado, waNum, load, save,
     esc: s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
     fecha: t => new Date(t).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
     pesos: n => '$' + Number(n).toLocaleString('es-MX', { maximumFractionDigits: 2 }),
@@ -264,6 +287,15 @@ window.addEventListener('DOMContentLoaded', function () {
   const token = () => (location.hash.match(/t=([0-9a-f]{16,64})/) || [])[1];
   let draft = '', last = '', seguro = false;
   // the formal quote, once DAZK sends it; printable and accepted here
+  let estrellas = 0;
+  function resena(p) {
+    if (p.estado !== 'entregado') return '';
+    if (p.resena) return `<section><span class="k">Tu opinión</span><div class="card"><p class="ok">${'★'.repeat(p.resena.estrellas)}${'☆'.repeat(5 - p.resena.estrellas)} · ¡Gracias por tu opinión!</p></div></section>`;
+    return `<section id="res"><span class="k">¿Cómo quedó tu mesa?</span><form class="card" id="r-form"><div class="stars" role="radiogroup" aria-label="Calificación">${[1, 2, 3, 4, 5].map(n => `<button type="button" role="radio" aria-checked="${n === estrellas}" aria-label="${n} de 5" data-st="${n}" class="${n <= estrellas ? 'on' : ''}">★</button>`).join('')}</div>
+      <textarea id="r-text" rows="3" maxlength="600" placeholder="Cuéntanos qué te pareció (opcional)"></textarea>
+      <label class="chk"><input type="checkbox" id="r-pub" checked> Pueden publicar mi opinión con mi nombre</label>
+      <p class="err" id="r-err" role="alert" hidden></p><button class="btn gold" type="submit">Enviar mi opinión</button></form></section>`;
+  }
   function cotizacion(p) {
     const c = p.cotizacion; if (!c) return '';
     const saldo = c.total - (c.anticipo || 0), puede = !c.aceptada && p.estado !== 'cancelado';
@@ -303,12 +335,12 @@ window.addEventListener('DOMContentLoaded', function () {
     let p;
     try { p = await A.verPedido(t); }
     catch (e) { if (!quiet) main.innerHTML = `<h1>No encontramos <em>ese pedido.</em></h1><p class="lead">${esc(e.message)}</p><p><a class="btn" href="pedido.html">Mis pedidos</a></p>`; return; }
-    const sig = JSON.stringify([p.estado, p.eventos.length, p.cotizacion]); if (quiet && sig === last) return; last = sig;
+    const sig = JSON.stringify([p.estado, p.eventos.length, p.cotizacion, p.resena]); if (quiet && sig === last) return; last = sig;
     const ta = document.querySelector('#m-text'); if (ta) draft = ta.value;
     const steps = A.ESTADOS.filter(e => e[0] !== 'cancelado'), at = steps.findIndex(e => e[0] === p.estado);
-    main.innerHTML = `<span class="k">Pedido #${esc(p.folio)} · ${A.fecha(p.creado)}</span><h1>Hola, <em>${esc(p.nombre.split(' ')[0])}.</em></h1><p class="lead">${TXT[p.estado]}</p>
+    main.innerHTML = `<span class="k">Pedido #${esc(p.folio)} · ${A.fecha(p.creado)}</span><h1>Hola, <em>${esc(p.nombre.split(' ')[0])}.</em></h1><p class="lead">${p.estado === 'cotizado' && !p.cotizacion ? 'Te enviamos tu cotización por mensaje. Revísala abajo y dinos si tienes dudas.' : TXT[p.estado]}</p>
       ${at < 0 ? '<p class="badge off">Cancelado</p>' : `<ol class="track">${steps.map((s, i) => `<li class="${i < at ? 'done' : i === at ? 'on' : ''}"><i></i>${s[1]}</li>`).join('')}</ol>`}
-      ${cotizacion(p)}
+      ${resena(p)}${cotizacion(p)}
       <section><span class="k">Tus productos</span>${items(p)}${p.notas ? `<p class="note"><b>Tus notas:</b> ${esc(p.notas)}</p>` : ''}</section>
       <section><span class="k">Historial y mensajes</span><ol class="tl">${timeline(p)}</ol>
         <form id="m-form"><textarea id="m-text" rows="3" maxlength="2000" placeholder="Escribe aquí tus dudas o cambios: medida, piedra, fecha de entrega…"></textarea>
@@ -320,6 +352,14 @@ window.addEventListener('DOMContentLoaded', function () {
       try { await A.aceptarCotizacion(p); seguro = false; last = ''; await show(); document.querySelector('#cot').scrollIntoView({ block: 'start' }); }
       catch (e) { const er = document.querySelector('#c-err'); er.textContent = e.message; er.hidden = false; b.disabled = false; }
     });
+    main.querySelectorAll('[data-st]').forEach(b => b.onclick = () => { estrellas = +b.dataset.st; main.querySelectorAll('[data-st]').forEach(x => { x.classList.toggle('on', +x.dataset.st <= estrellas); x.setAttribute('aria-checked', String(+x.dataset.st === estrellas)); }); });
+    const rf = main.querySelector('#r-form'); if (rf) rf.onsubmit = async ev => {
+      ev.preventDefault(); const er = main.querySelector('#r-err'), b = rf.querySelector('[type=submit]');
+      if (!estrellas) { er.textContent = 'Toca las estrellas para calificar.'; er.hidden = false; return; }
+      b.disabled = true;
+      try { await A.dejarResena(t, { estrellas, texto: main.querySelector('#r-text').value.trim().slice(0, 600), publicar: main.querySelector('#r-pub').checked }); last = ''; await show(); }
+      catch (e) { er.textContent = e.message; er.hidden = false; b.disabled = false; }
+    };
     const im = main.querySelector('[data-imprimir]'); if (im) im.onclick = () => window.print();
     document.querySelector('#m-form').addEventListener('submit', async ev => {
       ev.preventDefault(); const el = document.querySelector('#m-text'), txt = el.value.trim(), err = document.querySelector('#m-err'); if (!txt) return el.focus();

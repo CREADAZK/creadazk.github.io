@@ -64,6 +64,11 @@ fieldset{border:0;margin-top:18px}legend{font:400 19px/1.2 var(--serif);color:va
 .ok{margin-top:14px;padding:10px 12px;border-left:2px solid var(--wa);background:rgba(37,211,102,.1);font-size:14.5px}
 @media print{body:has(#cot)>*:not(main),body:has(#cot) main>*:not(#cot),#cot .btn,#cot .lead,#cot .two,#cot .err,#cot>.k{display:none!important}
 body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;color:#000;padding:0}#cot *{color:#000!important}#cot dl.specs i{border-color:#999}}
+.funnel .fl{display:grid;grid-template-columns:minmax(110px,38%) 1fr 44px 44px;align-items:center;gap:8px;padding:6px 0;font-size:13.5px}.funnel .fl i{display:block;height:10px;background:var(--g);min-width:2px}
+.funnel .fl b{font:400 20px/1 var(--serif);text-align:right}.funnel .fl em{font-style:normal;font-size:12px;color:var(--mut);text-align:right}
+.canales{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0 10px}.canal{padding:12px}.canal h3{font-size:18px}.canal .two{grid-template-columns:1fr;gap:0}.canal .btn{min-height:44px;margin-top:8px;font-size:11px;letter-spacing:.1em}.canal code{display:block;font-size:12px;color:var(--mut);overflow-wrap:anywhere;margin:4px 0 10px}
+.qr{background:#fff;padding:8px;width:120px;margin:0 auto}.qr img,.qr canvas{width:100%!important;height:auto!important;display:block}
+.stars{display:flex;gap:6px}.stars button{font-size:34px;line-height:1;color:var(--line);min-width:44px;min-height:44px}.stars button.on{color:var(--g)}
 #print{display:none}
 @media print{html,body{background:#fff!important}body>*:not(#print){display:none!important}
 #print{display:block;color:#000;font:13px/1.4 Arial,sans-serif;padding:0}
@@ -93,12 +98,22 @@ body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;col
   const waNum = t => { const d = digits(t); return d.length === 10 ? '52' + d : d; };
   const sortP = p => { p.items = (p.items || []).slice().sort((a, b) => a.pos - b.pos); p.eventos = (p.eventos || []).slice().sort((a, b) => a.id - b.id); return p; };
   const rnd = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+  // where a visitor came from, as a short channel name: a campaign link (?c=instagram) or the site that sent them
+  function canalDe(x) {
+    const s = String(x || '').toLowerCase();
+    if (/instagram/.test(s)) return 'instagram'; if (/facebook|fb\.(com|me)|messenger/.test(s)) return 'facebook'; if (/whatsapp|wa\.me/.test(s)) return 'whatsapp';
+    if (/tiktok/.test(s)) return 'tiktok'; if (/google/.test(s)) return 'google'; if (s === 'link compartido') return 'compartido';
+    return s.replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 30);
+  }
+  // first name and last initial for public reviews
+  const corto = n => { const w = String(n).trim().split(/\s+/); return w[0] + (w[1] ? ' ' + w[1][0].toUpperCase() + '.' : ''); };
   function cliente(p) {
     const nombre = String(p.nombre || '').trim().slice(0, 80), tel = digits(p.tel);
     if (nombre.length < 2) throw new Error('Escribe a nombre de quién apartamos la mesa.');
     if (tel && (tel.length < 10 || tel.length > 13)) throw new Error('Revisa tu número de WhatsApp (10 dígitos) o déjalo vacío.');
     if (!p.items || !p.items.length || p.items.length > 12) throw new Error('El pedido debe tener entre 1 y 12 productos.');
-    return Object.assign({ nombre, notas: String(p.notas || '').trim().slice(0, 1000) }, tel ? { tel } : {});
+    const canal = canalDe(p.canal);
+    return Object.assign({ nombre, notas: String(p.notas || '').trim().slice(0, 1000) }, tel ? { tel } : {}, canal ? { canal } : {});
   }
 
   // ---------- Firebase ----------
@@ -177,8 +192,8 @@ body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;col
       return yoCache && Object.assign({ nombre: quien() || 'DAZK' }, yoCache);
     },
     async listar() {
-      const [ps, ns, fs] = await Promise.all(['pedidos', 'interno', 'fichas'].map(n => db(n, 'GET', undefined, true)));
-      return Object.entries(ps || {}).map(([t, p]) => Object.assign(shape(t, p, (ns || {})[t]), { fichas: (fs || {})[t] || {} })).sort((a, b) => b.actualizado - a.actualizado);
+      const [ps, ns, fs, rp] = await Promise.all(['pedidos', 'interno', 'fichas', 'resenas_publicas'].map(n => db(n, 'GET', undefined, true)));
+      return Object.entries(ps || {}).map(([t, p]) => Object.assign(shape(t, p, (ns || {})[t]), { fichas: (fs || {})[t] || {}, resenaPublica: !!(rp || {})[t] })).sort((a, b) => b.actualizado - a.actualizado);
     },
     async staffMensaje(id, texto, interno) {
       const me = await this.yo(), ev = { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: interno ? 'nota' : 'mensaje', texto: String(texto).slice(0, 4000) };
@@ -192,6 +207,10 @@ body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;col
         ['eventos/' + k]: { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: 'estado', texto: 'Cotizado' },
         ['eventos/' + k + 'm']: { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: 'mensaje', texto: 'Te enviamos tu cotización. Revísala arriba y, si estás de acuerdo, toca «Acepto la cotización».' } }, true);
     },
+    async dejarResena(t, r) { await db('pedidos/' + t, 'PATCH', { resena: Object.assign({}, r, { creado: TS }), actualizado: TS }); },
+    async publicarResena(p) { await db('resenas_publicas/' + p.id, 'PUT', { nombre: corto(p.nombre), estrellas: p.resena.estrellas, texto: p.resena.texto || '', fecha: TS }, true); },
+    async quitarResena(id) { await db('resenas_publicas/' + id, 'DELETE', undefined, true); },
+    async resenas() { return Object.values((await jfetch(FB.db + '/resenas_publicas.json?orderBy=' + encodeURIComponent('"fecha"') + '&limitToLast=12')) || {}).sort((a, b) => b.fecha - a.fecha); },
     async aceptarCotizacion(p) {
       const k = Date.now().toString(36) + rnd().slice(0, 6);
       await db('pedidos/' + p.token, 'PATCH', Object.assign({ 'cotizacion/aceptada': TS, actualizado: TS,
@@ -209,7 +228,7 @@ body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;col
     },
     // one record per visit to the client page (no personal data unless that device already sent an order); only staff can read them
     async visita(id, data, primera) { await db('visitas/' + id, 'PATCH', Object.assign({ ult: TS }, primera ? { t: TS } : {}, data)); },
-    async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=300&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
+    async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=1000&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
   };
 
   // ---------- demo (this browser only) ----------
@@ -238,17 +257,21 @@ body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;col
     async cambiarCodigo(codigo) { codigoOk(codigo); },
     logout() { save('dazk-demo-yo', null); },
     async yo() { return who(); },
-    async listar() { return ddb().pedidos.map(sortP).sort((a, b) => b.actualizado.localeCompare(a.actualizado)); },
+    async listar() { const rp = load('dazk-demo-resenas', {}); return ddb().pedidos.map(p => Object.assign(sortP(p), { resenaPublica: !!rp[p.id] })).sort((a, b) => b.actualizado.localeCompare(a.actualizado)); },
     async staffMensaje(id, texto, interno) { edit(x => x.id === id, (p, ev) => ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: interno ? 'nota' : 'mensaje', texto, interno: !!interno })); },
     async guardarFicha(id, key, data, nota) { edit(x => x.id === id, (p, ev) => { p.fichas = p.fichas || {}; p.fichas[key] = data; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'nota', texto: nota, interno: true }); }); },
     async visita(id, data, primera) { const d = load('dazk-demo-visitas', {}); d[id] = Object.assign({}, d[id], primera ? { t: Date.now() } : {}, { ult: Date.now() }, data); save('dazk-demo-visitas', d); },
     async visitas() { return Object.values(load('dazk-demo-visitas', {})).sort((a, b) => b.t - a.t); },
     async enviarCotizacion(id, cot) { edit(x => x.id === id, (p, ev) => { p.cotizacion = Object.assign({}, cot, { enviada: Date.now() }); p.estado = 'cotizado'; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: 'Cotizado' }); ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'mensaje', texto: 'Te enviamos tu cotización. Revísala arriba y, si estás de acuerdo, toca «Acepto la cotización».' }); }); },
+    async dejarResena(t, r) { edit(x => x.token === t, p => { p.resena = Object.assign({}, r, { creado: Date.now() }); }); },
+    async publicarResena(q) { const d = load('dazk-demo-resenas', {}); d[q.id] = { nombre: corto(q.nombre), estrellas: q.resena.estrellas, texto: q.resena.texto || '', fecha: Date.now() }; save('dazk-demo-resenas', d); },
+    async quitarResena(id) { const d = load('dazk-demo-resenas', {}); delete d[id]; save('dazk-demo-resenas', d); },
+    async resenas() { return Object.values(load('dazk-demo-resenas', {})).sort((a, b) => b.fecha - a.fecha); },
     async aceptarCotizacion(q) { edit(x => x.token === q.token, (p, ev) => { p.cotizacion.aceptada = Date.now(); if (p.estado === 'cotizado') p.estado = 'confirmado'; ev({ autor: 'cliente', autor_nombre: p.nombre, tipo: 'acepto', texto: 'Aceptó la cotización.' }); }); },
     async staffEstado(id, est) { edit(x => x.id === id, (p, ev) => { p.estado = est; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: estado(est) }); }); },
   };
 
-  window.DAZK_API = Object.assign(FB ? real : demo, { demo: !FB, rnd, ESTADOS, estado, waNum, load, save,
+  window.DAZK_API = Object.assign(FB ? real : demo, { demo: !FB, rnd, canal: canalDe, ESTADOS, estado, waNum, load, save,
     esc: s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
     fecha: t => new Date(t).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
     pesos: n => '$' + Number(n).toLocaleString('es-MX', { maximumFractionDigits: 2 }),
@@ -387,6 +410,97 @@ body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;col
   }
   window.DAZK_FICHA = { html, pagoHtml, bind, calculo, faltan, inicio };
 })();
+</script><script>/* DAZK · marketing inside the workshop panel (taller.html#marketing): links and QR per channel, sales funnel, who to follow up today, and client reviews.
+   Everything comes from real visits and orders; nothing is estimated. */
+(function () {
+  const A = window.DAZK_API, esc = A.esc, SITE = 'https://creadazk.github.io/';
+  const CANALES = [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['whatsapp', 'WhatsApp (estados y difusión)'], ['marketplace', 'Marketplace'], ['tiktok', 'TikTok'], ['google', 'Google'],
+    ['volante', 'Volante / tarjeta (QR)'], ['showroom', 'Showroom (QR)']];
+  const NOMBRE = Object.assign(Object.fromEntries(CANALES), { directo: 'Directo (escribieron la dirección)', compartido: 'Link compartido por un cliente' });
+  const label = c => NOMBRE[c] || c;
+  const ms = x => typeof x === 'number' ? x : new Date(x).getTime();
+  const DIA = 864e5, pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+  let periodo = 30, extra = A.load('dazk-canales-extra', []);
+
+  function loadQR() {
+    if (window.QRCode) return Promise.resolve();
+    return new Promise((ok, bad) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
+  }
+  const linkDe = c => SITE + '?c=' + encodeURIComponent(c);
+  function copiar(t, b) {
+    const done = () => { const o = b.textContent; b.textContent = 'Copiado ✓'; setTimeout(() => { b.textContent = o; }, 1800); };
+    if (navigator.clipboard) navigator.clipboard.writeText(t).then(done, () => window.prompt('Copia este link:', t)); else window.prompt('Copia este link:', t);
+  }
+  const waLink = (p, txt) => p.tel ? `https://wa.me/${A.waNum(p.tel)}?text=${encodeURIComponent(txt)}` : '';
+  const nom = p => p.nombre.split(' ')[0];
+
+  // who needs a message today, with the message already written
+  function seguimiento(all) {
+    const now = Date.now(), out = [];
+    all.forEach(p => {
+      const link = A.seguimiento(p.token), c = p.cotizacion;
+      const ult = p.eventos.filter(e => !e.interno), last = ult[ult.length - 1];
+      if (p.estado === 'nuevo' && last && last.autor === 'cliente' && now - ms(last.creado) > DIA)
+        out.push([p, 'Apartó hace ' + Math.floor((now - ms(p.creado)) / DIA) + ' días y no le han contestado', `Hola ${nom(p)}, gracias por apartar tu mesa en DAZK (pedido #${p.folio}). Ya estamos revisando tu diseño; ¿nos confirmas medidas del espacio y para cuándo la necesitas? ${link}`]);
+      else if (p.estado === 'cotizado' && c && !c.aceptada && now - ms(c.enviada) > 3 * DIA)
+        out.push([p, 'Cotización sin aceptar desde hace ' + Math.floor((now - ms(c.enviada)) / DIA) + ' días', `Hola ${nom(p)}, ¿pudiste revisar la cotización de tu mesa DAZK (pedido #${p.folio})? Si quieres ajustar medida, piedra o base, con gusto lo vemos. Aquí la tienes: ${link}`]);
+      else if (p.estado === 'entregado' && !p.resena && now - ms(p.actualizado) > 2 * DIA)
+        out.push([p, 'Entregado y sin opinión', `Hola ${nom(p)}, ¿cómo quedó tu mesa DAZK? Nos ayudaría muchísimo tu opinión, son 10 segundos: ${link}`]);
+    });
+    return out;
+  }
+
+  async function render(main, all, reload) {
+    main.innerHTML = '<a class="back" href="#">‹ Pedidos</a><span class="k">Taller DAZK</span><h1>Marketing</h1><p class="lead">Cargando…</p>';
+    let vis; try { vis = await A.visitas(); } catch (e) { main.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+    if (location.hash !== '#marketing') return;
+    const desde = Date.now() - periodo * DIA, V = vis.filter(v => v.t >= desde), P = all.filter(p => ms(p.creado) >= desde);
+    const cot = P.filter(p => p.cotizacion), acep = P.filter(p => p.cotizacion && p.cotizacion.aceptada), ent = P.filter(p => p.estado === 'entregado');
+    const monto = l => l.reduce((s, p) => s + (p.cotizacion ? p.cotizacion.total : 0), 0);
+    const pasos = [['Visitas', V.length], ['Personas distintas', new Set(V.map(v => v.v)).size], ['Llegaron a cotizar', V.filter(v => v.paso >= 3).length], ['Apartaron mesa', P.length],
+      ['Recibieron cotización', cot.length], ['Aceptaron', acep.length], ['Entregados', ent.length]];
+    const max = Math.max(1, pasos[0][1]);
+    // per channel: visits and orders, with the money accepted
+    const canales = {}; const fila = c => canales[c] = canales[c] || { v: 0, cot: 0, ped: 0, ac: 0, monto: 0 };
+    V.forEach(v => { const r = fila(A.canal(v.origen || 'directo')); r.v++; if (v.paso >= 3) r.cot++; });
+    P.forEach(p => { const r = fila(p.canal || 'directo'); r.ped++; if (p.cotizacion && p.cotizacion.aceptada) { r.ac++; r.monto += p.cotizacion.total; } });
+    const filas = Object.entries(canales).sort((a, b) => b[1].ped - a[1].ped || b[1].v - a[1].v);
+    const seg = seguimiento(all), pend = all.filter(p => p.resena && !p.resenaPublica);
+    const lista = CANALES.concat(extra.map(c => [c, c]));
+
+    main.innerHTML = `<a class="back" href="#">‹ Pedidos</a><span class="k">Taller DAZK</span><h1>Marketing</h1>
+      <div class="filters">${[7, 30, 90, 365].map(d => `<button type="button" data-per="${d}" class="${d === periodo ? 'on' : ''}">${d === 365 ? 'Último año' : 'Últimos ' + d + ' días'}</button>`).join('')}</div>
+      <section><span class="k">Hoy hay que escribirle a</span>${seg.length ? seg.map(([p, por, txt]) => `<div class="card"><h3>#${esc(p.folio)} · ${esc(p.nombre)}</h3><p class="lead">${esc(por)}</p>
+        <div class="two">${p.tel ? `<a class="btn wa" target="_blank" rel="noopener" href="${esc(waLink(p, txt))}">Mandar WhatsApp</a>` : '<span class="note">No dejó WhatsApp: escríbele en su pedido.</span>'}<a class="btn" href="#p=${esc(p.id)}">Abrir pedido</a></div></div>`).join('') : '<p class="lead">Nadie pendiente. Bien.</p>'}</section>
+      <section><span class="k">Embudo de ventas</span><div class="card funnel">${pasos.map((s, i) => `<div class="fl"><span>${s[0]}</span><i style="width:${Math.max(2, s[1] / max * 100)}%"></i><b>${s[1]}</b><em>${i ? pct(s[1], pasos[i - 1][1]) : ''}</em></div>`).join('')}
+        <dl class="specs tot"><div><dt>Vendido (cotizaciones aceptadas)</dt><i></i><dd>${A.pesos(monto(acep))}</dd></div><div><dt>Cotizado en total</dt><i></i><dd>${A.pesos(monto(cot))}</dd></div>${acep.length ? `<div><dt>Venta promedio</dt><i></i><dd>${A.pesos(Math.round(monto(acep) / acep.length))}</dd></div>` : ''}</dl>
+        ${vis.length >= 1000 ? '<p class="lead">Las visitas cuentan solo las últimas 1000.</p>' : ''}</div></section>
+      <section><span class="k">¿Qué canal vende?</span>${filas.length ? `<div class="scroll"><table class="tab"><thead><tr><th>Canal</th><th>Visitas</th><th>A cotizar</th><th>Apartaron</th><th>Aceptaron</th><th>Vendido</th></tr></thead><tbody>
+        ${filas.map(([c, r]) => `<tr><th>${esc(label(c))}</th><td>${r.v}</td><td>${r.cot}</td><td>${r.ped}</td><td>${r.ac}</td><td>${r.monto ? A.pesos(r.monto) : '—'}</td></tr>`).join('')}</tbody></table></div>`
+        : '<p class="lead">Todavía no hay datos en este periodo.</p>'}<p class="lead">Para que esto funcione, usa en cada lugar su propio link o QR de aquí abajo.</p></section>
+      <section><span class="k">Tus links y QR por canal</span><div class="canales">${lista.map(([c, n]) => `<div class="card canal"><h3>${esc(n)}</h3><code>${esc(linkDe(c))}</code>
+        <div class="qr" data-qr="${esc(c)}"></div><div class="two"><button type="button" class="btn" data-copy="${esc(c)}">Copiar link</button><button type="button" class="btn" data-png="${esc(c)}">Descargar QR</button></div></div>`).join('')}</div>
+        <form id="mk-new" class="card"><label for="mk-c">Otro canal (por ejemplo: expo-mueble, revista, constructora-x)<input type="text" id="mk-c" maxlength="30" placeholder="nombre-del-canal"></label><button class="btn gold" type="submit">Crear link y QR</button></form></section>
+      <section><span class="k">Opiniones de clientes</span>${all.filter(p => p.resena).length ? all.filter(p => p.resena).map(p => `<div class="card"><h3>${'★'.repeat(p.resena.estrellas)}${'☆'.repeat(5 - p.resena.estrellas)} · ${esc(p.nombre)}</h3>
+        ${p.resena.texto ? `<p>${esc(p.resena.texto)}</p>` : ''}<p class="lead">${p.resena.publicar ? 'Dio permiso de publicarla con su nombre.' : 'No dio permiso de publicarla.'}${p.resenaPublica ? ' · <b>Publicada en la página</b>' : ''}</p>
+        ${p.resena.publicar ? `<button type="button" class="btn ${p.resenaPublica ? '' : 'gold'}" data-pub="${esc(p.id)}">${p.resenaPublica ? 'Quitar de la página' : 'Publicar en la página'}</button>` : ''}</div>`).join('')
+        : '<p class="lead">Cuando marquen un pedido como Entregado, el cliente verá en su link un cuadro para calificar con estrellas. Aquí aparecen y ustedes eligen cuáles salen en la página.</p>'}</section>`;
+
+    main.querySelectorAll('[data-per]').forEach(b => b.onclick = () => { periodo = +b.dataset.per; render(main, all, reload); });
+    main.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => copiar(linkDe(b.dataset.copy), b));
+    main.querySelector('#mk-new').onsubmit = e => { e.preventDefault(); const c = A.canal($('#mk-c').value); if (!c || NOMBRE[c] || extra.includes(c)) return; extra.push(c); A.save('dazk-canales-extra', extra); render(main, all, reload); };
+    main.querySelectorAll('[data-pub]').forEach(b => b.onclick = async () => { b.disabled = true; const p = all.find(x => x.id === b.dataset.pub);
+      try { p.resenaPublica ? await A.quitarResena(p.id) : await A.publicarResena(p); await reload(); } catch (e) { alert(e.message); b.disabled = false; } });
+    try {
+      await loadQR();
+      main.querySelectorAll('[data-qr]').forEach(el => { new QRCode(el, { text: linkDe(el.dataset.qr), width: 512, height: 512, colorDark: '#0b0907', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); });
+      main.querySelectorAll('[data-png]').forEach(b => b.onclick = () => { const cv = main.querySelector(`[data-qr="${CSS.escape(b.dataset.png)}"] canvas`); if (!cv) return;
+        const a = document.createElement('a'); a.href = cv.toDataURL('image/png'); a.download = 'QR DAZK ' + b.dataset.png + '.png'; document.body.appendChild(a); a.click(); a.remove(); });
+    } catch (e) { main.querySelectorAll('[data-qr]').forEach(el => { el.textContent = 'No se pudo cargar el QR (revisa tu internet).'; }); }
+  }
+  const $ = s => document.querySelector(s);
+  window.DAZK_MKT = { render, label };
+})();
 </script><script>/* DAZK · workshop panel (taller.html): sign in, list of orders, and each order's products, status, history and messages. */
 window.addEventListener('DOMContentLoaded', function () {
   const A = window.DAZK_API, esc = A.esc, main = document.querySelector('#main'), $ = s => document.querySelector(s);
@@ -414,7 +528,7 @@ window.addEventListener('DOMContentLoaded', function () {
     const sig = JSON.stringify(all.map(p => [p.id, p.estado, p.eventos.length])); if (quiet && sig === last) return; last = sig;
     render();
   }
-  function render() { $('#who').innerHTML = `${esc(me.nombre)} · <a href="#visitas">Visitas</a> · <a href="#codigo">Código</a> · <button type="button" id="out">Salir</button>`; $('#out').onclick = () => { A.logout(); me = null; $('#who').textContent = ''; login(); }; location.hash === '#visitas' ? visitas() : location.hash === '#codigo' ? codigo() : openId() ? detail() : list(); }
+  function render() { $('#who').innerHTML = `${esc(me.nombre)} · <a href="#marketing">Marketing</a> · <a href="#visitas">Visitas</a> · <a href="#codigo">Código</a> · <button type="button" id="out">Salir</button>`; $('#out').onclick = () => { A.logout(); me = null; $('#who').textContent = ''; login(); }; location.hash === '#marketing' ? window.DAZK_MKT.render(main, all, () => reload()) : location.hash === '#visitas' ? visitas() : location.hash === '#codigo' ? codigo() : openId() ? detail() : list(); }
 
   function list() {
     const F = [['abiertos', 'Abiertos', p => !cerrado(p)], ['espera', 'Por responder', p => !cerrado(p) && espera(p)]].concat(A.ESTADOS.map(e => [e[0], e[1], p => p.estado === e[0]]));

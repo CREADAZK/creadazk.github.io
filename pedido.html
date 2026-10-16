@@ -87,6 +87,16 @@ body:has(#cot){background:#fff!important}#cot .card{background:#fff;border:0;col
 mark.late{background:#d98a6a}.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:0 12px}.checks label.chk{margin:8px 0 0}.checks small{color:var(--mut);font-size:12px}
 .acts2{display:flex!important;gap:14px;margin-top:4px}.prod{border-top:1px solid var(--line);padding-top:10px;margin-top:6px}.tab td.t{font:300 14px/1.4 var(--sans)}
 .card>.specs.tot:first-child{border-top:0;margin-top:0;padding-top:0}
+main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (min-width:1000px){.cq-lay{grid-template-columns:minmax(330px,390px) 1fr;align-items:start}.cq-lay>.cq-out{position:sticky;top:10px;order:2}}
+.cq-sheet{background:#f6f1e6;margin-top:12px;border:1px solid var(--gl);box-shadow:0 12px 30px rgba(0,0,0,.4);cursor:zoom-in}.cq-sheet svg{display:block;width:100%;height:auto}
+.cq-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0 10px}#cq-form{margin-top:0}#cq-form fieldset:first-of-type{margin-top:6px}
+.rev{list-style:none;margin-top:8px}.rev li{padding:9px 10px 9px 32px;position:relative;border-bottom:1px solid var(--line);font-size:14.5px;overflow-wrap:anywhere}.rev li::before{position:absolute;left:9px;top:8px;font-weight:500}
+.rev .ok::before{content:'✓';color:#7fc79a}.rev .warn{color:#f3dcc4}.rev .warn::before{content:'!';color:#e39a5c}.rev .info::before{content:'•';color:var(--g)}.cq-tab td.t{font-size:13.5px;text-align:left}
+.cq-zoom{position:fixed;inset:0;z-index:50;background:rgba(8,7,5,.94);overflow:auto;padding:calc(env(safe-area-inset-top,0px) + 10px) 10px 20px}.cq-zoom .btn{position:sticky;top:0;width:auto;margin:0 0 10px auto;background:var(--bg)}.cq-zoom>div{width:max(100%,1500px);background:#f6f1e6}.cq-zoom svg{display:block;width:100%;height:auto}
+.tb .tb-h{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:4px}.tb .tb-h>b{font:400 21px/1.2 var(--serif);margin-right:auto;overflow-wrap:anywhere}.tb-d{font-size:12.5px;color:var(--mut)}
+.tb-i{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}.tb-i>div{min-width:0}.tb-i .thumb{flex:none;width:118px;background:#f6f1e6;padding:0;border:1px solid var(--gl)}.thumb svg{display:block;width:100%;height:auto}
+.tb-i b{display:block;font:400 18px/1.25 var(--serif);overflow-wrap:anywhere}.tb-i span{display:block;font-size:13px;color:var(--mut);margin-top:3px;overflow-wrap:anywhere}
+@media print{#print .cq-page{break-after:page;page-break-after:always}#print .cq-page:last-child{break-after:auto}#print .cq-page svg{border:0;width:100%;height:auto;display:block}}
 .alt{margin-top:16px;font-size:14px;color:var(--mut)}.alt button,.top a{color:var(--g);text-decoration:underline;text-underline-offset:3px}
 </style></head><body>
 
@@ -96,8 +106,8 @@ mark.late{background:#d98a6a}.checks{display:grid;grid-template-columns:repeat(a
    With window.DAZK_FB = { apiKey, db } it talks to Firebase (Realtime Database + Auth over REST; rules in firebase/database.rules.json).
    Without it, it runs in demo mode: everything stays in this browser's localStorage.
    Clients are anonymous: an order lives at pedidos/<secret token>, readable only by whoever has the token.
-   DAZK staff enter with email and password. The owner's email is fixed (OWNER) and the owner adds or removes admins in admins/<email with . as ,>.
-   A new admin gets an email with a link to create their password (a Firebase password reset that opens taller.html); that also confirms the email, which the rules require. */
+   DAZK staff enter with just their email: Firebase sends a one-time sign-in link that opens taller.html, and the device stays signed in.
+   The owner's email is fixed (OWNER) and the owner adds or removes admins in admins/<email with . as ,>. The link also confirms the email, which the rules require. */
 (function () {
   const FB = window.DAZK_FB || null, SITE = 'https://creadazk.github.io/';
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
@@ -162,15 +172,14 @@ mark.late{background:#d98a6a}.checks{display:grid;grid-template-columns:repeat(a
   }
   const OWNER = 'i55969072@gmail.com', ekey = e => String(e).trim().toLowerCase().replace(/\./g, ',');
   const emailOk = e => { e = String(e || '').trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) throw new Error('Revisa el correo.'); return e; };
-  const passOk = p => { if (String(p).length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.'); };
   const itemsDe = l => l.map(it => Object.assign({ tipo: ['mesa', 'sillas', 'bancos'].includes(it.tipo) ? it.tipo : 'mesa', titulo: String(it.titulo || 'Mesa').slice(0, 160), cantidad: Math.max(1, Math.min(99, +it.cantidad || 1)),
     specs: (it.specs || []).slice(0, 20).map(s => [String(s[0]).slice(0, 120), String(s[1]).slice(0, 120)]) }, it.uso ? { uso: String(it.uso).slice(0, 20) } : {},
     // only links to our own configurator are stored, so staff never open a foreign URL
     String(it.link || '').startsWith(SITE) ? { link: it.link.slice(0, 600) } : {}));
   const authErr = e => /TOO_MANY_ATTEMPTS/.test(e.code) ? 'Demasiados intentos. Espera unos minutos.' : /INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND|INVALID_EMAIL|USER_DISABLED/.test(e.code) ? 'Correo o contraseña incorrectos.'
-    : /EXPIRED_OOB|INVALID_OOB/.test(e.code) ? 'Este enlace ya se usó o caducó. Pide uno nuevo con «Crear o recuperar mi contraseña».' : /WEAK_PASSWORD/.test(e.code) ? 'Esa contraseña es muy débil: usa al menos 8 caracteres.' : e.message;
-  // Spanish email with Google's page to set the password; when done it offers a button back to taller.html (creadazk.github.io is an authorized domain)
-  const enviarLink = email => jfetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + FB.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Firebase-Locale': 'es' }, body: JSON.stringify({ requestType: 'PASSWORD_RESET', email, continueUrl: SITE + 'taller.html' }) });
+    : /EXPIRED_OOB|INVALID_OOB/.test(e.code) ? 'Este enlace ya se usó o caducó. Escribe tu correo otra vez y te mandamos otro.' : /WEAK_PASSWORD/.test(e.code) ? 'Esa contraseña es muy débil: usa al menos 8 caracteres.' : e.message;
+  // Spanish email with a one-time sign-in link; Google's page sends it on to taller.html?mode=signIn&oobCode=… (creadazk.github.io is an authorized domain)
+  const enviarLink = email => jfetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + FB.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Firebase-Locale': 'es' }, body: JSON.stringify({ requestType: 'EMAIL_SIGNIN', email, continueUrl: SITE + 'taller.html', canHandleCodeInApp: true }) });
   const real = {
     async crearPedido(p, staff) {
       const c = cliente(p), items = itemsDe(p.items), me = staff && await this.yo();
@@ -189,19 +198,14 @@ mark.late{background:#d98a6a}.checks{display:grid;grid-template-columns:repeat(a
       await db('pedidos/' + t + '/eventos', 'POST', { creado: TS, autor: 'cliente', autor_nombre: nombre, tipo: 'mensaje', texto: String(texto).slice(0, 2000) });
       await db('pedidos/' + t + '/actualizado', 'PUT', TS);
     },
-    async login(email, pass) {
+    // no passwords: the email gets a one-time link; opening it signs this device in and it stays signed in until "Salir"
+    async pedirEnlace(email) { email = emailOk(email); save('dazk-correo', email); try { await enviarLink(email); } catch (e) { throw new Error(authErr(e)); } return null; },
+    async reenviar(email) { try { await enviarLink(emailOk(email)); } catch (e) { throw new Error(authErr(e)); } },
+    async conEnlace(email, oob) {
       email = emailOk(email);
-      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email, password: String(pass), returnSecureToken: true })); }
-      catch (e) { throw new Error(authErr(e)); }
+      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithEmailLink', { email, oobCode: oob })); } catch (e) { throw new Error(authErr(e)); }
       const me = await this.yo(); if (!me) { setSes(null); throw new Error('Este correo no tiene acceso al panel de DAZK. Pídele al dueño que te agregue.'); }
       return me;
-    },
-    // first time or forgotten password: the same email link for both
-    async recuperar(email) { email = emailOk(email); try { await enviarLink(email); } catch (e) { if (!/EMAIL_NOT_FOUND/.test(e.code)) throw new Error(authErr(e)); } },
-    async nuevaPass(oob, pass) {
-      passOk(pass);
-      let r; try { r = await idp('identitytoolkit.googleapis.com/v1/accounts:resetPassword', { oobCode: oob, newPassword: String(pass) }); } catch (e) { throw new Error(authErr(e)); }
-      return this.login(r.email, pass);
     },
     logout() { setSes(null); },
     async yo() {
@@ -219,12 +223,11 @@ mark.late{background:#d98a6a}.checks{display:grid;grid-template-columns:repeat(a
       await db('admins/' + me.key, 'PUT', { nombre, email: me.email.toLowerCase(), agregado: TS }, true); yoCache = null;
     },
     async admins() { return Object.entries((await db('admins', 'GET', undefined, true)) || {}).map(([k, a]) => Object.assign({ key: k, duenio: a.email === OWNER }, a)).sort((a, b) => a.agregado - b.agregado); },
-    // owner only: the account is created right away (so nobody else can claim that email) and the person gets the link to make their password
+    // owner only: the person is added and gets their entry link by email right away
     async agregarAdmin(email, nombre) {
       email = emailOk(email); nombre = String(nombre || '').trim().slice(0, 60); if (nombre.length < 2) throw new Error('Escribe el nombre de la persona.');
-      try { await idp('identitytoolkit.googleapis.com/v1/accounts:signUp', { email, password: rnd() + rnd(), returnSecureToken: false }); } catch (e) { if (!/EMAIL_EXISTS/.test(e.code)) throw new Error(authErr(e)); }
       await db('admins/' + ekey(email), 'PUT', { nombre, email, agregado: TS }, true);
-      await enviarLink(email);
+      await enviarLink(email).catch(() => {});
     },
     async quitarAdmin(k) { await db('admins/' + k, 'DELETE', undefined, true); },
     async listar() {
@@ -299,12 +302,12 @@ mark.late{background:#d98a6a}.checks{display:grid;grid-template-columns:repeat(a
       return sortP(Object.assign({}, p, { eventos: p.eventos.filter(e => !e.interno) }));
     },
     async clienteMensaje(t, texto) { edit(x => x.token === t, (p, ev) => ev({ autor: 'cliente', autor_nombre: p.nombre, tipo: 'mensaje', texto })); },
-    // demo: no emails are sent; the owner's email or an added admin enters with any password of 8+ characters
-    async login(email, pass) { email = emailOk(email); passOk(pass); const a = load('dazk-demo-admins', {})[ekey(email)], duenio = email === OWNER;
+    // demo: no emails are sent; the owner's email or an added admin enters right away
+    async pedirEnlace(email) { email = emailOk(email); const a = load('dazk-demo-admins', {})[ekey(email)], duenio = email === OWNER;
       if (!a && !duenio) throw new Error('Este correo no tiene acceso al panel de DAZK. Pídele al dueño que te agregue.');
       const me = { email, key: ekey(email), duenio, nombre: a ? a.nombre : '' }; save('dazk-demo-yo', me); return me; },
-    async recuperar(email) { emailOk(email); },
-    async nuevaPass(oob, pass) { passOk(pass); throw new Error('En modo demo no hay correos: entra directo con tu correo.'); },
+    async conEnlace() { return who(); },
+    async reenviar(email) { emailOk(email); },
     async ponerNombre(nombre) { const me = who(); nombre = String(nombre || '').trim(); if (nombre.length < 2) throw new Error('Escribe tu nombre.'); const d = load('dazk-demo-admins', {}); d[me.key] = { nombre, email: me.email, agregado: Date.now() }; save('dazk-demo-admins', d); save('dazk-demo-yo', Object.assign(me, { nombre })); },
     async admins() { return Object.entries(load('dazk-demo-admins', {})).map(([k, a]) => Object.assign({ key: k, duenio: a.email === OWNER }, a)).sort((a, b) => a.agregado - b.agregado); },
     async agregarAdmin(email, nombre) { email = emailOk(email); nombre = String(nombre || '').trim(); if (nombre.length < 2) throw new Error('Escribe el nombre de la persona.'); const d = load('dazk-demo-admins', {}); d[ekey(email)] = { nombre, email, agregado: Date.now() }; save('dazk-demo-admins', d); },

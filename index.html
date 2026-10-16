@@ -250,10 +250,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
       <div id="p-box">
         <div class="ficha"><span class="k">Tu pedido</span><ul id="cart"></ul>
           <div class="acts"><button type="button" class="btn" id="add-more">+ Agregar otra mesa o periquera</button></div>
-          <div class="extras"><span class="k">¿También sillas o bancos?</span>
-            <div class="row"><span>Sillas</span><button type="button" data-x="sillas" data-d="-1" aria-label="Menos sillas">–</button><output id="x-sillas">0</output><button type="button" data-x="sillas" data-d="1" aria-label="Más sillas">+</button></div>
-            <div class="row"><span>Bancos de periquera</span><button type="button" data-x="bancos" data-d="-1" aria-label="Menos bancos">–</button><output id="x-bancos">0</output><button type="button" data-x="bancos" data-d="1" aria-label="Más bancos">+</button></div>
-            <p class="small">Modelo y tapiz se definen contigo al cotizar.</p></div></div>
+          </div>
         <form class="ficha" id="f-ped" novalidate><span class="k">Aparta tu mesa</span>
           <label for="p-nombre">Apartar a nombre de<input type="text" id="p-nombre" autocomplete="name" maxlength="80" placeholder="Nombre y apellido"></label>
           <label for="p-tel">Tu WhatsApp (opcional, para avisarte)<input type="tel" id="p-tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="10 dígitos"></label>
@@ -1095,8 +1092,8 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
    With window.DAZK_FB = { apiKey, db } it talks to Firebase (Realtime Database + Auth over REST; rules in firebase/database.rules.json).
    Without it, it runs in demo mode: everything stays in this browser's localStorage.
    Clients are anonymous: an order lives at pedidos/<secret token>, readable only by whoever has the token.
-   DAZK staff enter with email and password. The owner's email is fixed (OWNER) and the owner adds or removes admins in admins/<email with . as ,>.
-   A new admin gets an email with a link to create their password (a Firebase password reset that opens taller.html); that also confirms the email, which the rules require. */
+   DAZK staff enter with just their email: Firebase sends a one-time sign-in link that opens taller.html, and the device stays signed in.
+   The owner's email is fixed (OWNER) and the owner adds or removes admins in admins/<email with . as ,>. The link also confirms the email, which the rules require. */
 (function () {
   const FB = window.DAZK_FB || null, SITE = 'https://creadazk.github.io/';
   const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
@@ -1161,15 +1158,14 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
   }
   const OWNER = 'i55969072@gmail.com', ekey = e => String(e).trim().toLowerCase().replace(/\./g, ',');
   const emailOk = e => { e = String(e || '').trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) throw new Error('Revisa el correo.'); return e; };
-  const passOk = p => { if (String(p).length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.'); };
   const itemsDe = l => l.map(it => Object.assign({ tipo: ['mesa', 'sillas', 'bancos'].includes(it.tipo) ? it.tipo : 'mesa', titulo: String(it.titulo || 'Mesa').slice(0, 160), cantidad: Math.max(1, Math.min(99, +it.cantidad || 1)),
     specs: (it.specs || []).slice(0, 20).map(s => [String(s[0]).slice(0, 120), String(s[1]).slice(0, 120)]) }, it.uso ? { uso: String(it.uso).slice(0, 20) } : {},
     // only links to our own configurator are stored, so staff never open a foreign URL
     String(it.link || '').startsWith(SITE) ? { link: it.link.slice(0, 600) } : {}));
   const authErr = e => /TOO_MANY_ATTEMPTS/.test(e.code) ? 'Demasiados intentos. Espera unos minutos.' : /INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND|INVALID_EMAIL|USER_DISABLED/.test(e.code) ? 'Correo o contraseña incorrectos.'
-    : /EXPIRED_OOB|INVALID_OOB/.test(e.code) ? 'Este enlace ya se usó o caducó. Pide uno nuevo con «Crear o recuperar mi contraseña».' : /WEAK_PASSWORD/.test(e.code) ? 'Esa contraseña es muy débil: usa al menos 8 caracteres.' : e.message;
-  // Spanish email with Google's page to set the password; when done it offers a button back to taller.html (creadazk.github.io is an authorized domain)
-  const enviarLink = email => jfetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + FB.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Firebase-Locale': 'es' }, body: JSON.stringify({ requestType: 'PASSWORD_RESET', email, continueUrl: SITE + 'taller.html' }) });
+    : /EXPIRED_OOB|INVALID_OOB/.test(e.code) ? 'Este enlace ya se usó o caducó. Escribe tu correo otra vez y te mandamos otro.' : /WEAK_PASSWORD/.test(e.code) ? 'Esa contraseña es muy débil: usa al menos 8 caracteres.' : e.message;
+  // Spanish email with a one-time sign-in link; Google's page sends it on to taller.html?mode=signIn&oobCode=… (creadazk.github.io is an authorized domain)
+  const enviarLink = email => jfetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + FB.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Firebase-Locale': 'es' }, body: JSON.stringify({ requestType: 'EMAIL_SIGNIN', email, continueUrl: SITE + 'taller.html', canHandleCodeInApp: true }) });
   const real = {
     async crearPedido(p, staff) {
       const c = cliente(p), items = itemsDe(p.items), me = staff && await this.yo();
@@ -1188,19 +1184,14 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
       await db('pedidos/' + t + '/eventos', 'POST', { creado: TS, autor: 'cliente', autor_nombre: nombre, tipo: 'mensaje', texto: String(texto).slice(0, 2000) });
       await db('pedidos/' + t + '/actualizado', 'PUT', TS);
     },
-    async login(email, pass) {
+    // no passwords: the email gets a one-time link; opening it signs this device in and it stays signed in until "Salir"
+    async pedirEnlace(email) { email = emailOk(email); save('dazk-correo', email); try { await enviarLink(email); } catch (e) { throw new Error(authErr(e)); } return null; },
+    async reenviar(email) { try { await enviarLink(emailOk(email)); } catch (e) { throw new Error(authErr(e)); } },
+    async conEnlace(email, oob) {
       email = emailOk(email);
-      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email, password: String(pass), returnSecureToken: true })); }
-      catch (e) { throw new Error(authErr(e)); }
+      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithEmailLink', { email, oobCode: oob })); } catch (e) { throw new Error(authErr(e)); }
       const me = await this.yo(); if (!me) { setSes(null); throw new Error('Este correo no tiene acceso al panel de DAZK. Pídele al dueño que te agregue.'); }
       return me;
-    },
-    // first time or forgotten password: the same email link for both
-    async recuperar(email) { email = emailOk(email); try { await enviarLink(email); } catch (e) { if (!/EMAIL_NOT_FOUND/.test(e.code)) throw new Error(authErr(e)); } },
-    async nuevaPass(oob, pass) {
-      passOk(pass);
-      let r; try { r = await idp('identitytoolkit.googleapis.com/v1/accounts:resetPassword', { oobCode: oob, newPassword: String(pass) }); } catch (e) { throw new Error(authErr(e)); }
-      return this.login(r.email, pass);
     },
     logout() { setSes(null); },
     async yo() {
@@ -1218,12 +1209,11 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
       await db('admins/' + me.key, 'PUT', { nombre, email: me.email.toLowerCase(), agregado: TS }, true); yoCache = null;
     },
     async admins() { return Object.entries((await db('admins', 'GET', undefined, true)) || {}).map(([k, a]) => Object.assign({ key: k, duenio: a.email === OWNER }, a)).sort((a, b) => a.agregado - b.agregado); },
-    // owner only: the account is created right away (so nobody else can claim that email) and the person gets the link to make their password
+    // owner only: the person is added and gets their entry link by email right away
     async agregarAdmin(email, nombre) {
       email = emailOk(email); nombre = String(nombre || '').trim().slice(0, 60); if (nombre.length < 2) throw new Error('Escribe el nombre de la persona.');
-      try { await idp('identitytoolkit.googleapis.com/v1/accounts:signUp', { email, password: rnd() + rnd(), returnSecureToken: false }); } catch (e) { if (!/EMAIL_EXISTS/.test(e.code)) throw new Error(authErr(e)); }
       await db('admins/' + ekey(email), 'PUT', { nombre, email, agregado: TS }, true);
-      await enviarLink(email);
+      await enviarLink(email).catch(() => {});
     },
     async quitarAdmin(k) { await db('admins/' + k, 'DELETE', undefined, true); },
     async listar() {
@@ -1298,12 +1288,12 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
       return sortP(Object.assign({}, p, { eventos: p.eventos.filter(e => !e.interno) }));
     },
     async clienteMensaje(t, texto) { edit(x => x.token === t, (p, ev) => ev({ autor: 'cliente', autor_nombre: p.nombre, tipo: 'mensaje', texto })); },
-    // demo: no emails are sent; the owner's email or an added admin enters with any password of 8+ characters
-    async login(email, pass) { email = emailOk(email); passOk(pass); const a = load('dazk-demo-admins', {})[ekey(email)], duenio = email === OWNER;
+    // demo: no emails are sent; the owner's email or an added admin enters right away
+    async pedirEnlace(email) { email = emailOk(email); const a = load('dazk-demo-admins', {})[ekey(email)], duenio = email === OWNER;
       if (!a && !duenio) throw new Error('Este correo no tiene acceso al panel de DAZK. Pídele al dueño que te agregue.');
       const me = { email, key: ekey(email), duenio, nombre: a ? a.nombre : '' }; save('dazk-demo-yo', me); return me; },
-    async recuperar(email) { emailOk(email); },
-    async nuevaPass(oob, pass) { passOk(pass); throw new Error('En modo demo no hay correos: entra directo con tu correo.'); },
+    async conEnlace() { return who(); },
+    async reenviar(email) { emailOk(email); },
     async ponerNombre(nombre) { const me = who(); nombre = String(nombre || '').trim(); if (nombre.length < 2) throw new Error('Escribe tu nombre.'); const d = load('dazk-demo-admins', {}); d[me.key] = { nombre, email: me.email, agregado: Date.now() }; save('dazk-demo-admins', d); save('dazk-demo-yo', Object.assign(me, { nombre })); },
     async admins() { return Object.entries(load('dazk-demo-admins', {})).map(([k, a]) => Object.assign({ key: k, duenio: a.email === OWNER }, a)).sort((a, b) => a.agregado - b.agregado); },
     async agregarAdmin(email, nombre) { email = emailOk(email); nombre = String(nombre || '').trim(); if (nombre.length < 2) throw new Error('Escribe el nombre de la persona.'); const d = load('dazk-demo-admins', {}); d[ekey(email)] = { nombre, email, agregado: Date.now() }; save('dazk-demo-admins', d); },
@@ -1342,7 +1332,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
 window.addEventListener('DOMContentLoaded', function () {
   const $ = s => document.querySelector(s), A = window.DAZK_API, D = window.DAZK, esc = A.esc;
   let cart = A.load('dazk-cart', []), skipCur = false;
-  const extra = { sillas: 0, bancos: 0 }, NOMBRE = { sillas: 'Sillas', bancos: 'Bancos de periquera' };
+  const extra = {}, NOMBRE = {};
   const yo = A.load('dazk-yo', {}), mine = () => A.load('dazk-pedidos', []);
 
   // everything that goes in the order: saved pieces, the one on screen, and seats
@@ -1414,7 +1404,7 @@ window.addEventListener('DOMContentLoaded', function () {
     finally { btn.disabled = false; btn.textContent = label; }
   });
   $('#sendbar').addEventListener('click', () => { if ($('#p-ok').hidden) { form.scrollIntoView({ behavior: 'smooth', block: 'center' }); form.requestSubmit(); } else location.href = $('#ok-link').href; });
-  $('#ok-new').addEventListener('click', () => { $('#p-ok').hidden = true; $('#p-box').hidden = false; extra.sillas = extra.bancos = 0; draw(); window.DAZK_WELCOME(''); });
+  $('#ok-new').addEventListener('click', () => { $('#p-ok').hidden = true; $('#p-box').hidden = false; draw(); window.DAZK_WELCOME(''); });
   draw();
 
   // ---- reviews from real clients, published by DAZK ----

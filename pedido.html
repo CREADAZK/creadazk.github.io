@@ -154,7 +154,8 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
     if (!ses) throw new Error('Tu sesión terminó. Vuelve a entrar.');
     if (Date.now() > ses.exp - 60000) {
       try { const j = await idp('securetoken.googleapis.com/v1/token', { grant_type: 'refresh_token', refresh_token: ses.refreshToken }); Object.assign(ses, { idToken: j.id_token, refreshToken: j.refresh_token, exp: Date.now() + j.expires_in * 1000 }); save('dazk-ses', ses); }
-      catch (e) { setSes(null); throw new Error('Tu sesión terminó. Vuelve a entrar.'); }
+      // only a rejected session signs you out; no signal just means try again later
+      catch (e) { if (!e.status || e.status >= 500) throw new Error('Sin conexión. Revisa tu internet e intenta de nuevo.'); setSes(null); throw new Error('Tu sesión terminó. Vuelve a entrar.'); }
     }
     return ses.idToken;
   }
@@ -176,10 +177,10 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
     specs: (it.specs || []).slice(0, 20).map(s => [String(s[0]).slice(0, 120), String(s[1]).slice(0, 120)]) }, it.uso ? { uso: String(it.uso).slice(0, 20) } : {},
     // only links to our own configurator are stored, so staff never open a foreign URL
     String(it.link || '').startsWith(SITE) ? { link: it.link.slice(0, 600) } : {}));
-  const authErr = e => /TOO_MANY_ATTEMPTS/.test(e.code) ? 'Demasiados intentos. Espera unos minutos.' : /INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND|INVALID_EMAIL|USER_DISABLED/.test(e.code) ? 'Correo o contraseña incorrectos.'
+  const authErr = e => /QUOTA_EXCEEDED/.test(e.code) ? 'Por hoy ya se mandaron todos los correos de entrada que permite el plan gratis de Firebase (5 al día). Mañana vuelve a funcionar; si ya entraste en otro aparato, úsalo ahí.' : /TOO_MANY_ATTEMPTS/.test(e.code) ? 'Demasiados intentos. Espera unos minutos.' : /INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND|INVALID_EMAIL|USER_DISABLED/.test(e.code) ? 'Correo o contraseña incorrectos.'
     : /EXPIRED_OOB|INVALID_OOB/.test(e.code) ? 'Este enlace ya se usó o caducó. Escribe tu correo otra vez y te mandamos otro.' : /WEAK_PASSWORD/.test(e.code) ? 'Esa contraseña es muy débil: usa al menos 8 caracteres.' : e.message;
   // Spanish email with a one-time sign-in link; Google's page sends it on to taller.html?mode=signIn&oobCode=… (creadazk.github.io is an authorized domain)
-  const enviarLink = email => jfetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + FB.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Firebase-Locale': 'es' }, body: JSON.stringify({ requestType: 'EMAIL_SIGNIN', email, continueUrl: SITE + 'taller.html', canHandleCodeInApp: true }) });
+  const enviarLink = email => jfetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + FB.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Firebase-Locale': 'es' }, body: JSON.stringify({ requestType: 'EMAIL_SIGNIN', email, continueUrl: SITE + 'taller.html?e=' + encodeURIComponent(email), canHandleCodeInApp: true }) });
   const real = {
     async crearPedido(p, staff) {
       const c = cliente(p), items = itemsDe(p.items), me = staff && await this.yo();

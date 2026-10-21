@@ -1465,7 +1465,7 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
 
   window.DAZK_PAG = { pagina, equipo };
 })();
-</script><script>/* DAZK · panel (taller.html): sign in with just the email (one-time link per device), orders with their products, status, history, messages and payments, plus the gestión, public page, marketing and team sections. */
+</script><script>/* DAZK · panel (taller.html): sign in with just the email (one-time link per device), then a 4-digit quick lock each time the panel is opened; orders with their products, status, history, messages and payments, plus the gestión, public page, marketing and team sections. */
 window.addEventListener('DOMContentLoaded', function () {
   const A = window.DAZK_API, esc = A.esc, main = document.querySelector('#main'), $ = s => document.querySelector(s);
   let me = null, all = [], filtro = 'abiertos', q = '', draft = '', last = '';
@@ -1486,7 +1486,7 @@ window.addEventListener('DOMContentLoaded', function () {
     $('#l-form').addEventListener('submit', async ev => {
       ev.preventDefault(); const b = ev.target.querySelector('[type=submit]'), m = $('#l-mail').value.trim(); b.disabled = true; $('#l-err').hidden = true;
       try {
-        const r = await A.pedirEnlace(m); if (r) { me = r; return entrar(); }
+        const r = await A.pedirEnlace(m); if (r) { me = r; abrir(); return entrar(); }
         main.innerHTML = `<span class="k">Panel DAZK</span><h1>Revisa tu <em>correo.</em></h1>
           <div class="card"><p>Te mandamos un enlace a <b>${esc(m)}</b>. Ábrelo en este mismo celular o computadora y entras al panel.</p>
           <p class="lead">Si no lo ves en un minuto, búscalo en «Spam» o «Promociones». Solo se hace una vez en cada aparato.</p>
@@ -1500,13 +1500,28 @@ window.addEventListener('DOMContentLoaded', function () {
     const clean = () => history.replaceState(null, '', location.pathname);
     if (email) {
       main.innerHTML = '<span class="k">Panel DAZK</span><h1>Entrando…</h1>';
-      try { me = await A.conEnlace(email, oob); clean(); return entrar(); } catch (e) { clean(); return login(e.message, email); }
+      try { me = await A.conEnlace(email, oob); clean(); abrir(); return entrar(); } catch (e) { clean(); return login(e.message, email); }
     }
     main.innerHTML = `<span class="k">Panel DAZK</span><h1>Confirma tu <em>correo.</em></h1><p class="lead">Abriste el enlace en otro aparato. Escribe el correo al que te llegó.</p>
       <form id="ce-form" class="card"><label for="ce-mail">Tu correo<input type="email" id="ce-mail" autocomplete="username" maxlength="120" required></label>
       <p class="err" id="ce-err" role="alert" hidden></p><button class="btn gold" type="submit">Entrar</button></form>`;
     $('#ce-form').onsubmit = ev => { ev.preventDefault(); A.save('dazk-correo', $('#ce-mail').value.trim()); conEnlace(oob, $('#ce-mail').value.trim()); };
   }
+  // quick lock on a device that is already signed in: the 4-digit code only opens a saved session, it never signs anyone in
+  const PIN = '5596', abierto = () => { try { return sessionStorage.getItem('dazk-pin') === '1'; } catch (e) { return false; } };
+  const abrir = () => { try { sessionStorage.setItem('dazk-pin', '1'); } catch (e) {} };
+  function candado() {
+    $('#nav').innerHTML = '';
+    main.innerHTML = `<span class="k">Panel DAZK</span><h1>Escribe tu <em>clave.</em></h1>
+      <form id="pin-form" class="card"><label for="pin">Clave de 4 dígitos<input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" required></label>
+      <p class="err" id="pin-err" role="alert" hidden></p><button class="btn gold" type="submit">Entrar</button>
+      <p class="alt"><button type="button" class="btn" id="pin-otro">Entrar con otro correo</button></p></form>`;
+    const inp = $('#pin'), ok = () => { if (inp.value === PIN) { abrir(); entrar(); return true; } };
+    inp.focus(); inp.oninput = () => { if (inp.value.length === 4 && !ok()) { err('#pin-err', 'Clave incorrecta.'); inp.value = ''; } };
+    $('#pin-form').onsubmit = ev => { ev.preventDefault(); if (!ok()) { err('#pin-err', 'Clave incorrecta.'); inp.value = ''; inp.focus(); } };
+    $('#pin-otro').onclick = () => { A.logout(); me = null; login(); };
+  }
+  const conCandado = () => abierto() ? entrar() : candado();
   // the owner is asked their name once; everyone else gets it when added
   async function entrar() {
     if (me.nombre) return reload();
@@ -1597,8 +1612,8 @@ window.addEventListener('DOMContentLoaded', function () {
   setInterval(() => { if (me && !document.hidden) reload(true); }, 30000);
   const qs = new URLSearchParams(location.search);
   if (qs.get('oobCode') && qs.get('mode') === 'signIn') { if (qs.get('e')) A.save('dazk-correo', qs.get('e')); conEnlace(qs.get('oobCode'), qs.get('e') || A.load('dazk-correo', '')); }
-  else if (!A.demo && A.load('dazk-ses', null)) A.yo().then(u => { me = u; me ? entrar() : login(); }, e => A.load('dazk-ses', null) ? offline(e.message) : login(e.message));
-  else A.yo().then(u => { me = u; me ? entrar() : login(); }, e => login(e.message));
+  else if (!A.demo && A.load('dazk-ses', null)) A.yo().then(u => { me = u; me ? conCandado() : login(); }, e => A.load('dazk-ses', null) ? offline(e.message) : login(e.message));
+  else A.yo().then(u => { me = u; me ? conCandado() : login(); }, e => login(e.message));
   // signed in but no signal: keep the session and offer to retry instead of asking for the email
   function offline(msg) { main.innerHTML = `<span class="k">Panel DAZK</span><h1>Sin <em>conexión.</em></h1><div class="card"><p>${esc(msg)}</p><p class="lead">Tu sesión sigue guardada en este aparato.</p><button type="button" class="btn gold" id="re">Intentar de nuevo</button></div>`; $('#re').onclick = () => location.reload(); }
 });

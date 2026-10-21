@@ -795,6 +795,8 @@ window.addEventListener('DOMContentLoaded',function(){
   if(seenW||window.DAZK_SHARED)w.classList.add('out');
   var lead0=$('#w-lead').textContent;
   $$('#welcome [data-uso]').forEach(function(b){b.addEventListener('click',function(){closeW();if(window.DAZK_USO)DAZK_USO(b.dataset.uso);go(0,false);window.scrollTo(0,0)})});
+  // a tap made while the app was still starting (captured in the page head) is applied now
+  window.DAZK_LISTO=true;if(window.DAZK_PRE){var pb=document.querySelector('#welcome [data-uso="'+window.DAZK_PRE+'"]');if(pb){pb.classList.remove('cargando');pb.click();}}
   window.DAZK_WELCOME=function(t){$('#w-lead').textContent=t||lead0;w.classList.remove('out')};
   if(window.DAZK_SHARED){go(N-1,false);toast('Este es el diseño que te compartieron. Puedes cambiar lo que quieras.')}else go(0,false);
 });;

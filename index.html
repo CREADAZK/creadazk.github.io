@@ -212,11 +212,32 @@ input[type=text],input[type=tel],textarea{border-radius:12px;transition:border-c
 .step .ficha{margin-top:16px}.ov .sharebtn{display:none}
 .verfi{margin-top:4px}.verfi summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;min-height:44px;font-size:13px;color:var(--g);letter-spacing:.06em}.verfi summary::-webkit-details-marker{display:none}.verfi summary::after{content:'+';font:300 22px/1 var(--serif)}.verfi[open] summary::after{content:'–'}
 @media (min-width:980px){.rail{-webkit-mask-image:none;mask-image:none}#viewer{border-radius:18px;overflow:hidden}.sheet{border-radius:18px}}
+/* showroom: a lit black-marble entrance, a spotlight on the table, calm transitions */
+.welcome{overflow:hidden;isolation:isolate}
+.welcome::before{content:'';position:absolute;inset:-6%;z-index:-2;background:#000 url(tex/1k/sw-dark.jpg) center/cover;opacity:.34;filter:saturate(.55) brightness(.85);animation:marmol 28s ease-in-out infinite alternate}
+.welcome::after{content:'';position:absolute;inset:0;z-index:-1;background:radial-gradient(58% 40% at 50% 28%,rgba(217,189,140,.17),transparent 72%),radial-gradient(125% 95% at 50% 48%,transparent 38%,rgba(0,0,0,.88))}
+@keyframes marmol{from{transform:scale(1) translate(0,0)}to{transform:scale(1.08) translate(-1.5%,1%)}}
+@keyframes aparece{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.welcome>*{animation:aparece .9s cubic-bezier(.2,.7,.2,1) both}
+.welcome>:nth-child(2){animation-delay:.12s}.welcome>:nth-child(3){animation-delay:.24s}.welcome>:nth-child(4){animation-delay:.34s}.welcome>:nth-child(5){animation-delay:.44s}.welcome>:nth-child(n+6){animation-delay:.56s}
+.welcome .ew{font:400 11px/1 var(--sans);letter-spacing:.52em;text-transform:uppercase;color:var(--g);padding-left:.52em;margin-bottom:-8px}
+.welcome h1{font-size:clamp(38px,9.4vw,62px);letter-spacing:-.01em}
+.welcome .go button{transition:transform .25s,box-shadow .25s}.welcome .go button:hover{transform:translateY(-2px)}
+.welcome .go button:not(.pri){background:rgba(11,9,7,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.welcome small{letter-spacing:.26em;text-transform:uppercase;font-size:10px}
+#viewer::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;background:radial-gradient(130% 95% at 50% 42%,transparent 58%,rgba(0,0,0,.42))}
+.top{position:relative}.top::after{content:'';position:absolute;left:16px;right:16px;bottom:0;height:1px;background:linear-gradient(90deg,transparent,rgba(194,162,115,.5),transparent)}
+.step:not([hidden]){animation:aparece .45s cubic-bezier(.2,.7,.2,1) both}
+.step>h1::after{content:'';display:block;width:46px;height:1px;margin-top:14px;background:linear-gradient(90deg,var(--g),transparent)}
+.models button{transition:transform .25s,box-shadow .25s,border-color .2s}.models button:hover{transform:translateY(-3px)}
+.bar{border-top-color:transparent;box-shadow:0 -1px 0 rgba(194,162,115,.28),0 -18px 40px rgba(0,0,0,.45)}
+@media (prefers-reduced-motion:reduce){.welcome::before,.welcome>*,.step:not([hidden]){animation:none}}
 </style>
 <script>document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("#welcome [data-uso]");if(b&&!window.DAZK_LISTO){e.stopImmediatePropagation();window.DAZK_PRE=b.dataset.uso;b.classList.add("cargando")}},true)</script><style>#welcome [data-uso].cargando{opacity:.75}#welcome [data-uso].cargando::after{content:" …"}</style><script defer src="js/three.r128.min.js?v=r128"></script><script defer src="js/crea.js?v=6c9c5d03"></script></head><body>
 <div class="welcome" id="welcome">
   <img src="img/logo-full.jpg" alt="DAZK Furniture &amp; Design">
   <p class="hi" id="w-hi" hidden></p>
+  <span class="ew">Showroom virtual</span>
   <h1>Crea tu mesa <em>en 3D.</em></h1>
   <p id="w-lead">¿Qué quieres crear? Elige forma, medidas, piedra y base, y envíanos tu pedido.</p>
   <p class="aviso" data-aviso hidden></p>

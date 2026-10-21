@@ -2044,20 +2044,28 @@ window.addEventListener('DOMContentLoaded', function () {
     pinta(); inp.focus();
   }
   document.addEventListener('keydown', e => { if (e.key === '/' && me && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); buscar(); } });
+  // fast open: the last data seen on this device is drawn at once and refreshed behind; the orders don't wait for the expenses
+  let costos = {};
+  const firma = l => JSON.stringify(l.map(p => [p.id, p.estado, p.eventos.length, (p.pagos || []).length, p.costo || 0, Object.keys((p.fichas || {}).checks || {}).length]));
+  const guardar = () => A.save('dazk-cache', { u: me && me.uid, all });
   async function reload(quiet) {
-    try { const [l, gs] = await Promise.all([A.listar(), A.gastos().catch(() => [])]); all = l; const c = {}; gs.forEach(g => { if (g.pedido) c[g.pedido] = (c[g.pedido] || 0) + g.monto; }); all.forEach(p => { p.costo = c[p.id] || 0; }); }
-    catch (e) { if (!quiet) main.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+    if (!all.length && !quiet) { const c = A.load('dazk-cache', null); if (c && c.u === me.uid && (c.all || []).length) { all = c.all; costos = Object.fromEntries(all.map(p => [p.id, p.costo || 0])); last = firma(all); render(); quiet = true; } }
+    const gastos = A.gastos().catch(() => null);
+    try { all = await A.listar(); } catch (e) { if (!quiet) main.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+    all.forEach(p => { p.costo = costos[p.id] || 0; });
     const ids = new Set(all.map(p => p.id)), nuevos = visto ? all.filter(p => !visto.has(p.id)) : []; visto = ids;
     if (nuevos.length) avisar(nuevos);
-    const sig = JSON.stringify(all.map(p => [p.id, p.estado, p.eventos.length])); if (quiet && sig === last) return all; last = sig;
-    render(); return all;
+    const sig = firma(all); if (!(quiet && sig === last)) { last = sig; render(); }
+    gastos.then(gs => { if (!gs) return; const c = {}; gs.forEach(g => { if (g.pedido) c[g.pedido] = (c[g.pedido] || 0) + g.monto; }); costos = c;
+      all.forEach(p => { p.costo = c[p.id] || 0; }); guardar(); const s = firma(all); if (s !== last) { last = s; render(); } });
+    guardar(); return all;
   }
   const svg = d => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
   const ICO = { bus: svg('<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>'), hoy: svg('<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>'), ped: svg('<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>'), mas: svg('<path d="M12 5v14M5 12h14"/>'),
     tal: svg('<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z"/>'), menu: svg('<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>') };
   const NAV = [['hoy', 'Hoy'], ['', 'Pedidos'], ['taller', 'Taller'], ['croquis', 'Croquis'], ['compras', 'Compras'], ['resumen', 'Resumen'], ['cobros', 'Cobros'], ['ganancia', 'Ganancia'], ['gastos', 'Gastos'], ['clientes', 'Clientes'], ['pagina', 'Página pública'], ['marketing', 'Marketing'], ['visitas', 'Visitas'], ['equipo', 'Equipo']];
   function render() {
-    $('#who').innerHTML = `<button type="button" id="bus-b" class="bus-b">${ICO.bus}<span>Buscar</span></button> ${esc(me.nombre)} · <button type="button" id="out">Salir</button>`; $('#bus-b').onclick = buscar; $('#out').onclick = () => { A.logout(); me = null; $('#who').textContent = ''; login(); };
+    $('#who').innerHTML = `<button type="button" id="bus-b" class="bus-b">${ICO.bus}<span>Buscar</span></button> ${esc(me.nombre)} · <button type="button" id="out">Salir</button>`; $('#bus-b').onclick = buscar; $('#out').onclick = () => { A.save('dazk-cache', null); A.logout(); me = null; $('#who').textContent = ''; login(); };
     const h = location.hash.replace(/^#/, ''), cur = openId() || h === 'nuevo' ? '' : h, G = window.DAZK_GES, P = window.DAZK_PAG, C = window.DAZK_CQ;
     main.className = '';
     // big fixed bar for the daily things; "Más" opens every section as large tiles

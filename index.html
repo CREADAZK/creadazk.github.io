@@ -206,6 +206,11 @@ input[type=text],input[type=tel],textarea{border-radius:12px;transition:border-c
 .ficha .acts.trio .btn.arwide{border-color:var(--gl)}
 #c-piedra,#c-base,.rail{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
 .steps button{font-size:11px}
+/* orden: numbered sections in every step, even spacing, one action per place */
+.step{counter-reset:sec}.step .group>.k::before,.step .ficha>.k::before{counter-increment:sec;content:counter(sec) "  ·  ";color:var(--g)}
+.step .group{margin-top:0;padding:22px 0 4px;border-top:1px solid var(--line)}.step .group:first-of-type{border-top:0}.step h1+.lead,.step .lead{margin-bottom:6px}
+.step .ficha{margin-top:16px}.ov .sharebtn{display:none}
+.verfi{margin-top:4px}.verfi summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;min-height:44px;font-size:13px;color:var(--g);letter-spacing:.06em}.verfi summary::-webkit-details-marker{display:none}.verfi summary::after{content:'+';font:300 22px/1 var(--serif)}.verfi[open] summary::after{content:'–'}
 @media (min-width:980px){.rail{-webkit-mask-image:none;mask-image:none}#viewer{border-radius:18px;overflow:hidden}.sheet{border-radius:18px}}
 </style>
 <script>document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("#welcome [data-uso]");if(b&&!window.DAZK_LISTO){e.stopImmediatePropagation();window.DAZK_PRE=b.dataset.uso;b.classList.add("cargando")}},true)</script><style>#welcome [data-uso].cargando{opacity:.75}#welcome [data-uso].cargando::after{content:" …"}</style><script defer src="js/three.r128.min.js?v=r128"></script><script defer src="js/crea.js?v=6c9c5d03"></script></head><body>
@@ -263,7 +268,7 @@ input[type=text],input[type=tel],textarea{border-radius:12px;transition:border-c
 
     <section class="step" data-view="tres" hidden>
       <h1>Tu pedido <em>DAZK.</em></h1><p class="lead">Revisa tu diseño y apártalo con tu nombre. Te respondemos con propuesta y cotización.</p>
-      <div class="ficha"><span class="k">Ficha de esta mesa</span><dl class="specs" id="sum"></dl>
+      <div class="ficha"><span class="k">Revisa tu mesa</span><details class="verfi"><summary>Ver todos los detalles</summary><dl class="specs" id="sum"></dl></details>
         <div class="acts trio">
           <button type="button" class="btn arwide" data-ar><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M12 7l5 3v5l-5 3-5-3v-5z M7 10l5 3 5-3M12 13v5"/></svg>Ver mi mesa en mi espacio</button>
           <button type="button" class="btn" data-share><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M12 15V3m0 0-4 4m4-4 4 4M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg>Compartir mi diseño</button>

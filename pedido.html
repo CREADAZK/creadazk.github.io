@@ -199,9 +199,22 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
       await db('pedidos/' + t + '/eventos', 'POST', { creado: TS, autor: 'cliente', autor_nombre: nombre, tipo: 'mensaje', texto: String(texto).slice(0, 2000) });
       await db('pedidos/' + t + '/actualizado', 'PUT', TS);
     },
-    // no passwords: the email gets a one-time link; opening it signs this device in and it stays signed in until "Salir"
+    // entry link by email (new admins); everyone can then set a password with crearClave and sign in with entrarConClave
     async pedirEnlace(email) { email = emailOk(email); save('dazk-correo', email); try { await enviarLink(email); } catch (e) { throw new Error(authErr(e)); } return null; },
     async reenviar(email) { try { await enviarLink(emailOk(email)); } catch (e) { throw new Error(authErr(e)); } },
+    async entrarConClave(email, pass) {
+      email = emailOk(email); save('dazk-correo', email);
+      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email, password: pass, returnSecureToken: true })); }
+      catch (e) { throw new Error(/INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND/.test(e.code) ? 'Correo o contraseña incorrectos. Si todavía no tienes contraseña, toca «Crear o cambiar mi contraseña».' : authErr(e)); }
+      const me = await this.yo(); if (!me) { setSes(null); throw new Error('Este correo no tiene acceso al panel de DAZK. Pídele al dueño que te agregue.'); }
+      return me;
+    },
+    // Google's own page lets the person type the new password; an email that never signed in has no account yet, so it gets the entry link instead
+    async crearClave(email) {
+      email = emailOk(email); save('dazk-correo', email);
+      try { await jfetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + FB.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Firebase-Locale': 'es' }, body: JSON.stringify({ requestType: 'PASSWORD_RESET', email, continueUrl: SITE + 'taller.html' }) }); }
+      catch (e) { if (!/EMAIL_NOT_FOUND/.test(e.code)) throw new Error(authErr(e)); try { await enviarLink(email); } catch (x) { throw new Error(authErr(x)); } }
+    },
     async conEnlace(email, oob) {
       email = emailOk(email);
       try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithEmailLink', { email, oobCode: oob })); } catch (e) { throw new Error(authErr(e)); }
@@ -308,6 +321,8 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
       if (!a && !duenio) throw new Error('Este correo no tiene acceso al panel de DAZK. Pídele al dueño que te agregue.');
       const me = { email, key: ekey(email), duenio, nombre: a ? a.nombre : '' }; save('dazk-demo-yo', me); return me; },
     async conEnlace() { return who(); },
+    async entrarConClave(email) { return this.pedirEnlace(email); },
+    async crearClave(email) { emailOk(email); },
     async reenviar(email) { emailOk(email); },
     async ponerNombre(nombre) { const me = who(); nombre = String(nombre || '').trim(); if (nombre.length < 2) throw new Error('Escribe tu nombre.'); const d = load('dazk-demo-admins', {}); d[me.key] = { nombre, email: me.email, agregado: Date.now() }; save('dazk-demo-admins', d); save('dazk-demo-yo', Object.assign(me, { nombre })); },
     async admins() { return Object.entries(load('dazk-demo-admins', {})).map(([k, a]) => Object.assign({ key: k, duenio: a.email === OWNER }, a)).sort((a, b) => a.agregado - b.agregado); },

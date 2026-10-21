@@ -199,9 +199,22 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
       await db('pedidos/' + t + '/eventos', 'POST', { creado: TS, autor: 'cliente', autor_nombre: nombre, tipo: 'mensaje', texto: String(texto).slice(0, 2000) });
       await db('pedidos/' + t + '/actualizado', 'PUT', TS);
     },
-    // no passwords: the email gets a one-time link; opening it signs this device in and it stays signed in until "Salir"
+    // entry link by email (new admins); everyone can then set a password with crearClave and sign in with entrarConClave
     async pedirEnlace(email) { email = emailOk(email); save('dazk-correo', email); try { await enviarLink(email); } catch (e) { throw new Error(authErr(e)); } return null; },
     async reenviar(email) { try { await enviarLink(emailOk(email)); } catch (e) { throw new Error(authErr(e)); } },
+    async entrarConClave(email, pass) {
+      email = emailOk(email); save('dazk-correo', email);
+      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email, password: pass, returnSecureToken: true })); }
+      catch (e) { throw new Error(/INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND/.test(e.code) ? 'Correo o contraseña incorrectos. Si todavía no tienes contraseña, toca «Crear o cambiar mi contraseña».' : authErr(e)); }
+      const me = await this.yo(); if (!me) { setSes(null); throw new Error('Este correo no tiene acceso al panel de DAZK. Pídele al dueño que te agregue.'); }
+      return me;
+    },
+    // Google's own page lets the person type the new password; an email that never signed in has no account yet, so it gets the entry link instead
+    async crearClave(email) {
+      email = emailOk(email); save('dazk-correo', email);
+      try { await jfetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + FB.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Firebase-Locale': 'es' }, body: JSON.stringify({ requestType: 'PASSWORD_RESET', email, continueUrl: SITE + 'taller.html' }) }); }
+      catch (e) { if (!/EMAIL_NOT_FOUND/.test(e.code)) throw new Error(authErr(e)); try { await enviarLink(email); } catch (x) { throw new Error(authErr(x)); } }
+    },
     async conEnlace(email, oob) {
       email = emailOk(email);
       try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithEmailLink', { email, oobCode: oob })); } catch (e) { throw new Error(authErr(e)); }
@@ -308,6 +321,8 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
       if (!a && !duenio) throw new Error('Este correo no tiene acceso al panel de DAZK. Pídele al dueño que te agregue.');
       const me = { email, key: ekey(email), duenio, nombre: a ? a.nombre : '' }; save('dazk-demo-yo', me); return me; },
     async conEnlace() { return who(); },
+    async entrarConClave(email) { return this.pedirEnlace(email); },
+    async crearClave(email) { emailOk(email); },
     async reenviar(email) { emailOk(email); },
     async ponerNombre(nombre) { const me = who(); nombre = String(nombre || '').trim(); if (nombre.length < 2) throw new Error('Escribe tu nombre.'); const d = load('dazk-demo-admins', {}); d[me.key] = { nombre, email: me.email, agregado: Date.now() }; save('dazk-demo-admins', d); save('dazk-demo-yo', Object.assign(me, { nombre })); },
     async admins() { return Object.entries(load('dazk-demo-admins', {})).map(([k, a]) => Object.assign({ key: k, duenio: a.email === OWNER }, a)).sort((a, b) => a.agregado - b.agregado); },
@@ -1465,7 +1480,7 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
 
   window.DAZK_PAG = { pagina, equipo };
 })();
-</script><script>/* DAZK · panel (taller.html): sign in with just the email (one-time link per device), then a 4-digit quick lock each time the panel is opened; orders with their products, status, history, messages and payments, plus the gestión, public page, marketing and team sections. */
+</script><script>/* DAZK · panel (taller.html): sign in with email and password (the device stays signed in); orders with their products, status, history, messages and payments, plus the gestión, public page, marketing and team sections. */
 window.addEventListener('DOMContentLoaded', function () {
   const A = window.DAZK_API, esc = A.esc, main = document.querySelector('#main'), $ = s => document.querySelector(s);
   let me = null, all = [], filtro = 'abiertos', q = '', draft = '', last = '';
@@ -1475,53 +1490,44 @@ window.addEventListener('DOMContentLoaded', function () {
   const cerrado = p => p.estado === 'entregado' || p.estado === 'cancelado';
 
   const err = (id, t) => { const e = $(id); e.textContent = t; e.hidden = false; };
-  // just the email: it gets a one-time link, and once opened this device stays signed in
+  // email + password; the device stays signed in until "Salir". A new admin (or a forgotten password) gets an email to set it.
   function login(msg, email) {
     $('#nav').innerHTML = '';
     main.innerHTML = `<span class="k">Panel DAZK</span><h1>Entrar al <em>panel.</em></h1>
-      ${A.demo ? '<p class="note">Modo demo: escribe el correo del dueño y entras directo. Los datos son solo de este navegador.</p>' : ''}
+      ${A.demo ? '<p class="note">Modo demo: escribe el correo del dueño y cualquier contraseña. Los datos son solo de este navegador.</p>' : ''}
       <form id="l-form" class="card"><label for="l-mail">Tu correo<input type="email" id="l-mail" autocomplete="username" maxlength="120" required value="${esc(email || A.load('dazk-correo', ''))}"></label>
+      <label for="l-pass">Contraseña<input type="password" id="l-pass" autocomplete="current-password" maxlength="100" required></label>
       <p class="err" id="l-err" role="alert" ${msg ? '' : 'hidden'}>${esc(msg || '')}</p><button class="btn gold" type="submit">Entrar</button>
-      <p class="alt">Sin contraseña. La primera vez en cada celular o computadora te llega un enlace a tu correo; lo abres y ya quedas dentro.</p></form>`;
+      <p class="alt"><button type="button" class="btn" id="l-crear">Crear o cambiar mi contraseña</button></p></form>`;
     $('#l-form').addEventListener('submit', async ev => {
-      ev.preventDefault(); const b = ev.target.querySelector('[type=submit]'), m = $('#l-mail').value.trim(); b.disabled = true; $('#l-err').hidden = true;
-      try {
-        const r = await A.pedirEnlace(m); if (r) { me = r; abrir(); return entrar(); }
-        main.innerHTML = `<span class="k">Panel DAZK</span><h1>Revisa tu <em>correo.</em></h1>
-          <div class="card"><p>Te mandamos un enlace a <b>${esc(m)}</b>. Ábrelo en este mismo celular o computadora y entras al panel.</p>
-          <p class="lead">Si no lo ves en un minuto, búscalo en «Spam» o «Promociones». Solo se hace una vez en cada aparato.</p>
-          <button type="button" class="btn" id="l-otra">Usar otro correo</button></div>`;
-        $('#l-otra').onclick = () => login('', m);
-      } catch (e) { err('#l-err', e.message); b.disabled = false; }
+      ev.preventDefault(); const b = ev.target.querySelector('[type=submit]'); b.disabled = true; $('#l-err').hidden = true;
+      try { me = await A.entrarConClave($('#l-mail').value.trim(), $('#l-pass').value); entrar(); } catch (e) { err('#l-err', e.message); b.disabled = false; }
     });
+    $('#l-crear').onclick = async ev => {
+      const m = $('#l-mail').value.trim(); if (!m) { err('#l-err', 'Escribe tu correo primero.'); return $('#l-mail').focus(); }
+      ev.target.disabled = true; $('#l-err').hidden = true;
+      try {
+        await A.crearClave(m);
+        main.innerHTML = `<span class="k">Panel DAZK</span><h1>Revisa tu <em>correo.</em></h1>
+          <div class="card"><p>Te mandamos un correo a <b>${esc(m)}</b> para poner tu contraseña. Ábrelo en cualquier celular o computadora, escribe tu contraseña nueva y regresa aquí a entrar.</p>
+          <p class="lead">Si no lo ves en un minuto, búscalo en «Spam» o «Promociones».</p>
+          <button type="button" class="btn gold" id="l-volver">Ya la puse, entrar</button></div>`;
+        $('#l-volver').onclick = () => login('', m);
+      } catch (e) { err('#l-err', e.message); ev.target.disabled = false; }
+    };
   }
   // the link in the email lands here: ?mode=signIn&oobCode=… (asks for the email only if it was opened on another device)
   async function conEnlace(oob, email) {
     const clean = () => history.replaceState(null, '', location.pathname);
     if (email) {
       main.innerHTML = '<span class="k">Panel DAZK</span><h1>Entrando…</h1>';
-      try { me = await A.conEnlace(email, oob); clean(); abrir(); return entrar(); } catch (e) { clean(); return login(e.message, email); }
+      try { me = await A.conEnlace(email, oob); clean(); return entrar(); } catch (e) { clean(); return login(e.message, email); }
     }
     main.innerHTML = `<span class="k">Panel DAZK</span><h1>Confirma tu <em>correo.</em></h1><p class="lead">Abriste el enlace en otro aparato. Escribe el correo al que te llegó.</p>
       <form id="ce-form" class="card"><label for="ce-mail">Tu correo<input type="email" id="ce-mail" autocomplete="username" maxlength="120" required></label>
       <p class="err" id="ce-err" role="alert" hidden></p><button class="btn gold" type="submit">Entrar</button></form>`;
     $('#ce-form').onsubmit = ev => { ev.preventDefault(); A.save('dazk-correo', $('#ce-mail').value.trim()); conEnlace(oob, $('#ce-mail').value.trim()); };
   }
-  // quick lock on a device that is already signed in: the 4-digit code only opens a saved session, it never signs anyone in
-  const PIN = '5596', abierto = () => { try { return sessionStorage.getItem('dazk-pin') === '1'; } catch (e) { return false; } };
-  const abrir = () => { try { sessionStorage.setItem('dazk-pin', '1'); } catch (e) {} };
-  function candado() {
-    $('#nav').innerHTML = '';
-    main.innerHTML = `<span class="k">Panel DAZK</span><h1>Escribe tu <em>clave.</em></h1>
-      <form id="pin-form" class="card"><label for="pin">Clave de 4 dígitos<input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" required></label>
-      <p class="err" id="pin-err" role="alert" hidden></p><button class="btn gold" type="submit">Entrar</button>
-      <p class="alt"><button type="button" class="btn" id="pin-otro">Entrar con otro correo</button></p></form>`;
-    const inp = $('#pin'), ok = () => { if (inp.value === PIN) { abrir(); entrar(); return true; } };
-    inp.focus(); inp.oninput = () => { if (inp.value.length === 4 && !ok()) { err('#pin-err', 'Clave incorrecta.'); inp.value = ''; } };
-    $('#pin-form').onsubmit = ev => { ev.preventDefault(); if (!ok()) { err('#pin-err', 'Clave incorrecta.'); inp.value = ''; inp.focus(); } };
-    $('#pin-otro').onclick = () => { A.logout(); me = null; login(); };
-  }
-  const conCandado = () => abierto() ? entrar() : candado();
   // the owner is asked their name once; everyone else gets it when added
   async function entrar() {
     if (me.nombre) return reload();
@@ -1612,8 +1618,8 @@ window.addEventListener('DOMContentLoaded', function () {
   setInterval(() => { if (me && !document.hidden) reload(true); }, 30000);
   const qs = new URLSearchParams(location.search);
   if (qs.get('oobCode') && qs.get('mode') === 'signIn') { if (qs.get('e')) A.save('dazk-correo', qs.get('e')); conEnlace(qs.get('oobCode'), qs.get('e') || A.load('dazk-correo', '')); }
-  else if (!A.demo && A.load('dazk-ses', null)) A.yo().then(u => { me = u; me ? conCandado() : login(); }, e => A.load('dazk-ses', null) ? offline(e.message) : login(e.message));
-  else A.yo().then(u => { me = u; me ? conCandado() : login(); }, e => login(e.message));
+  else if (!A.demo && A.load('dazk-ses', null)) A.yo().then(u => { me = u; me ? entrar() : login(); }, e => A.load('dazk-ses', null) ? offline(e.message) : login(e.message));
+  else A.yo().then(u => { me = u; me ? entrar() : login(); }, e => login(e.message));
   // signed in but no signal: keep the session and offer to retry instead of asking for the email
   function offline(msg) { main.innerHTML = `<span class="k">Panel DAZK</span><h1>Sin <em>conexión.</em></h1><div class="card"><p>${esc(msg)}</p><p class="lead">Tu sesión sigue guardada en este aparato.</p><button type="button" class="btn gold" id="re">Intentar de nuevo</button></div>`; $('#re').onclick = () => location.reload(); }
 });

@@ -332,7 +332,8 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
       const me = { email, key: ekey(email), duenio, nombre: a ? a.nombre : '' }; save('dazk-demo-yo', me); return me; },
     async conEnlace() { return who(); },
     async entrarConClave(email) { return this.pedirEnlace(email); },
-    async entrarConCodigo(code) { if (String(code) !== '559690') throw new Error('Código incorrecto.'); return this.pedirEnlace(OWNER); },
+    // demo: any 6 digits; the real code lives only in Firebase
+    async entrarConCodigo(code) { if (!/^[0-9]{6}$/.test(String(code))) throw new Error('Código incorrecto.'); return this.pedirEnlace(OWNER); },
     async crearClave(email) { emailOk(email); },
     async reenviar(email) { emailOk(email); },
     async ponerNombre(nombre) { const me = who(); nombre = String(nombre || '').trim(); if (nombre.length < 2) throw new Error('Escribe tu nombre.'); const d = load('dazk-demo-admins', {}); d[me.key] = { nombre, email: me.email, agregado: Date.now() }; save('dazk-demo-admins', d); save('dazk-demo-yo', Object.assign(me, { nombre })); },

@@ -193,6 +193,20 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
 .bar .next.wa[hidden]{display:none}
 .bar .next.wa svg{width:20px;height:20px}
 @media (min-width:980px){.bar{left:50%;transform:translateX(-50%);width:min(1280px,100%);border:1px solid var(--line);border-bottom:0}}
+/* pulido: one rounded language for every control, clear selection, quieter secondary actions */
+.chips button,#c-uso button,#c-forma button,#c-base button{border-radius:12px;transition:border-color .2s,background .2s,box-shadow .2s}
+.chips button.on{border-color:var(--g);background:rgba(194,162,115,.18);box-shadow:inset 0 0 0 1px var(--g);color:var(--ink)}
+.people button{border-radius:14px;transition:background .2s,border-color .2s}.people button.on{background:var(--g);border-color:var(--g);color:#0b0907}.people button.on::after{color:#3a2f22}
+.models button,.scratch{border-radius:14px;overflow:hidden}.models button.on{box-shadow:inset 0 0 0 1.5px var(--g)}.models img{border-radius:0}
+.ficha{border-radius:16px;background:linear-gradient(180deg,rgba(194,162,115,.06),rgba(194,162,115,0) 60%)}
+input[type=text],input[type=tel],textarea{border-radius:12px;transition:border-color .2s,box-shadow .2s}input[type=text]:focus,input[type=tel]:focus,textarea:focus{outline:none;border-color:var(--g);box-shadow:0 0 0 3px rgba(194,162,115,.18)}
+.btn{border-radius:999px}.btn.gold,.bar .next,.cta,.welcome .go button{border-radius:999px}.bar .back{border-radius:12px}
+.btn.gold,.bar .next,.cta,.welcome .go .pri{box-shadow:0 6px 18px rgba(194,162,115,.18)}
+.ficha .acts.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.ficha .acts.trio .btn{flex-direction:column;gap:6px;min-height:72px;padding:10px 6px;border-radius:14px;border-color:var(--line);font-size:10px;letter-spacing:.06em;line-height:1.25;text-align:center}
+.ficha .acts.trio .btn.arwide{border-color:var(--gl)}
+#c-piedra,#c-base,.rail{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+.steps button{font-size:11px}
+@media (min-width:980px){.rail{-webkit-mask-image:none;mask-image:none}#viewer{border-radius:18px;overflow:hidden}.sheet{border-radius:18px}}
 </style>
 <script>document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("#welcome [data-uso]");if(b&&!window.DAZK_LISTO){e.stopImmediatePropagation();window.DAZK_PRE=b.dataset.uso;b.classList.add("cargando")}},true)</script><style>#welcome [data-uso].cargando{opacity:.75}#welcome [data-uso].cargando::after{content:" …"}</style><script defer src="js/three.r128.min.js?v=r128"></script><script defer src="js/crea.js?v=6c9c5d03"></script></head><body>
 <div class="welcome" id="welcome">
@@ -250,7 +264,7 @@ padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;alig
     <section class="step" data-view="tres" hidden>
       <h1>Tu pedido <em>DAZK.</em></h1><p class="lead">Revisa tu diseño y apártalo con tu nombre. Te respondemos con propuesta y cotización.</p>
       <div class="ficha"><span class="k">Ficha de esta mesa</span><dl class="specs" id="sum"></dl>
-        <div class="acts">
+        <div class="acts trio">
           <button type="button" class="btn arwide" data-ar><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M12 7l5 3v5l-5 3-5-3v-5z M7 10l5 3 5-3M12 13v5"/></svg>Ver mi mesa en mi espacio</button>
           <button type="button" class="btn" data-share><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M12 15V3m0 0-4 4m4-4 4 4M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg>Compartir mi diseño</button>
           <button type="button" class="btn" id="pdf"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>Descargar PDF de mi mesa</button></div>

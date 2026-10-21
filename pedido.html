@@ -171,6 +171,8 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
       .sort((a, b) => a.creado - b.creado || (a.key < b.key ? -1 : 1));
     return Object.assign({}, p, { id: t, token: t, notas: p.notas || '', items: Object.values(p.items || {}).map((it, i) => Object.assign({ cantidad: 1 }, it, { pos: i + 1 })), eventos: ev.map((e, i) => Object.assign(e, { id: i + 1 })) });
   }
+  // the shared panel account: its password is the panel code, and the rules give its uid the same access as the team
+  const PANEL_EMAIL = 'panel@creadazk.github.io', PANEL_UID = 'sSOabJv4HySaB6vyQAdNgzew65l1';
   const OWNER = 'i55969072@gmail.com', ekey = e => String(e).trim().toLowerCase().replace(/\./g, ',');
   const emailOk = e => { e = String(e || '').trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) throw new Error('Revisa el correo.'); return e; };
   const itemsDe = l => l.map(it => Object.assign({ tipo: ['mesa', 'sillas', 'bancos'].includes(it.tipo) ? it.tipo : 'mesa', titulo: String(it.titulo || 'Mesa').slice(0, 160), cantidad: Math.max(1, Math.min(99, +it.cantidad || 1)),
@@ -202,6 +204,11 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
     // entry link by email (new admins); everyone can then set a password with crearClave and sign in with entrarConClave
     async pedirEnlace(email) { email = emailOk(email); save('dazk-correo', email); try { await enviarLink(email); } catch (e) { throw new Error(authErr(e)); } return null; },
     async reenviar(email) { try { await enviarLink(emailOk(email)); } catch (e) { throw new Error(authErr(e)); } },
+    async entrarConCodigo(code) {
+      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email: PANEL_EMAIL, password: String(code || ''), returnSecureToken: true })); }
+      catch (e) { throw new Error(/INVALID_LOGIN|INVALID_PASSWORD|MISSING_PASSWORD/.test(e.code) ? 'Código incorrecto.' : authErr(e)); }
+      return this.yo();
+    },
     async entrarConClave(email, pass) {
       email = emailOk(email); save('dazk-correo', email);
       try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email, password: pass, returnSecureToken: true })); }
@@ -224,6 +231,8 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
     logout() { setSes(null); },
     async yo() {
       if (!ses) return null;
+      // the panel account has no admins/ entry; each device keeps the name of whoever uses it
+      if (ses.uid === PANEL_UID) return { uid: ses.uid, email: ses.email, key: 'panel', duenio: false, panel: true, nombre: load('dazk-nombre', '') };
       if (!yoCache) {
         const k = ekey(ses.email), duenio = ses.email.toLowerCase() === OWNER;
         const s = await db('admins/' + k, 'GET', undefined, true).catch(e => { if (denied(e)) return false; throw e; });
@@ -234,6 +243,7 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
     // the owner's own name (asked once, it signs the history)
     async ponerNombre(nombre) {
       const me = await this.yo(); nombre = String(nombre || '').trim().slice(0, 60); if (nombre.length < 2) throw new Error('Escribe tu nombre.');
+      if (me.panel) return save('dazk-nombre', nombre);
       await db('admins/' + me.key, 'PUT', { nombre, email: me.email.toLowerCase(), agregado: TS }, true); yoCache = null;
     },
     async admins() { return Object.entries((await db('admins', 'GET', undefined, true)) || {}).map(([k, a]) => Object.assign({ key: k, duenio: a.email === OWNER }, a)).sort((a, b) => a.agregado - b.agregado); },
@@ -322,6 +332,7 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
       const me = { email, key: ekey(email), duenio, nombre: a ? a.nombre : '' }; save('dazk-demo-yo', me); return me; },
     async conEnlace() { return who(); },
     async entrarConClave(email) { return this.pedirEnlace(email); },
+    async entrarConCodigo(code) { if (String(code) !== '559690') throw new Error('Código incorrecto.'); return this.pedirEnlace(OWNER); },
     async crearClave(email) { emailOk(email); },
     async reenviar(email) { emailOk(email); },
     async ponerNombre(nombre) { const me = who(); nombre = String(nombre || '').trim(); if (nombre.length < 2) throw new Error('Escribe tu nombre.'); const d = load('dazk-demo-admins', {}); d[me.key] = { nombre, email: me.email, agregado: Date.now() }; save('dazk-demo-admins', d); save('dazk-demo-yo', Object.assign(me, { nombre })); },

@@ -554,15 +554,15 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
       const arm = Math.hypot(xo - xj, h - s / 2 - yJ), arm2 = Math.hypot(xo - xj, yJ - s / 2);
       B.cut('Brazo superior de la Y', secc(a, a), arm, 4); B.cut('Brazo inferior de la Y', secc(a, a), arm2, 4); B.cut('Barra del «=» (al centro)', secc(s, s * 1.2), 2 * xj, 2); B.cut('Unión de la Y (placa)', secc(a, a), 2 * d + s, 4);
       B.cut('Larguero superior', secc(s, s * .8), 2 * xo + s, 2); B.cut('Travesaño superior', secc(s, s), 2 * zt + s, 2); B.cut('Travesaño de piso', secc(s, s), 2 * zt + s, 2); B.cut('Travesaño de unión', secc(s, s), 2 * zt, 4); },
-    yv(X, B) { const s = X.s, h = X.h, a = s * 1.3, hx = X.hxO || X.ax0 + s / 2, zt = (X.hzO || X.zw0 + s / 2) - s / 2, xo = hx - s / 2, xj = xo - Math.min(32, xo * .32), yJ = h * .5, d = Math.max(s * 1.1, 5);
+    yv(X, B) { const s = X.s, h = X.h, a = s * 1.3, hx = X.hxO || X.ax0 + s / 2, zt = (X.hzO || X.zw0 + s / 2) - s / 2, xo = hx - s / 2, xj = Math.max(10, xo * .16), yJ = h * .5, d = Math.max(s * 1.1, 5);
       [-1, 1].forEach(j => { const z = j * zt;
-        [-1, 1].forEach(i => { const x = i * xo, xi = i * xj; B.beam([xi, h - s / 2, z], [x, yJ, z], a, a); B.beam([x, yJ, z], [xi, s / 2, z], a, a); B.box(x, z, a, a, yJ - d - s / 2, yJ + d + s / 2); });
+        [-1, 1].forEach(i => { const x = i * xo, xi = i * xj; B.beam([x, h - s / 2, z], [xi, yJ, z], a, a); B.beam([xi, yJ, z], [x, s / 2, z], a, a); B.box(xi, z, a, a, yJ - d - s / 2, yJ + d + s / 2); });
         B.box(0, z, 2 * xo + s, s * .8, h - s * .8, h); });
-      [-1, 1].forEach(i => { B.box(i * xo, 0, s, 2 * zt + s, h - s, h); B.box(i * xj, 0, s, 2 * zt + s, h - s, h); B.box(i * xj, 0, s, 2 * zt + s, 0, s); [yJ + d, yJ - d].forEach(y => B.box(i * xo, 0, s, 2 * zt, y - s / 2, y + s / 2)); });
-      [yJ + d, yJ - d].forEach(y => B.box(0, 0, 2 * xo, s * 1.2, y - s / 2, y + s / 2));
+      [-1, 1].forEach(i => { B.box(i * xo, 0, s, 2 * zt + s, h - s, h); B.box(i * xo, 0, s, 2 * zt + s, 0, s); [yJ + d, yJ - d].forEach(y => B.box(i * xj, 0, s, 2 * zt, y - s / 2, y + s / 2)); });
+      [yJ + d, yJ - d].forEach(y => B.box(0, 0, 2 * xj, s * 1.2, y - s / 2, y + s / 2));
       const arm = Math.hypot(xo - xj, h - s / 2 - yJ), arm2 = Math.hypot(xo - xj, yJ - s / 2);
-      B.cut('Brazo superior de la Y', secc(a, a), arm, 4); B.cut('Brazo inferior de la Y', secc(a, a), arm2, 4); B.cut('Barra del «=» (al centro)', secc(s, s * 1.2), 2 * xo, 2); B.cut('Unión de la Y (placa)', secc(a, a), 2 * d + s, 4);
-      B.cut('Larguero superior', secc(s, s * .8), 2 * xo + s, 2); B.cut('Travesaño superior', secc(s, s), 2 * zt + s, 4); B.cut('Travesaño de piso', secc(s, s), 2 * zt + s, 2); B.cut('Travesaño de unión', secc(s, s), 2 * zt, 4); },
+      B.cut('Brazo superior de la Y', secc(a, a), arm, 4); B.cut('Brazo inferior de la Y', secc(a, a), arm2, 4); B.cut('Barra del «=» (al centro)', secc(s, s * 1.2), 2 * xj, 2); B.cut('Unión de la Y (placa)', secc(a, a), 2 * d + s, 4);
+      B.cut('Larguero superior', secc(s, s * .8), 2 * xo + s, 2); B.cut('Travesaño superior', secc(s, s), 2 * zt + s, 2); B.cut('Travesaño de piso', secc(s, s), 2 * zt + s, 2); B.cut('Travesaño de unión', secc(s, s), 2 * zt, 4); },
     patas(X, B) { const s = X.s, h = X.h, f = s * 1.6, e = s * .5;
       if (X.round) { const r = X.hxO ? X.hxO - s / 2 : X.L * .34; [0, 1, 2, 3].forEach(i => { const t = i * Math.PI / 2 + Math.PI / 4; B.box(r * Math.cos(t), r * Math.sin(t), s, s, 0, h); }); B.ring(r, h - f / 2, e);
         B.cut('Pata', secc(s, s), h, 4); B.cut('Aro de faldón (solera rolada)', secc(f, e), 2 * Math.PI * r, 1); return; }

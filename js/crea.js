@@ -828,6 +828,14 @@ window.addEventListener('DOMContentLoaded',function(){
   $$('#welcome [data-uso]').forEach(function(b){b.addEventListener('click',function(){closeW();if(window.DAZK_USO)DAZK_USO(b.dataset.uso);go(0,false);window.scrollTo(0,0)})});
   // a tap made while the app was still starting (captured in the page head) is applied now
   window.DAZK_LISTO=true;if(window.DAZK_PRE){var pb=document.querySelector('#welcome [data-uso="'+window.DAZK_PRE+'"]');if(pb){pb.classList.remove('cargando');pb.click();}}
+  // landing: model cards open that model in 3D; the mine sets the stone (kept when a model is chosen after)
+  var wStone=null,SN={"sw-light":"Calacatta","sw-polar":"Blanco Polar","sw-trav":"Travertino","sw-sahara":"Sahara","sw-dark":"Nero Marquina","sw-galaxy":"Nero Galaxy"};
+  $$('.models [data-model]').forEach(function(b){b.addEventListener('click',function(){if(wStone)setTimeout(function(){DAZK_SET({piedra:wStone})},40)})});
+  $$('#welcome [data-wm]').forEach(function(c){c.addEventListener('click',function(){var m=document.querySelector('.models [data-model="'+c.dataset.wm+'"]');closeW();window.scrollTo(0,0);if(m)m.click()})});
+  $$('#welcome [data-wf]').forEach(function(f){f.addEventListener('click',function(){$$('#welcome [data-wf]').forEach(function(x){x.classList.toggle('on',x===f)});$$('#welcome [data-wm]').forEach(function(c){c.hidden=!!f.dataset.wf&&c.dataset.wu!==f.dataset.wf})})});
+  $$('#welcome [data-ws]').forEach(function(s){s.addEventListener('click',function(){wStone=s.dataset.ws;if(window.DAZK_SET)DAZK_SET({piedra:wStone});$$('#welcome [data-ws]').forEach(function(x){x.classList.toggle('on',x===s)});$('#w-sn').innerHTML='Elegiste <b>'+SN[wStone]+'</b>';$('#w-gs').disabled=false})});
+  $('#w-gs').addEventListener('click',function(){closeW();go(0,false);window.scrollTo(0,0);toast(SN[wStone]+' elegida. Ahora elige el modelo.')});
+  var lk=document.querySelector('.top .lock');if(lk){lk.style.cursor='pointer';lk.addEventListener('click',function(){w.classList.remove('out');w.scrollTop=0})}
   window.DAZK_WELCOME=function(t){$('#w-lead').textContent=t||lead0;w.classList.remove('out')};
   if(window.DAZK_SHARED){go(N-1,false);toast('Este es el diseño que te compartieron. Puedes cambiar lo que quieras.')}else go(0,false);
 });;

@@ -1025,6 +1025,9 @@ window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https:/
     async agregarGasto(x) { const me = await this.yo(); await db('gastos', 'POST', Object.assign({}, x, { por: me.nombre, creado: TS }), true); },
     async borrarGasto(id) { await db('gastos/' + id, 'DELETE', undefined, true); },
     // what the public page shows: notice, WhatsApp numbers, hidden models and stones
+    // the owner's costs and monthly goal (staff only)
+    async config() { return (await db('config/tarifa', 'GET', undefined, true)) || {}; },
+    async guardarConfig(c) { await db('config/tarifa', 'PUT', Object.assign({}, c, { actualizado: TS }), true); },
     async publico() { return (await db('publico')) || {}; },
     async guardarPublico(c) { await db('publico', 'PUT', Object.assign({}, c, { actualizado: TS }), true); },
     async staffMensaje(id, texto, interno) {
@@ -1104,6 +1107,8 @@ window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https:/
     async gastos() { return load('dazk-demo-gastos', []).slice().sort((a, b) => b.fecha.localeCompare(a.fecha) || b.creado - a.creado); },
     async agregarGasto(x) { save('dazk-demo-gastos', load('dazk-demo-gastos', []).concat(Object.assign({ id: rnd() }, x, { por: who().nombre, creado: Date.now() }))); },
     async borrarGasto(id) { save('dazk-demo-gastos', load('dazk-demo-gastos', []).filter(x => x.id !== id)); },
+    async config() { return load('dazk-demo-config', {}); },
+    async guardarConfig(c) { save('dazk-demo-config', c); },
     async publico() { return load('dazk-demo-publico', {}); },
     async guardarPublico(c) { save('dazk-demo-publico', Object.assign({}, c, { actualizado: Date.now() })); },
     logout() { save('dazk-demo-yo', null); },
@@ -1199,7 +1204,7 @@ window.addEventListener('DOMContentLoaded', function () {
       const msg = `Hola DAZK, soy ${nombre}. Acabo de apartar mi pedido #${r.folio}:\n` + its.map(i => `• ${i.cantidad > 1 ? i.cantidad + ' × ' : ''}${i.titulo}`).join('\n') + `\n\nSeguimiento: ${link}`;
       $('#ok-folio').textContent = '#' + r.folio; $('#ok-nombre').textContent = nombre.split(' ')[0];
       $('#ok-link').href = link;
-      $('#ok-wa').innerHTML = D.wa.map((w, i) => `<a class="btn ${i ? '' : 'wa'}" target="_blank" rel="noopener" href="https://wa.me/${w.num}?text=${encodeURIComponent(msg)}">Avisar a DAZK · ${esc(w.label)}</a>`).join('');
+      $('#ok-wa').innerHTML = D.wa.map((w, i) => `<a class="btn ${i ? '' : 'wa big'}" target="_blank" rel="noopener" href="https://wa.me/${w.num}?text=${encodeURIComponent(msg)}">${i ? 'O a ' + esc(w.label) : 'Mandar mi folio por WhatsApp'}</a>`).join('');
       $('#p-box').hidden = true; $('#p-ok').hidden = false; draw();
       $('#p-ok').scrollIntoView({ behavior: 'smooth', block: 'center' }); hello();
     } catch (ex) { fail(ex.message || 'No se pudo enviar. Intenta de nuevo.'); }

@@ -148,34 +148,42 @@
     }
     html += '<div class="filtros">' + [['activos', 'Activos'], ['entregado', 'Entregados'], ['todos', 'Todos']].map(([k, t]) => '<button class="pill' + (filtro === k ? ' sel' : '') + '" data-f="' + k + '">' + t + '</button>').join('')
       + '<input id="busca" placeholder="Buscar cliente, folio o herrero" value="' + esc(busca) + '"></div>';
+    if (!tall && filtro === 'activos' && !busca) {
+      const tareas = ordenados(act).filter(p => accion(p) && p.estado !== 'cotizado').slice(0, 6);
+      if (tareas.length) html += '<div class="hoy"><h3>Para hoy</h3><ol>' + tareas.map(p => { const e = entrega(p); return '<li><button data-hacer="' + p.id + '"><b>' + esc(accion(p).txt) + '</b><span>' + esc(p.nombre) + ' · #' + p.folio + '</span><em class="ent ' + e.cls + '">' + esc(e.txt) + '</em></button></li>'; }).join('') + '</ol></div>';
+    }
     if (!ver.length) html += '<p class="vacio">No hay pedidos aquí.</p>';
+    else html += tall ? '<div class="thead ft"><span></span><span>Cliente y mesa</span><span>Herrero</span><span>Nos cuesta</span><span>Precio y ganancia</span></div>'
+      : '<div class="thead fl"><span></span><span>Cliente y mesa</span><span>Entrega</span><span>Herrero</span><span>Estado</span></div>';
     GRUPOS.forEach(([g, t]) => {
       const l = ver.filter(p => entrega(p).g === g); if (!l.length) return;
       html += '<h3 class="grupo g-' + g + '">' + t + ' <small>' + l.length + '</small></h3><div class="lista">' + l.map(p => tall ? filaTaller(p) : filaLog(p)).join('') + '</div>';
     });
     main.innerHTML = html;
     $$('[data-f]').forEach(b => b.onclick = () => { filtro = b.dataset.f; lista(modo); });
+    $$('[data-hacer]').forEach(b => b.onclick = () => accion(todos.find(z => z.id === b.dataset.hacer)).run('log'));
     const bi = $('#busca'); bi.oninput = () => { busca = bi.value; clearTimeout(lista.t); lista.t = setTimeout(() => { lista(modo); const n = $('#busca'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 300); };
     fotos();
   }
   function filaLog(p) {
     const m = mesaDe(p), e = entrega(p), f = ficha(p), n = cantidad(p);
-    return '<a class="fila" href="#p=' + p.id + '"><img data-foto="' + p.token + '" alt=""><div><b>#' + p.folio + ' · ' + esc(p.nombre) + '</b>'
+    return '<a class="fila fl" href="#p=' + p.id + '"><img data-foto="' + p.token + '" alt="">'
+      + '<div class="c-cli"><b>' + esc(p.nombre) + ' <small>#' + p.folio + '</small></b>'
       + '<span>' + esc(D.medida(m)) + ' · ' + esc(D.FORMAS[m.forma]) + (n > 1 ? ' · ' + n + ' mesas' : '') + ' · ' + esc(D.piedra(m.piedra).nombre) + '</span>'
-      + '<span>Base ' + esc(D.BASES[m.base].nombre) + ' · ' + esc(colorDe(p)) + ' · <i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i></span>'
-      + '<em class="sigue">Sigue: ' + esc(sigue(p)) + '</em></div>'
-      + '<div class="der"><span class="ent ' + e.cls + '">' + esc(e.txt) + '</span>' + (e.f ? '<small>' + fechaCorta(e.f) + '</small>' : '')
-      + '<small class="herr' + (f.herrero ? '' : ' falta') + '">' + (f.herrero ? '⚒ ' + esc(f.herrero) : 'Sin herrero') + '</small>'
-      + '<span class="est e-' + p.estado + '">' + A.estado(p.estado) + '</span></div></a>';
+      + '<span>Base ' + esc(D.BASES[m.base].nombre) + ' ' + esc(colorDe(p).toLowerCase()) + ' · <i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i></span></div>'
+      + '<div class="c-ent"><span class="ent ' + e.cls + '">' + esc(e.txt) + '</span>' + (e.f ? '<small>' + fechaCorta(e.f) + '</small>' : '') + '</div>'
+      + '<div class="c-her"><span class="herr' + (f.herrero ? '' : ' falta') + '">' + (f.herrero ? esc(f.herrero) : 'Sin herrero') + '</span></div>'
+      + '<div class="c-est"><span class="est e-' + p.estado + '">' + A.estado(p.estado) + '</span><em class="sigue">' + esc(sigue(p)) + '</em></div></a>';
   }
   function filaTaller(p) {
     const m = mesaDe(p), x = numeros(p), f = ficha(p), e = entrega(p);
-    return '<a class="fila" href="#t=' + p.id + '"><img data-foto="' + p.token + '" alt=""><div><b>#' + p.folio + ' · ' + esc(p.nombre) + '</b>'
+    return '<a class="fila ft" href="#t=' + p.id + '"><img data-foto="' + p.token + '" alt="">'
+      + '<div class="c-cli"><b>' + esc(p.nombre) + ' <small>#' + p.folio + '</small></b>'
       + '<span>' + esc(D.medida(m)) + ' · ' + esc(D.piedra(m.piedra).nombre) + ' · base ' + esc(D.BASES[m.base].nombre) + ' ' + esc(colorDe(p).toLowerCase()) + '</span>'
-      + '<span><i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i></span>'
-      + '<em class="sigue">' + (f.herrero ? '⚒ ' + esc(f.herrero) : '⚒ Sin herrero') + ' · ' + esc(e.txt) + '</em></div>'
-      + '<div class="der"><small>Cuesta ' + pesos(x.costo) + (x.k.usaReal ? '' : ' aprox.') + '</small>'
-      + (x.pactado ? '<b>' + pesos(x.pactado) + '</b><span class="marg ' + (x.g.ok ? 'bien' : 'mal') + '">' + x.g.pct + '% ganancia</span>' : '<span class="marg mal">sin precio</span>') + '</div></a>';
+      + '<span><i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i> · ' + esc(e.txt) + '</span></div>'
+      + '<div class="c-her"><span class="herr' + (f.herrero ? '' : ' falta') + '">' + (f.herrero ? esc(f.herrero) : 'Sin herrero') + '</span></div>'
+      + '<div class="c-cos"><b>' + pesos(x.costo) + '</b><small>' + (x.k.usaReal ? 'costos reales' : 'aproximado') + '</small></div>'
+      + '<div class="c-pre">' + (x.pactado ? '<b>' + pesos(x.pactado) + '</b><span class="marg ' + (x.g.ok ? 'bien' : 'mal') + '">' + x.g.pct + '% ganancia</span>' : '<span class="marg mal">Sin precio</span>') + '</div></a>';
   }
   const fcache = {};
   function fotos() {
@@ -191,13 +199,16 @@
   const opts = (o, v) => Object.entries(o).map(([k, t]) => '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + esc(t) + '</option>').join('');
   function pedido(p, modo) {
     const m = mesaDe(p), x = numeros(p), f = ficha(p), tel = p.tel ? A.waNum(p.tel) : '', e = entrega(p), tall = modo === 'taller';
+    const ac = accion(p);
     const cab = '<a class="volver" href="' + (tall ? '#taller' : '#') + '">← ' + (tall ? 'Taller y creación' : 'Pedidos y logística') + '</a>'
-      + '<div class="cab"><div><h1>#' + p.folio + ' · ' + esc(p.nombre) + '</h1><p class="sub">' + A.fecha(p.creado) + (p.canal ? ' · llegó por ' + esc(p.canal) : '') + (p.tel ? ' · ' + esc(p.tel) : '') + '</p></div>'
-      + '<div class="acc">' + (tel ? '<a class="btn verde" target="_blank" rel="noopener" href="https://wa.me/' + tel + '">WhatsApp</a>' : '')
-      + '<select id="estado">' + ESTADOS.map(s => '<option value="' + s + '"' + (s === p.estado ? ' selected' : '') + '>' + A.estado(s) + '</option>').join('') + '</select></div></div>'
+      + '<div class="hcab"><div><p class="folio">Pedido #' + p.folio + ' · ' + A.fecha(p.creado) + (p.canal ? ' · ' + esc(p.canal) : '') + '</p><h1>' + esc(p.nombre) + '</h1>'
+      + '<p class="sub">' + esc(D.titulo(m)) + (p.tel ? ' · ' + esc(p.tel) : '') + '</p></div>'
+      + (tel ? '<a class="btn verde" target="_blank" rel="noopener" href="https://wa.me/' + tel + '">WhatsApp</a>' : '') + '</div>'
+      + etapas(p)
+      + (ac ? '<div class="paso-sig"><div><span>Siguiente paso</span><b>' + esc(sigue(p)) + '</b>' + (e.g !== 'fin' ? '<em class="ent ' + e.cls + '">Entrega: ' + esc(e.txt) + (e.f ? ' · ' + fechaCorta(e.f) : '') + '</em>' : '') + '</div><button class="btn oro" id="accion">' + esc(ac.txt) + ' →</button></div>' : '')
       + '<div class="tabs"><a href="#p=' + p.id + '"' + (tall ? '' : ' class="on"') + '>Pedido y logística</a><a href="#t=' + p.id + '"' + (tall ? ' class="on"' : '') + '>Taller y creación</a></div>'
-      + '<div class="banner"><span>Sigue: <b>' + esc(sigue(p)) + '</b></span><span class="ent ' + e.cls + '">' + esc(e.txt) + (e.f ? ' · ' + fechaCorta(e.f) : '') + '</span></div>'
-      + (p.notas ? '<p class="nota-cli">“' + esc(p.notas) + '”</p>' : '');
+      + (p.notas ? '<p class="nota-cli"><b>El cliente escribió:</b> “' + esc(p.notas) + '”</p>' : '');
+    const pie = '<div class="pie-ped">' + (p.estado === 'cancelado' ? '' : '<button class="lnk gris" id="cancelar">Cancelar este pedido</button>') + '</div>';
     const resumen = '<ul class="res">' + D.resumen(m).concat([['Color de base', colorDe(p)], ['Modelo', modeloDe(p).txt]]).map(([k, v]) => '<li><span>' + k + '</span><b>' + esc(v) + '</b></li>').join('') + (x.n > 1 ? '<li><span>Cantidad</span><b>' + x.n + ' mesas</b></li>' : '') + '</ul>';
     const hdl = '<datalist id="hlist">' + herreros().map(h => '<option value="' + esc(h) + '">').join('') + '</datalist>';
     if (!tall) {
@@ -212,7 +223,7 @@
           + '<p class="nota">Se guarda solo. Si no pones fecha, al cobrar el anticipo se pone sola a ' + dias() + ' días.</p>')
         + sec(3, 'Cotización al cliente', '<div id="coti"></div>')
         + sec(4, 'Pagos', '<div id="pagos"></div>')
-        + '<div class="guardar" id="gbar" hidden><span>Tienes cambios sin guardar</span><button class="btn negro" id="guardar">Guardar</button></div>';
+        + pie + '<div class="guardar" id="gbar" hidden><span>Tienes cambios sin guardar</span><button class="btn negro" id="guardar">Guardar</button></div>';
       pintarCoti(p); pintarPagos(p);
     } else {
       const c = D.calcular(m), lim = D.limites(m.uso, m.forma, m.L), red = D.redonda(m.forma);
@@ -257,7 +268,7 @@
           + '<label>Para<select id="oc-para">' + opts({ cliente: 'El cliente (precio de venta)', herrero: 'El herrero (lo que le pagamos)' }, f.ocPara || 'cliente') + '</select></label></div>'
           + '<div class="oc-vista"><img id="oc-img" alt="Orden de compra"></div>'
           + '<div class="botones"><button class="btn negro" id="oc-bajar">Descargar</button><button class="btn verde" id="oc-wa">Mandar por WhatsApp</button><button class="btn" id="oc-print">Imprimir / PDF</button></div>', 'ancho')
-        + '<div class="guardar" id="gbar" hidden><span>Tienes cambios sin guardar</span><button class="btn negro" id="guardar">Guardar</button></div>';
+        + pie + '<div class="guardar" id="gbar" hidden><span>Tienes cambios sin guardar</span><button class="btn negro" id="guardar">Guardar</button></div>';
       pintarPrecio(p);
       $$('[data-lin],#pactado').forEach(el => el.oninput = () => leerPrecio(p));
       $$('[data-m]').forEach(el => el.onchange = () => {
@@ -281,9 +292,38 @@
       if (el.value === '__otro') { const c = (prompt('¿Qué color?') || '').trim(); if (!c) { el.value = colorDe(p); return; } return guardarEntrega(p, 'color', c, modo); }
       guardarEntrega(p, el.dataset.ent, el.value.trim(), modo);
     });
-    $('#estado').onchange = async ev => { try { await A.staffEstado(p.id, ev.target.value); p.estado = ev.target.value; toast('Estado: ' + A.estado(p.estado)); pedido(p, modo); } catch (z) { alerta(z.message); } };
+    $$('[data-etapa]').forEach(b => b.onclick = () => ponerEstado(p, b.dataset.etapa, modo));
+    if ($('#accion')) $('#accion').onclick = () => ac.run(modo);
+    if ($('#cancelar')) $('#cancelar').onclick = () => { if (confirm('¿Cancelar el pedido #' + p.folio + '?')) ponerEstado(p, 'cancelado', modo); };
+    if (enfocar) { const q = enfocar; enfocar = null; setTimeout(() => { const el = $(q); if (!el) return; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); if (el.tagName === 'BUTTON') el.click(); else el.focus(); el.classList.add('brilla'); setTimeout(() => el.classList.remove('brilla'), 2200); }, 150); }
     $('#guardar').onclick = () => guardar(p);
     if (f.m) fotoNueva(p); // la mesa se cambió en el taller: la foto se dibuja de nuevo
+  }
+  // la barra de avance del pedido: se toca una etapa para moverlo
+  const ETAPAS = ['nuevo', 'cotizado', 'confirmado', 'fabricacion', 'listo', 'entregado'];
+  function etapas(p) {
+    if (p.estado === 'cancelado') return '<div class="cancelado">Este pedido está cancelado. <button class="lnk" data-etapa="nuevo">Reactivarlo</button></div>';
+    const i = ETAPAS.indexOf(p.estado);
+    return '<ol class="etapas" data-estado="' + p.estado + '">' + ETAPAS.map((s, k) => '<li class="' + (k < i ? 'hecho' : k === i ? 'on' : '') + '"><button data-etapa="' + s + '"><i>' + (k < i ? '✓' : k + 1) + '</i><span>' + A.estado(s) + '</span></button></li>').join('') + '</ol>';
+  }
+  async function ponerEstado(p, s, modo) {
+    if (s === p.estado) return;
+    try { await A.staffEstado(p.id, s); p.estado = s; toast('Ahora: ' + A.estado(s)); if (modo) { const y = scrollY; pedido(p, modo); scrollTo(0, y); } } catch (z) { alerta(z.message); }
+  }
+  // el botón grande: hace el siguiente paso o te lleva justo donde se hace
+  let enfocar = null;
+  function accion(p) {
+    const x = numeros(p), f = ficha(p), anticipo = Math.ceil(x.pactado / 2);
+    const ir = (tab, sel) => modo => { enfocar = sel; const h = '#' + tab + '=' + p.id; if (location.hash === h) pedido(p, modo); else location.hash = h; };
+    const est = s => modo => ponerEstado(p, s, location.hash.startsWith('#t=') ? 'taller' : location.hash.startsWith('#p=') ? 'log' : null).then(() => { if (!location.hash.match(/^#[pt]=/)) ruta(); });
+    switch (p.estado) {
+      case 'nuevo': return x.pactado ? { txt: 'Mandar cotización', run: ir('p', '#mandar') } : { txt: 'Poner precio', run: ir('t', '#pactado') };
+      case 'cotizado': return { txt: 'Registrar anticipo', run: ir('p', '#pmonto') };
+      case 'confirmado': return x.pagado < anticipo ? { txt: 'Registrar anticipo', run: ir('p', '#pmonto') } : !f.herrero ? { txt: 'Asignar herrero', run: ir('p', '[data-ent="herrero"]') } : { txt: 'Mandar a fabricar', run: est('fabricacion') };
+      case 'fabricacion': return { txt: 'Marcar como lista', run: est('listo') };
+      case 'listo': return x.pagado < x.pactado ? { txt: 'Cobrar saldo', run: ir('p', '#pmonto') } : { txt: 'Marcar entregada', run: est('entregado') };
+    }
+    return null;
   }
   const kpi = (t, v, s) => '<div class="kpi"><span>' + t + '</span><b>' + esc(v) + '</b><small>' + esc(s) + '</small></div>';
   async function guardarEntrega(p, k, v, modo) {

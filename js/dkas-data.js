@@ -35,7 +35,7 @@
     x: { nombre: 'X', desc: 'Dos patas cruzadas en X en cada extremo.' },
     zeta: { nombre: 'Z', desc: 'Una Z de PTR en cada esquina: ligera y moderna.' },
     t: { nombre: 'T doble', desc: 'Un poste con pie en cada extremo y viga central. Deja libres los lados.' },
-    ym: { nombre: 'Y maestra', desc: 'Cuatro placas inclinadas sobre una base plana en Y. Nuestra insignia.' },
+    ym: { nombre: 'Y maestra', desc: 'Una Y de PTR en cada extremo sobre un pie al piso, unidas por una viga baja. Nuestra insignia.' },
     ped: { nombre: 'Pedestal', desc: 'Una columna al centro con plato al piso y cruz arriba.' },
   };
 
@@ -204,9 +204,13 @@
     if (m.base === 'zeta') { const a = r5(B.H * 0.4); B.z = a; c('Diagonales de la Z', 4, Math.hypot(a, B.H - 2 * s)); c('Pies de la Z (al piso)', 4, a); c('Travesaños (arriba y abajo)', 4, B.W - 2 * s); c('Largueros', 2, B.L); }
     if (m.base === 't') { c('Postes', 2, B.H - 2 * s, 'PTR 4" × 2" cal. 14'); c('Pies (al piso)', 2, B.W, 'PTR 4" × 2" cal. 14'); c('Travesaños de arriba', 2, B.W); c('Viga central', 1, B.L - 2 * s, 'PTR 4" × 2" cal. 14'); c('Largueros', 2, B.L); }
     if (m.base === 'ym') {
-      const dx = r5(B.L * 0.09), dz = r5(B.W * 0.12); B.dx = dx; B.dz = dz;
-      c('Placas inclinadas', 4, Math.hypot(dx, dz, B.H - s), 'Solera 6" × 1/2"'); c('Largueros', 2, B.L); c('Travesaños', 2, B.W - 2 * s);
-      c('Viga al piso', 1, B.L - 2 * dx - 2 * r5(B.L * 0.12), 'PTR 4" × 2" cal. 14 (acostado)'); c('Brazos de la Y al piso', 4, Math.hypot(r5(B.L * 0.12), B.W / 2 - dz), 'PTR 4" × 2" cal. 14 (acostado)');
+      // en cada extremo: dos brazos del bastidor bajan a un nudo, de ahí un poste al pie; una viga baja une los dos postes
+      const y = ymMedidas(B);
+      c('Largueros', 2, B.L); c('Travesaños (puntas y sobre la Y)', 4, B.W - 2 * s);
+      c('Brazos de la Y (corte a inglete)', 4, y.brazo, 'PTR 4" × 2" cal. 14');
+      c('Postes (del nudo al pie)', 2, y.nudo - y.pieH, 'PTR 4" × 4" cal. 14');
+      c('Pies al piso', 2, 2 * y.fz, 'PTR 4" × 2" cal. 14 (acostado)');
+      c('Viga baja', 1, 2 * y.xe - 10, 'PTR 3" × 2" cal. 14');
     }
     if (m.base === 'ped') { c('Columna', 1, B.H - s - 1.3, 'Tubo ' + (B.columna > 10 ? '4 1/2"' : '3 1/2"') + ' cal. 12'); c('Plato al piso (Ø ' + B.plato + ')', 1, B.plato, 'Placa 1/2"'); c('Brazos de la cruz', 2, B.L); c('Placa de arriba', 1, 20, 'Placa 1/4" 20 × 20'); }
     const metros = r1(cortes.filter(x => /^PTR/.test(x.mat)).reduce((a, x) => a + x.cant * x.med, 0) / 100);
@@ -221,6 +225,12 @@
     if (L > PLACA.L || W > PLACA.W) avisos.push('No cabe en una placa de 320 × 160.');
     return { m, volado: { L: vL, W: vW }, mdf, base, cortes, metros, piedra: { L, W, esp: PLACA.esp, m2, aprov, peso, placas: 1 },
       personas: personas(m), libre: { lado: libreLado, cabecera: libreCab }, avisos, radio: radio(m) };
+  }
+
+  // la Y maestra: dónde va cada cosa (cm)
+  function ymMedidas(B) {
+    const s = 5, hz = B.W / 2, xe = B.L / 2 - 12, nudo = r5(B.H * 0.42), pieH = 6, fz = r1(hz * 0.95), yv = 16;
+    return { s, xe, nudo, pieH, fz, yv, brazo: r1(Math.hypot(hz - s / 2 - 5, B.H - s / 2 - nudo)) };
   }
 
   // ---------- las piezas de la base (cm; x = largo, z = ancho, y = arriba): las usan el 3D y el croquis ----------
@@ -265,13 +275,18 @@
       rieles(0); [-1, 1].forEach(sx => bar([sx * (hx - s / 2), Hb - s / 2, -hz + s], [sx * (hx - s / 2), Hb - s / 2, hz - s]));
     }
     if (k === 'ym') {
-      const dx = B.dx || 20, dz = B.dz || 10, f = Math.round(L * 0.12 / 5) * 5, xf = hx - dx;
+      const y = ymMedidas(B), xe = y.xe;
       rieles(0); [-1, 1].forEach(sx => bar([sx * (hx - s / 2), Hb - s / 2, -hz + s], [sx * (hx - s / 2), Hb - s / 2, hz - s]));
-      [-1, 1].forEach(sx => [-1, 1].forEach(sz => {
-        bar([sx * (hx - 9), Hb - s, sz * (hz - s / 2)], [sx * xf, 2.5, sz * (hz - dz)], 16, 1.27, [1, 0, 0]);
-        bar([sx * (xf - f), 2.5, 0], [sx * xf, 2.5, sz * (hz - dz)], 12, 5, [0, 1, 0]);
-      }));
-      bar([-(xf - f) - 4, 2.5, 0], [xf - f + 4, 2.5, 0], 12, 5, [0, 1, 0]);
+      [-1, 1].forEach(sx => { const x = sx * xe;
+        bar([x, Hb - s / 2, -hz + s], [x, Hb - s / 2, hz - s]);                                   // travesaño sobre la Y
+        bar([x, y.pieH / 2 + 0.8, -y.fz], [x, y.pieH / 2 + 0.8, y.fz], 10, y.pieH, [1, 0, 0]);    // pie al piso
+        bar([x, y.pieH + 0.8, 0], [x, y.nudo + 3, 0], 10, 10, [1, 0, 0]);                          // poste
+        [-1, 1].forEach(sz => {
+          bar([x, Hb - s / 2, sz * (hz - s / 2 - 5)], [x, y.nudo, sz * 2.5], 10, 5, [1, 0, 0]);     // brazo de la Y
+          pie(x, sz * (y.fz - 4));
+        });
+      });
+      bar([-xe + 5, y.yv, 0], [xe - 5, y.yv, 0], 5, 7.6, [0, 0, 1]);                              // viga baja
     }
     if (k === 'ped') {
       ped = { plato: B.plato, columna: B.columna, H: Hb - s };

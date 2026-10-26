@@ -55,13 +55,14 @@
       + '<h3>O elige un modelo listo</h3><div class="modelos">' + D.MODELOS.filter(m => m.uso === st.uso).map(m =>
         '<button class="modelo' + (st.modelo === m.id ? ' sel' : '') + '" data-modelo="' + m.id + '"><img src="img/modelos/' + m.id + '.jpg" alt="" loading="lazy"><b>' + m.nombre + '</b><small>' + esc(D.medida(m)) + ' · ' + D.BASES[m.base].nombre + '</small></button>').join('') + '</div>';
     // 3 · tamaño
-    const red = D.redonda(st.forma), lim = D.limites(st.uso, st.forma, st.L), ops = D.opcionesPersonas(st.uso, st.forma);
-    $('#p1').innerHTML = (ops.length ? tit(1, 'Tamaño', '¿Para cuántas <em>personas?</em>') + '<div class="pills">' + ops.map(k =>
-      '<button class="pill' + (n === k ? ' sel' : '') + '" data-pers="' + k + '">' + k + '</button>').join('') + '</div><p class="nota">Calculamos 70 cm por persona.</p>' : tit(1, 'Tamaño', 'Elige la <em>medida.</em>'))
-      + '<div class="medidas"><h3>' + (ops.length ? 'Ajusta la medida' : '') + '</h3>'
+    const red = D.redonda(st.forma), lim = D.limites(st.uso, st.forma, st.L);
+    // el cliente mueve la medida y las personas se van sumando solas
+    $('#p1').innerHTML = tit(1, 'Tamaño', 'Pon tu <em>medida.</em>')
+      + (st.uso === 'centro' ? '' : '<div class="cupo"><b id="cupo-n">' + n + '</b><span>personas<small>Calculamos 70 cm por persona. Mueve la medida y se van sumando.</small></span></div>')
+      + '<div class="medidas">'
       + rango('L', red ? (st.forma === 'round' ? 'Diámetro' : 'Lado') : 'Largo', lim.L, st.L)
       + (red ? '' : rango('W', 'Ancho', lim.W, st.W))
-      + '<div class="total"><b>' + esc(D.medida(st)) + '</b>' + (n ? '<span>Caben ' + n + ' personas</span>' : '') + '<span>Altura ' + st.H + ' cm</span></div>'
+      + '<div class="total"><b id="total-m">' + esc(D.medida(st)) + '</b><span>Altura ' + st.H + ' cm</span></div>'
       + '<p class="nota">Medida máxima 320 × 160 cm: el tamaño de una placa completa de piedra.</p></div>';
     // 4 · piedra
     $('#p2').innerHTML = tit(2, 'La piedra', 'Elige tu <em>piedra.</em>') + '<p class="sub">Fotos reales de cada placa. Así se verá tu mesa.</p><div class="piedras">' + D.PIEDRAS.map(p =>
@@ -103,6 +104,7 @@
     e.target.previousElementSibling.querySelector('b').textContent = e.target.value + ' cm';
     const c = { [k]: +e.target.value }; if (k === 'L' && D.redonda(st.forma)) c.W = +e.target.value;
     st = D.normalizar(Object.assign({}, st, c)); delete st.modelo; V.mostrar(st);
+    const cn = $('#cupo-n'); if (cn) cn.textContent = D.personas(st); $('#total-m').textContent = D.medida(st);
     clearTimeout(ir.t); ir.t = setTimeout(pintar, 250);
   });
   $('#atras').addEventListener('click', () => ir(paso - 1));

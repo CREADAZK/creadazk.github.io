@@ -40,6 +40,11 @@
     return mod ? { txt: mod.nombre + ' · de catálogo', nuestro: true, nombre: mod.nombre } : { txt: 'Personalizado · diseño del cliente', nuestro: false };
   }
   const colorDe = p => ficha(p).color || COLORES[0];
+  // base: una de las nuestras, u "otra" que se escribe a mano (los cortes se calculan con la nuestra como referencia)
+  const baseDe = p => ficha(p).baseOtra || D.BASES[mesaDe(p).base].nombre;
+  const conBase = (p, b) => /^base\b/i.test(baseDe(p)) ? baseDe(p) : (b || 'Base') + ' ' + baseDe(p);
+  const resumenP = p => D.resumen(mesaDe(p)).map(r => r[0] === 'Base' ? ['Base', baseDe(p) + (ficha(p).baseOtra ? ' (otra)' : '')] : r);
+  const opcBases = (m, otra) => opts(Object.fromEntries(D.basesPara(m).map(k => [k, D.BASES[k].nombre]).concat([['__otra', 'Otra base…']])), otra ? '__otra' : m.base);
   const activo = p => !['entregado', 'cancelado'].includes(p.estado);
   function numeros(p) {
     const f = ficha(p), k = D.costear(f.lin, cfg), n = cantidad(p), costo = k.costo * n;
@@ -170,7 +175,7 @@
     return '<a class="fila fl" href="#p=' + p.id + '"><img data-foto="' + p.token + '" alt="">'
       + '<div class="c-cli"><b>' + esc(p.nombre) + ' <small>#' + p.folio + '</small></b>'
       + '<span>' + esc(D.medida(m)) + ' · ' + esc(D.FORMAS[m.forma]) + (n > 1 ? ' · ' + n + ' mesas' : '') + ' · ' + esc(D.piedra(m.piedra).nombre) + '</span>'
-      + '<span>Base ' + esc(D.BASES[m.base].nombre) + ' ' + esc(colorDe(p).toLowerCase()) + ' · <i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i></span></div>'
+      + '<span>' + esc(conBase(p)) + ' ' + esc(colorDe(p).toLowerCase()) + ' · <i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i></span></div>'
       + '<div class="c-ent"><span class="ent ' + e.cls + '">' + esc(e.txt) + '</span>' + (e.f ? '<small>' + fechaCorta(e.f) + '</small>' : '') + '</div>'
       + '<div class="c-her"><span class="herr' + (f.herrero ? '' : ' falta') + '">' + (f.herrero ? esc(f.herrero) : 'Sin herrero') + '</span></div>'
       + '<div class="c-est"><span class="est e-' + p.estado + '">' + A.estado(p.estado) + '</span><em class="sigue">' + esc(sigue(p)) + '</em></div></a>';
@@ -179,7 +184,7 @@
     const m = mesaDe(p), x = numeros(p), f = ficha(p), e = entrega(p);
     return '<a class="fila ft" href="#t=' + p.id + '"><img data-foto="' + p.token + '" alt="">'
       + '<div class="c-cli"><b>' + esc(p.nombre) + ' <small>#' + p.folio + '</small></b>'
-      + '<span>' + esc(D.medida(m)) + ' · ' + esc(D.piedra(m.piedra).nombre) + ' · base ' + esc(D.BASES[m.base].nombre) + ' ' + esc(colorDe(p).toLowerCase()) + '</span>'
+      + '<span>' + esc(D.medida(m)) + ' · ' + esc(D.piedra(m.piedra).nombre) + ' · ' + esc(conBase(p, 'base')) + ' ' + esc(colorDe(p).toLowerCase()) + '</span>'
       + '<span><i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i> · ' + esc(e.txt) + '</span></div>'
       + '<div class="c-her"><span class="herr' + (f.herrero ? '' : ' falta') + '">' + (f.herrero ? esc(f.herrero) : 'Sin herrero') + '</span></div>'
       + '<div class="c-cos"><b>' + pesos(x.costo) + '</b><small>' + (x.k.usaReal ? 'costos reales' : 'aproximado') + '</small></div>'
@@ -209,7 +214,7 @@
       + '<div class="tabs"><a href="#p=' + p.id + '"' + (tall ? '' : ' class="on"') + '>Pedido y logística</a><a href="#t=' + p.id + '"' + (tall ? ' class="on"' : '') + '>Taller y creación</a></div>'
       + (p.notas ? '<p class="nota-cli"><b>El cliente escribió:</b> “' + esc(p.notas) + '”</p>' : '');
     const pie = '<div class="pie-ped">' + (p.estado === 'cancelado' ? '' : '<button class="lnk gris" id="cancelar">Cancelar este pedido</button>') + '</div>';
-    const resumen = '<ul class="res">' + D.resumen(m).concat([['Color de base', colorDe(p)], ['Modelo', modeloDe(p).txt]]).map(([k, v]) => '<li><span>' + k + '</span><b>' + esc(v) + '</b></li>').join('') + (x.n > 1 ? '<li><span>Cantidad</span><b>' + x.n + ' mesas</b></li>' : '') + '</ul>';
+    const resumen = '<ul class="res">' + resumenP(p).concat([['Color de base', colorDe(p)], ['Modelo', modeloDe(p).txt]]).map(([k, v]) => '<li><span>' + k + '</span><b>' + esc(v) + '</b></li>').join('') + (x.n > 1 ? '<li><span>Cantidad</span><b>' + x.n + ' mesas</b></li>' : '') + '</ul>';
     const hdl = '<datalist id="hlist">' + herreros().map(h => '<option value="' + esc(h) + '">').join('') + '</datalist>';
     if (!tall) {
       main.innerHTML = cab
@@ -230,10 +235,12 @@
       main.innerHTML = cab
         // 1 · la mesa: piedra, base, medidas y herrero
         + sec(1, 'La mesa', '<div class="mesa"><img id="foto"' + (f.m ? '' : ' data-foto="' + p.token + '"') + ' alt="La mesa del cliente"><div><p class="tit">' + esc(D.titulo(m)) + '</p>'
-          + '<p class="modelo-l"><i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i> · base ' + esc(D.BASES[m.base].nombre) + ' ' + esc(colorDe(p).toLowerCase()) + '</p>'
+          + '<p class="modelo-l"><i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i> · ' + esc(conBase(p, 'base')) + ' ' + esc(colorDe(p).toLowerCase()) + '</p>'
           + '<div class="grid2">'
           + '<label>Piedra<select data-m="piedra">' + opts(Object.fromEntries(D.PIEDRAS.map(q => [q.id, q.nombre])), m.piedra) + '</select></label>'
-          + '<label>Base<select data-m="base">' + opts(Object.fromEntries(D.basesPara(m).map(k => [k, D.BASES[k].nombre])), m.base) + '</select></label>'
+          + '<label>Base<select data-m="base">' + opcBases(m, f.baseOtra) + '</select></label>'
+          + (f.baseOtra ? '<label class="full">¿Qué base es?<input data-ent="baseOtra" placeholder="Ej. base de madera del cliente" value="' + esc(f.baseOtra) + '"></label>'
+            + '<label class="full">Se parece más a (para calcular cortes y 3D)<select data-m="base">' + opts(Object.fromEntries(D.basesPara(m).map(k => [k, D.BASES[k].nombre])), m.base) + '</select></label>' : '')
           + '<label>Color de la base<select data-ent="color">' + opts(Object.fromEntries(COLORES.map(c => [c, c]).concat(COLORES.includes(colorDe(p)) ? [] : [[colorDe(p), colorDe(p)]]).concat([['__otro', 'Otro color…']])), colorDe(p)) + '</select></label>'
           + '<label>Modelo<select data-ent="modelo">' + opts(Object.fromEntries([['', 'Automático: ' + (!f.modelo && modeloDe(p).nuestro ? modeloDe(p).nombre : (f.modelo ? 'reconocer solo' : 'personalizado'))]].concat(D.MODELOS.map(z => [z.id, z.nombre + ' (catálogo)'])).concat([['otro', 'Otro / fuera de catálogo']])), f.modelo || '') + '</select></label>'
           + (f.modelo === 'otro' ? '<label class="full">Nombre del modelo<input data-ent="modeloOtro" placeholder="Ej. la del cliente con patas cruzadas" value="' + esc(f.modeloOtro || '') + '"></label>' : '')
@@ -255,9 +262,10 @@
         + sec(3, 'Medidas y cortes', '<div class="kpis">'
           + kpi('Piedra', D.medida(m), c.piedra.m2 + ' m² · ' + c.piedra.aprov + '% de la placa')
           + kpi('MDF negro', m.forma === 'round' ? 'Ø ' + c.mdf.L + ' cm' : c.mdf.L + ' × ' + c.mdf.W + ' cm', '12 mm' + (c.mdf.r ? ' · esquinas r ' + c.mdf.r : ''))
-          + kpi('Base ' + D.BASES[m.base].nombre, c.base.L + ' × ' + c.base.W + ' cm', 'altura ' + c.base.H + ' cm' + (m.base === 'ped' ? ' · plato Ø ' + c.base.plato : ''))
+          + kpi('Base ' + baseDe(p), c.base.L + ' × ' + c.base.W + ' cm', 'altura ' + c.base.H + ' cm' + (m.base === 'ped' ? ' · plato Ø ' + c.base.plato : ''))
           + kpi('Volado', m.forma === 'round' ? c.volado.L + ' cm' : c.volado.L + ' / ' + c.volado.W + ' cm', 'cabeceras / lados')
           + kpi('Personas', c.personas || '—', '70 cm por persona') + kpi('PTR', c.metros + ' m', c.piedra.peso + ' kg de piedra') + '</div>'
+          + (f.baseOtra ? '<p class="aviso-rojo">Base especial: "' + esc(f.baseOtra) + '". Los cortes y medidas de abajo son de la base ' + esc(D.BASES[m.base].nombre) + ' como referencia; confírmalos con el herrero.</p>' : '')
           + (c.avisos.length ? '<ul class="avisos">' + c.avisos.map(a => '<li>' + esc(a) + '</li>').join('') + '</ul>' : '')
           + '<table class="cortes"><tr><th>Pieza</th><th>Cant.</th><th>Medida</th><th>Material</th></tr>' + c.cortes.map(z => '<tr><td>' + esc(z.pieza) + '</td><td>' + z.cant + '</td><td>' + z.med + ' cm</td><td>' + esc(z.mat) + '</td></tr>').join('') + '</table>')
         // 4 · croquis
@@ -272,6 +280,8 @@
       pintarPrecio(p);
       $$('[data-lin],#pactado').forEach(el => el.oninput = () => leerPrecio(p));
       $$('[data-m]').forEach(el => el.onchange = () => {
+        if (el.value === '__otra') return guardarEntrega(p, 'baseOtra', 'Otra base', 'taller', '[data-ent="baseOtra"]');
+        if (el.dataset.m === 'base' && el.closest('label').textContent.indexOf('Se parece') < 0 && f.baseOtra) { const fi = Object.assign({}, ficha(p)); delete fi.baseOtra; p.fichas = Object.assign({}, p.fichas, { dkas: fi }); }
         const nm = D.normalizar(Object.assign({}, m, { [el.dataset.m]: el.type === 'number' ? +el.value : el.value }));
         p.fichas = Object.assign({}, p.fichas, { dkas: Object.assign({}, ficha(p), { m: { uso: nm.uso, forma: nm.forma, L: nm.L, W: nm.W, base: nm.base, piedra: nm.piedra } }) });
         const y = scrollY; pedido(p, 'taller'); scrollTo(0, y); $('#gbar').hidden = false;
@@ -326,13 +336,14 @@
     return null;
   }
   const kpi = (t, v, s) => '<div class="kpi"><span>' + t + '</span><b>' + esc(v) + '</b><small>' + esc(s) + '</small></div>';
-  async function guardarEntrega(p, k, v, modo) {
+  async function guardarEntrega(p, k, v, modo, foco) {
     const f = Object.assign({}, ficha(p)); if (v) f[k] = v; else delete f[k];
-    const txt = { entrega: v ? 'Fecha de entrega: ' + fechaCorta(v) : 'Quitó la fecha de entrega', herrero: v ? 'Herrero: ' + v : 'Quitó el herrero', dir: 'Dirección de entrega: ' + v, notaEnt: 'Notas de entrega: ' + v, color: 'Color de base: ' + v, modelo: 'Modelo: ' + (v ? (D.MODELOS.find(z => z.id === v) || { nombre: 'fuera de catálogo' }).nombre : 'automático'), modeloOtro: 'Nombre del modelo: ' + v }[k];
+    const txt = { entrega: v ? 'Fecha de entrega: ' + fechaCorta(v) : 'Quitó la fecha de entrega', herrero: v ? 'Herrero: ' + v : 'Quitó el herrero', dir: 'Dirección de entrega: ' + v, notaEnt: 'Notas de entrega: ' + v, baseOtra: v ? 'Base: ' + v + ' (otra)' : 'Base de las nuestras', color: 'Color de base: ' + v, modelo: 'Modelo: ' + (v ? (D.MODELOS.find(z => z.id === v) || { nombre: 'fuera de catálogo' }).nombre : 'automático'), modeloOtro: 'Nombre del modelo: ' + v }[k];
     try {
       await A.guardarFicha(p.id, 'dkas', JSON.parse(JSON.stringify(Object.assign({}, f, { actualizado: Date.now() }))), txt + '.');
       p.fichas = Object.assign({}, p.fichas, { dkas: f }); toast('Guardado');
       if (k === 'herrero') await avanzar(p);
+      if (foco) enfocar = foco;
       const y = scrollY; pedido(p, modo); scrollTo(0, y); // lo que estaba sin guardar se guardó junto
     } catch (e) { alerta(e.message); }
   }
@@ -389,10 +400,10 @@
       const b = $('#mandar'); b.disabled = true;
       try {
         const cot = { total: x.pactado, anticipo, mesa: [m.uso, m.forma, m.L, m.W, m.base, m.piedra].join('.'), items: [{ titulo: D.titulo(m), cantidad: x.n, precio: Math.round(x.pactado / x.n) }],
-          detalle: D.resumen(m).map(([k, v]) => k + ': ' + v).join(' · '), condiciones: 'Anticipo del 50% para empezar a fabricar; el saldo se paga al entregar.' };
+          detalle: resumenP(p).map(([k, v]) => k + ': ' + v).join(' · '), condiciones: 'Anticipo del 50% para empezar a fabricar; el saldo se paga al entregar.' };
         await A.enviarCotizacion(p.id, cot); p.cotizacion = Object.assign({}, cot, { enviada: Date.now() }); if (p.estado === 'nuevo') p.estado = 'cotizado';
         const tel = p.tel ? A.waNum(p.tel) : '';
-        const txt = 'Hola ' + p.nombre.split(' ')[0] + ', te mando la cotización de tu mesa DKAS (pedido #' + p.folio + '):\n• ' + D.titulo(m) + '\n• Piedra ' + D.piedra(m.piedra).nombre + ' · base ' + D.BASES[m.base].nombre
+        const txt = 'Hola ' + p.nombre.split(' ')[0] + ', te mando la cotización de tu mesa DKAS (pedido #' + p.folio + '):\n• ' + D.titulo(m) + '\n• Piedra ' + D.piedra(m.piedra).nombre + ' · base ' + baseDe(p)
           + (x.n > 1 ? '\n• ' + x.n + ' mesas' : '') + '\nTotal: ' + pesos(x.pactado) + '\nAnticipo para empezar: ' + pesos(anticipo) + '\nAquí la ves y la aceptas: ' + SITE + 'pedido.html#t=' + p.token;
         const files = [new File([await imagenCoti(p)], 'cotizacion-' + p.folio + '.jpg', { type: 'image/jpeg' }), new File([await CQ.png(m, { folio: p.folio, cliente: p.nombre })], 'croquis-' + p.folio + '.jpg', { type: 'image/jpeg' })];
         pedido(p, 'log'); await compartir(files, txt, tel); // primero se ve como cotizado; luego se abre WhatsApp
@@ -410,7 +421,7 @@
     const fi = await cargarImg(await fotoMesa(p)); if (fi) { g.save(); g.beginPath(); g.roundRect ? g.roundRect(70, 170, 940, 627, 24) : g.rect(70, 170, 940, 627); g.clip(); g.drawImage(fi, 70, 170, 940, 627); g.restore(); }
     g.fillStyle = '#1a1917'; g.font = '500 44px "Cormorant Garamond",Georgia,serif'; g.fillText('Para ' + p.nombre, 70, 875);
     g.font = '400 27px Inter,Arial'; g.fillStyle = '#1a1917';
-    const filas = D.resumen(m).concat(x.n > 1 ? [['Cantidad', x.n + ' mesas']] : []);
+    const filas = resumenP(p).concat(x.n > 1 ? [['Cantidad', x.n + ' mesas']] : []);
     filas.forEach(([k, v], i) => { const y = 935 + Math.floor(i / 2) * 44, xx = i % 2 ? 560 : 70; g.fillStyle = '#6e6962'; g.fillText(k, xx, y); g.fillStyle = '#1a1917'; g.fillText(String(v), xx + 140, y); });
     g.fillStyle = '#f6f4f0'; g.fillRect(70, 1110, 940, 160);
     g.fillStyle = '#6e6962'; g.font = '600 24px Inter,Arial'; g.fillText('TOTAL', 110, 1160); g.fillText('ANTICIPO 50%', 600, 1160);
@@ -442,7 +453,7 @@
     const y0 = 420, fi = await cargarImg(await fotoMesa(p));
     if (fi) { g.save(); g.beginPath(); g.roundRect ? g.roundRect(70, y0, 560, 373, 18) : g.rect(70, y0, 560, 373); g.clip(); g.drawImage(fi, 70, y0, 560, 373); g.restore(); }
     txt(D.titulo(m), 660, y0 + 30, '500 30px "Cormorant Garamond",Georgia,serif', '#1a1917');
-    const filas = D.resumen(m).filter(r => r[0] !== 'Uso').concat([['Color base', colorDe(p)], ['Modelo', modeloDe(p).nuestro ? modeloDe(p).nombre + ' (catálogo)' : (f.modelo === 'otro' ? (f.modeloOtro || 'Personalizado') : 'Personalizado')], ['MDF', m.forma === 'round' ? 'Ø ' + c.mdf.L + ' cm' : c.mdf.L + ' × ' + c.mdf.W + ' cm'], ['Base (medida)', c.base.L + ' × ' + c.base.W + ' × ' + c.base.H + ' cm']]).concat(x.n > 1 ? [['Cantidad', x.n + ' mesas']] : []);
+    const filas = resumenP(p).filter(r => r[0] !== 'Uso').concat([['Color base', colorDe(p)], ['Modelo', modeloDe(p).nuestro ? modeloDe(p).nombre + ' (catálogo)' : (f.modelo === 'otro' ? (f.modeloOtro || 'Personalizado') : 'Personalizado')], ['MDF', m.forma === 'round' ? 'Ø ' + c.mdf.L + ' cm' : c.mdf.L + ' × ' + c.mdf.W + ' cm'], ['Base (medida)', c.base.L + ' × ' + c.base.W + ' × ' + c.base.H + ' cm']]).concat(x.n > 1 ? [['Cantidad', x.n + ' mesas']] : []);
     filas.forEach(([k, v], i) => { const y = y0 + 74 + i * 30; txt(k, 660, y, '400 21px Inter,Arial', '#8a8378'); txt(String(v), 840, y, '500 21px Inter,Arial', '#1a1917'); });
     // croquis
     const cq = await cargarImg(URL.createObjectURL(await CQ.png(m, { folio: p.folio, cliente: p.nombre })));
@@ -453,7 +464,7 @@
     txt(para === 'herrero' ? 'PAGO AL HERRERO' : 'PRECIO', 110, yb + 52, '600 22px Inter,Arial', '#8a8378');
     txt(pr ? pesos(pr) : '—', 110, yb + 118, '700 58px Inter,Arial', '#1a1917');
     if (para === 'cliente' && pr) { txt('ANTICIPO 50%', 640, yb + 52, '600 22px Inter,Arial', '#8a8378'); txt(pesos(Math.ceil(pr / 2)), 640, yb + 118, '700 58px Inter,Arial', '#1a1917'); }
-    else if (para === 'herrero') { txt('BASE', 640, yb + 52, '600 22px Inter,Arial', '#8a8378'); txt(D.BASES[m.base].nombre + ' · PTR ' + c.metros + ' m', 640, yb + 112, '600 30px Inter,Arial', '#1a1917'); }
+    else if (para === 'herrero') { txt('BASE', 640, yb + 52, '600 22px Inter,Arial', '#8a8378'); txt(baseDe(p) + ' · PTR ' + c.metros + ' m', 640, yb + 112, '600 30px Inter,Arial', '#1a1917'); }
     txt('DKAS · Piedra sinterizada · WhatsApp ' + WA.map(w => w.label).join(' · ') + ' · creadazk.github.io', W / 2, H - 40, '400 20px Inter,Arial', '#8a8378', 'center');
     return new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.9));
   }
@@ -493,14 +504,17 @@
         + '<label>Forma<select data-n="forma">' + opts(Object.fromEntries(D.formasDe(m.uso).map(k => [k, D.FORMAS[k]])), m.forma) + '</select></label>'
         + '<label>' + (red ? 'Medida' : 'Largo') + ' (' + lim.L.join('–') + ')<input type="number" step="5" data-n="L" value="' + m.L + '"></label>'
         + (red ? '' : '<label>Ancho (' + lim.W.join('–') + ')<input type="number" step="5" data-n="W" value="' + m.W + '"></label>')
-        + '<label>Base<select data-n="base">' + opts(Object.fromEntries(D.basesPara(m).map(k => [k, D.BASES[k].nombre])), m.base) + '</select></label>'
+        + '<label>Base<select data-n="base">' + opcBases(m, nuevo.otra != null) + '</select></label>'
+        + (nuevo.otra != null ? '<label>¿Qué base es?<input id="notra" placeholder="Ej. base de madera" value="' + esc(nuevo.otra) + '"></label>' : '')
         + '<label>Piedra<select data-n="piedra">' + opts(Object.fromEntries(D.PIEDRAS.map(q => [q.id, q.nombre])), m.piedra) + '</select></label>'
         + '<label>Cantidad<input type="number" id="ncant" min="1" max="20" value="' + (nuevo.cant || 1) + '"></label>'
         + '<label>Fecha de entrega<input type="date" id="nent" value="' + esc(nuevo.ent || '') + '"></label></div>'
         + '<p class="tit">' + esc(D.titulo(m)) + (D.personas(m) ? ' · ' + D.personas(m) + ' personas' : '') + '</p>'
         + '<button class="btn negro grande" id="crear">Crear pedido</button></div>';
-      const keep = () => { nuevo.nom = $('#nnom').value; nuevo.tel = $('#ntel').value; nuevo.cant = $('#ncant').value; nuevo.ent = $('#nent').value; };
-      $$('[data-n]').forEach(el => el.onchange = () => { keep(); m = D.normalizar(Object.assign({}, m, { [el.dataset.n]: el.type === 'number' ? +el.value : el.value })); pinta(); });
+      const keep = () => { if ($('#notra')) nuevo.otra = $('#notra').value; nuevo.nom = $('#nnom').value; nuevo.tel = $('#ntel').value; nuevo.cant = $('#ncant').value; nuevo.ent = $('#nent').value; };
+      $$('[data-n]').forEach(el => el.onchange = () => { keep();
+        if (el.dataset.n === 'base') { if (el.value === '__otra') { nuevo.otra = nuevo.otra || ''; return pinta(); } nuevo.otra = null; }
+        m = D.normalizar(Object.assign({}, m, { [el.dataset.n]: el.type === 'number' ? +el.value : el.value })); pinta(); });
       $('#crear').onclick = async () => {
         keep(); const b = $('#crear'); b.disabled = true;
         try {
@@ -508,8 +522,9 @@
           const r = await A.crearPedido({ nombre: nuevo.nom, tel: nuevo.tel, items: [{ tipo: 'mesa', titulo: D.titulo(m), cantidad: Math.max(1, +nuevo.cant || 1), uso: m.uso, specs: D.resumen(m).concat([['Código', cod]]), link: SITE + '#d=' + cod }] }, true);
           const f = await foto3d(m); if (f) { try { await A.guardarFoto(r.token, await chica(f), true); } catch (e) {} }
           await recargar(); const p = todos.find(q => q.token === r.token);
-          if (p && nuevo.ent) { try { await A.guardarFicha(p.id, 'dkas', { entrega: nuevo.ent }, 'Fecha de entrega: ' + fechaCorta(nuevo.ent) + '.'); await recargar(); } catch (e) {} }
-          nuevo.nom = nuevo.tel = nuevo.ent = ''; nuevo.cant = 1;
+          const fi = {}; if (nuevo.ent) fi.entrega = nuevo.ent; if (nuevo.otra) fi.baseOtra = nuevo.otra.trim();
+          if (p && Object.keys(fi).length) { try { await A.guardarFicha(p.id, 'dkas', fi, (fi.entrega ? 'Fecha de entrega: ' + fechaCorta(fi.entrega) + '. ' : '') + (fi.baseOtra ? 'Base: ' + fi.baseOtra + ' (otra).' : '')); await recargar(); } catch (e) {} }
+          nuevo.nom = nuevo.tel = nuevo.ent = ''; nuevo.otra = null; nuevo.cant = 1;
           location.hash = p ? '#p=' + p.id : '';
         } catch (e) { alerta(e.message); b.disabled = false; }
       };

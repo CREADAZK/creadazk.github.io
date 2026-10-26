@@ -30,6 +30,16 @@
   const mesaDe = p => D.normalizar(Object.assign({}, mesaOriginal(p), ficha(p).m || {}));
   const cantidad = p => ((p.items || []).find(x => x.tipo === 'mesa') || {}).cantidad || 1;
   const pagado = p => (p.pagos || []).reduce((a, x) => a + (+x.monto || 0), 0);
+  // modelo (de catálogo o personalizado) y color de la base
+  const COLORES = ['Negro mate', 'Blanco mate', 'Gris grafito', 'Dorado', 'Champagne', 'Bronce'];
+  function modeloDe(p) {
+    const f = ficha(p), m = mesaDe(p);
+    // si no se eligió, se reconoce solo: mismo uso, forma, medidas y base que un modelo del catálogo (la piedra puede cambiar)
+    const mod = f.modelo ? D.MODELOS.find(x => x.id === f.modelo) : D.MODELOS.find(x => x.uso === m.uso && x.forma === m.forma && x.L === m.L && (D.redonda(m.forma) || x.W === m.W) && x.base === m.base);
+    if (f.modelo === 'otro') return { txt: (f.modeloOtro || 'Personalizado') + ' · fuera de catálogo', nuestro: false };
+    return mod ? { txt: mod.nombre + ' · de catálogo', nuestro: true, nombre: mod.nombre } : { txt: 'Personalizado · diseño del cliente', nuestro: false };
+  }
+  const colorDe = p => ficha(p).color || COLORES[0];
   const activo = p => !['entregado', 'cancelado'].includes(p.estado);
   function numeros(p) {
     const f = ficha(p), k = D.costear(f.lin, cfg), n = cantidad(p), costo = k.costo * n;
@@ -152,6 +162,7 @@
     const m = mesaDe(p), e = entrega(p), f = ficha(p), n = cantidad(p);
     return '<a class="fila" href="#p=' + p.id + '"><img data-foto="' + p.token + '" alt=""><div><b>#' + p.folio + ' · ' + esc(p.nombre) + '</b>'
       + '<span>' + esc(D.medida(m)) + ' · ' + esc(D.FORMAS[m.forma]) + (n > 1 ? ' · ' + n + ' mesas' : '') + ' · ' + esc(D.piedra(m.piedra).nombre) + '</span>'
+      + '<span>Base ' + esc(D.BASES[m.base].nombre) + ' · ' + esc(colorDe(p)) + ' · <i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i></span>'
       + '<em class="sigue">Sigue: ' + esc(sigue(p)) + '</em></div>'
       + '<div class="der"><span class="ent ' + e.cls + '">' + esc(e.txt) + '</span>' + (e.f ? '<small>' + fechaCorta(e.f) + '</small>' : '')
       + '<small class="herr' + (f.herrero ? '' : ' falta') + '">' + (f.herrero ? '⚒ ' + esc(f.herrero) : 'Sin herrero') + '</small>'
@@ -160,7 +171,8 @@
   function filaTaller(p) {
     const m = mesaDe(p), x = numeros(p), f = ficha(p), e = entrega(p);
     return '<a class="fila" href="#t=' + p.id + '"><img data-foto="' + p.token + '" alt=""><div><b>#' + p.folio + ' · ' + esc(p.nombre) + '</b>'
-      + '<span>' + esc(D.medida(m)) + ' · ' + esc(D.piedra(m.piedra).nombre) + ' · base ' + esc(D.BASES[m.base].nombre) + '</span>'
+      + '<span>' + esc(D.medida(m)) + ' · ' + esc(D.piedra(m.piedra).nombre) + ' · base ' + esc(D.BASES[m.base].nombre) + ' ' + esc(colorDe(p).toLowerCase()) + '</span>'
+      + '<span><i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i></span>'
       + '<em class="sigue">' + (f.herrero ? '⚒ ' + esc(f.herrero) : '⚒ Sin herrero') + ' · ' + esc(e.txt) + '</em></div>'
       + '<div class="der"><small>Cuesta ' + pesos(x.costo) + (x.k.usaReal ? '' : ' aprox.') + '</small>'
       + (x.pactado ? '<b>' + pesos(x.pactado) + '</b><span class="marg ' + (x.g.ok ? 'bien' : 'mal') + '">' + x.g.pct + '% ganancia</span>' : '<span class="marg mal">sin precio</span>') + '</div></a>';
@@ -186,7 +198,7 @@
       + '<div class="tabs"><a href="#p=' + p.id + '"' + (tall ? '' : ' class="on"') + '>Pedido y logística</a><a href="#t=' + p.id + '"' + (tall ? ' class="on"' : '') + '>Taller y creación</a></div>'
       + '<div class="banner"><span>Sigue: <b>' + esc(sigue(p)) + '</b></span><span class="ent ' + e.cls + '">' + esc(e.txt) + (e.f ? ' · ' + fechaCorta(e.f) : '') + '</span></div>'
       + (p.notas ? '<p class="nota-cli">“' + esc(p.notas) + '”</p>' : '');
-    const resumen = '<ul class="res">' + D.resumen(m).map(([k, v]) => '<li><span>' + k + '</span><b>' + esc(v) + '</b></li>').join('') + (x.n > 1 ? '<li><span>Cantidad</span><b>' + x.n + ' mesas</b></li>' : '') + '</ul>';
+    const resumen = '<ul class="res">' + D.resumen(m).concat([['Color de base', colorDe(p)], ['Modelo', modeloDe(p).txt]]).map(([k, v]) => '<li><span>' + k + '</span><b>' + esc(v) + '</b></li>').join('') + (x.n > 1 ? '<li><span>Cantidad</span><b>' + x.n + ' mesas</b></li>' : '') + '</ul>';
     const hdl = '<datalist id="hlist">' + herreros().map(h => '<option value="' + esc(h) + '">').join('') + '</datalist>';
     if (!tall) {
       main.innerHTML = cab
@@ -207,9 +219,13 @@
       main.innerHTML = cab
         // 1 · la mesa: piedra, base, medidas y herrero
         + sec(1, 'La mesa', '<div class="mesa"><img id="foto"' + (f.m ? '' : ' data-foto="' + p.token + '"') + ' alt="La mesa del cliente"><div><p class="tit">' + esc(D.titulo(m)) + '</p>'
+          + '<p class="modelo-l"><i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i> · base ' + esc(D.BASES[m.base].nombre) + ' ' + esc(colorDe(p).toLowerCase()) + '</p>'
           + '<div class="grid2">'
           + '<label>Piedra<select data-m="piedra">' + opts(Object.fromEntries(D.PIEDRAS.map(q => [q.id, q.nombre])), m.piedra) + '</select></label>'
           + '<label>Base<select data-m="base">' + opts(Object.fromEntries(D.basesPara(m).map(k => [k, D.BASES[k].nombre])), m.base) + '</select></label>'
+          + '<label>Color de la base<select data-ent="color">' + opts(Object.fromEntries(COLORES.map(c => [c, c]).concat(COLORES.includes(colorDe(p)) ? [] : [[colorDe(p), colorDe(p)]]).concat([['__otro', 'Otro color…']])), colorDe(p)) + '</select></label>'
+          + '<label>Modelo<select data-ent="modelo">' + opts(Object.fromEntries([['', 'Automático: ' + (!f.modelo && modeloDe(p).nuestro ? modeloDe(p).nombre : (f.modelo ? 'reconocer solo' : 'personalizado'))]].concat(D.MODELOS.map(z => [z.id, z.nombre + ' (catálogo)'])).concat([['otro', 'Otro / fuera de catálogo']])), f.modelo || '') + '</select></label>'
+          + (f.modelo === 'otro' ? '<label class="full">Nombre del modelo<input data-ent="modeloOtro" placeholder="Ej. la del cliente con patas cruzadas" value="' + esc(f.modeloOtro || '') + '"></label>' : '')
           + '<label>Herrero<input data-ent="herrero" list="hlist" placeholder="Escribe o elige" value="' + esc(f.herrero || '') + '"></label>'
           + '<label>Entrega<input type="date" data-ent="entrega" value="' + esc(f.entrega || '') + '"></label></div>' + hdl
           + '<details class="cambiar"' + (f.m ? ' open' : '') + '><summary>Cambiar forma o medidas</summary><div class="grid2">'
@@ -261,7 +277,10 @@
     }
     fotos();
     // entrega y herrero: se guardan solos
-    $$('[data-ent]').forEach(el => el.onchange = () => guardarEntrega(p, el.dataset.ent, el.value.trim(), modo));
+    $$('[data-ent]').forEach(el => el.onchange = () => {
+      if (el.value === '__otro') { const c = (prompt('¿Qué color?') || '').trim(); if (!c) { el.value = colorDe(p); return; } return guardarEntrega(p, 'color', c, modo); }
+      guardarEntrega(p, el.dataset.ent, el.value.trim(), modo);
+    });
     $('#estado').onchange = async ev => { try { await A.staffEstado(p.id, ev.target.value); p.estado = ev.target.value; toast('Estado: ' + A.estado(p.estado)); pedido(p, modo); } catch (z) { alerta(z.message); } };
     $('#guardar').onclick = () => guardar(p);
     if (f.m) fotoNueva(p); // la mesa se cambió en el taller: la foto se dibuja de nuevo
@@ -269,7 +288,7 @@
   const kpi = (t, v, s) => '<div class="kpi"><span>' + t + '</span><b>' + esc(v) + '</b><small>' + esc(s) + '</small></div>';
   async function guardarEntrega(p, k, v, modo) {
     const f = Object.assign({}, ficha(p)); if (v) f[k] = v; else delete f[k];
-    const txt = { entrega: v ? 'Fecha de entrega: ' + fechaCorta(v) : 'Quitó la fecha de entrega', herrero: v ? 'Herrero: ' + v : 'Quitó el herrero', dir: 'Dirección de entrega: ' + v, notaEnt: 'Notas de entrega: ' + v }[k];
+    const txt = { entrega: v ? 'Fecha de entrega: ' + fechaCorta(v) : 'Quitó la fecha de entrega', herrero: v ? 'Herrero: ' + v : 'Quitó el herrero', dir: 'Dirección de entrega: ' + v, notaEnt: 'Notas de entrega: ' + v, color: 'Color de base: ' + v, modelo: 'Modelo: ' + (v ? (D.MODELOS.find(z => z.id === v) || { nombre: 'fuera de catálogo' }).nombre : 'automático'), modeloOtro: 'Nombre del modelo: ' + v }[k];
     try {
       await A.guardarFicha(p.id, 'dkas', JSON.parse(JSON.stringify(Object.assign({}, f, { actualizado: Date.now() }))), txt + '.');
       p.fichas = Object.assign({}, p.fichas, { dkas: f }); toast('Guardado');
@@ -383,8 +402,8 @@
     const y0 = 420, fi = await cargarImg(await fotoMesa(p));
     if (fi) { g.save(); g.beginPath(); g.roundRect ? g.roundRect(70, y0, 560, 373, 18) : g.rect(70, y0, 560, 373); g.clip(); g.drawImage(fi, 70, y0, 560, 373); g.restore(); }
     txt(D.titulo(m), 660, y0 + 30, '500 30px "Cormorant Garamond",Georgia,serif', '#1a1917');
-    const filas = D.resumen(m).concat([['MDF', m.forma === 'round' ? 'Ø ' + c.mdf.L + ' cm' : c.mdf.L + ' × ' + c.mdf.W + ' cm'], ['Base (medida)', c.base.L + ' × ' + c.base.W + ' × ' + c.base.H + ' cm']]).concat(x.n > 1 ? [['Cantidad', x.n + ' mesas']] : []);
-    filas.forEach(([k, v], i) => { const y = y0 + 78 + i * 34; txt(k, 660, y, '400 21px Inter,Arial', '#8a8378'); txt(String(v), 840, y, '500 21px Inter,Arial', '#1a1917'); });
+    const filas = D.resumen(m).filter(r => r[0] !== 'Uso').concat([['Color base', colorDe(p)], ['Modelo', modeloDe(p).nuestro ? modeloDe(p).nombre + ' (catálogo)' : (f.modelo === 'otro' ? (f.modeloOtro || 'Personalizado') : 'Personalizado')], ['MDF', m.forma === 'round' ? 'Ø ' + c.mdf.L + ' cm' : c.mdf.L + ' × ' + c.mdf.W + ' cm'], ['Base (medida)', c.base.L + ' × ' + c.base.W + ' × ' + c.base.H + ' cm']]).concat(x.n > 1 ? [['Cantidad', x.n + ' mesas']] : []);
+    filas.forEach(([k, v], i) => { const y = y0 + 74 + i * 30; txt(k, 660, y, '400 21px Inter,Arial', '#8a8378'); txt(String(v), 840, y, '500 21px Inter,Arial', '#1a1917'); });
     // croquis
     const cq = await cargarImg(URL.createObjectURL(await CQ.png(m, { folio: p.folio, cliente: p.nombre })));
     if (cq) { const h = 670, w = h * cq.width / cq.height, x0 = (W - w) / 2; g.strokeStyle = '#e7e3dc'; g.lineWidth = 2; g.strokeRect(x0, 825, w, h); g.drawImage(cq, x0, 825, w, h); }

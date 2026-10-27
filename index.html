@@ -159,126 +159,98 @@ footer .bot{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .cupo span{font:400 26px/1.1 var(--serif);color:var(--ink)}.cupo small{display:block;font:400 13.5px/1.45 var(--sans,inherit);color:var(--mut);margin-top:6px}
 
 /* ---------- DKAS · página del negocio (secciones alrededor del configurador) ---------- */
-.top nav .ln{display:none;color:#d9d1c3;font-size:12px;letter-spacing:.2em;text-transform:uppercase;text-decoration:none;transition:color .2s}
+.top{padding:14px 20px}
+.top nav{gap:22px}
+.top nav .ln{display:none;color:#d9d1c3;font-size:12px;letter-spacing:.18em;text-transform:uppercase;text-decoration:none;transition:color .2s}
 .top nav .ln:hover{color:var(--g2)}
-.menu-b{width:42px;height:42px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%}
+.top .cot{min-height:38px;padding:0 18px}
+.wa-i{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);color:var(--ink)}
+.wa-i svg{width:18px;height:18px}
+.menu-b{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%}
 .menu-b i{display:block;width:16px;height:1px;background:var(--ink);box-shadow:0 5px 0 var(--ink),0 -5px 0 var(--ink)}
-.menu{position:fixed;inset:0;z-index:50;background:rgba(14,12,10,.98);display:flex;flex-direction:column;justify-content:center;padding:80px 28px 40px;gap:4px;opacity:0;pointer-events:none;transition:opacity .3s}
+.menu{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;justify-content:center;padding:80px 28px 40px;gap:6px;opacity:0;pointer-events:none;transition:opacity .3s}
 .menu.ver{opacity:1;pointer-events:auto}
-.menu a{font:400 40px/1.25 var(--serif);color:var(--ink);text-decoration:none}
-.menu a em{font-size:.6em;color:var(--g);margin-right:14px;font-style:normal;font-family:var(--sans);letter-spacing:.2em}
+.menu a{font:400 38px/1.25 var(--serif);color:var(--ink);text-decoration:none}
 .menu .x{position:absolute;top:14px;right:18px}
 .menu .bot{margin-top:30px;display:flex;gap:10px;flex-wrap:wrap}
 
-/* portada con fotos que se van cambiando */
-.hero .slides img{opacity:0;transition:opacity 1.6s ease,transform 9s linear;transform:scale(1.06)}
-.hero .slides img.on{opacity:1;transform:scale(1)}
-.hero .scroll{position:absolute;z-index:2;right:22px;bottom:30px;writing-mode:vertical-rl;font-size:10.5px;letter-spacing:.32em;text-transform:uppercase;color:var(--mut);display:flex;align-items:center;gap:12px}
-.hero .scroll::after{content:'';width:1px;height:46px;background:linear-gradient(var(--g),transparent);animation:baja 2.2s infinite}
-@keyframes baja{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
-
-/* cinta */
-.cinta{overflow:hidden;border-block:1px solid var(--line2);padding:16px 0;background:var(--bg)}
-.cinta div{display:flex;gap:46px;width:max-content;animation:cinta 40s linear infinite;font:italic 400 22px/1 var(--serif);color:#cfc5b4;white-space:nowrap}
-.cinta span::after{content:'◆';font-size:9px;color:var(--g);margin-left:46px;vertical-align:middle;font-style:normal}
-@keyframes cinta{to{transform:translateX(-50%)}}
+/* portada */
+.hero .slides{position:absolute;inset:0;max-width:none;z-index:0}
+.hero .slides img{opacity:0;transition:opacity 1.8s ease}
+.hero .slides img.on{opacity:1}
+.hero h1{font-weight:300}
+.sellos{border-bottom:1px solid var(--line2);background:var(--bg)}
+.sellos .w{display:grid;grid-template-columns:repeat(2,1fr)}
+.sellos span{padding:18px 12px;text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);border-top:1px solid var(--line2)}
+.sellos span:nth-child(odd){border-right:1px solid var(--line2)}
 
 /* secciones */
-.sec{padding:96px 20px;position:relative}
-.sec.claro{background:#efe9df;color:#1b1713}
-.sec.claro .sub,.sec.claro p{color:#5e564b}.sec.claro em{color:#9a7a48}.sec.claro .et{color:#9a7a48}
+.sec{padding:88px 20px;position:relative}
+.sec.claro{background:#f2eee7;color:#1b1713}
+.sec.claro .sub,.sec.claro p{color:#5e564b}.sec.claro em{color:#8f7043}.sec.claro .et{color:#8f7043}
 .sec.oscuro2{background:var(--bg2)}
 .w{max-width:1240px;margin:0 auto}
-.cab{max-width:720px;margin-bottom:46px}
-.cab h2,.sec h2.g{font-size:clamp(40px,7.5vw,72px);margin:14px 0 16px}
-.cab p{color:var(--mut);font-size:16.5px;max-width:560px}
-.cab .num{display:block;font:300 15px/1 var(--sans);letter-spacing:.3em;color:var(--g);margin-bottom:14px}
-.mas{margin-top:34px;display:flex;gap:10px;flex-wrap:wrap}
-.btn.negro{background:#16120d;border-color:#16120d;color:#efe8dc}
-.sec.claro .btn{color:#1b1713;border-color:rgba(27,23,19,.25)}.sec.claro .btn.negro{color:#efe8dc}
+.cab{max-width:640px;margin-bottom:44px}
+.cab h2,.casa h2{font-size:clamp(38px,6.5vw,62px);font-weight:300;margin:16px 0 16px}
+.cab p:not(.et){color:var(--mut);font-size:16px;max-width:520px}
+.cab-f{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+.cab-f .cab{margin-bottom:36px}
+.sec.claro .btn{color:#1b1713;border-color:rgba(27,23,19,.25)}
 
 /* aparece al bajar */
-.rv{opacity:0;transform:translateY(28px);transition:opacity .9s ease,transform .9s ease}
+.rv{opacity:0;transform:translateY(20px);transition:opacity .8s ease,transform .8s ease}
 .rv.in{opacity:1;transform:none}
 
-/* la casa */
+/* somos */
 .casa{display:grid;gap:40px}
-.casa .foto-g{position:relative;border-radius:var(--r);overflow:hidden;aspect-ratio:4/5}
+.casa .foto-g{border-radius:2px;overflow:hidden;aspect-ratio:4/5}
 .casa .foto-g img{width:100%;height:100%;object-fit:cover}
-.casa .sello{position:absolute;left:16px;bottom:16px;background:rgba(14,12,10,.86);backdrop-filter:blur(8px);padding:14px 18px;border-radius:var(--r);font:italic 400 19px/1.3 var(--serif);color:var(--ink);max-width:250px}
-.casa h2{font-size:clamp(40px,7vw,66px);margin:14px 0 20px}
-.casa p.l{font-size:18px;color:#d9d1c3;margin-bottom:16px;max-width:520px}
-.cifras-g{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:34px;border-top:1px solid var(--line2)}
+.casa p.l{font-size:18px;color:#d9d1c3;margin-bottom:14px;max-width:500px}
+.cifras-g{display:grid;grid-template-columns:repeat(3,1fr);margin-top:36px;border-top:1px solid var(--line2)}
 .cifras-g div{padding:20px 12px 0 0}
-.cifras-g b{display:block;font:300 52px/1 var(--serif);color:var(--g)}
-.cifras-g span{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--mut)}
+.cifras-g b{display:block;font:300 48px/1 var(--serif);color:var(--g)}
+.cifras-g span{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut)}
 
-/* colección: carrusel */
-.carr{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 20px 18px;margin:0 -20px;scrollbar-width:none}
+/* colección */
+.carr{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 20px 8px;margin:0 -20px;scrollbar-width:none}
 .carr::-webkit-scrollbar{display:none}
-.mod{flex:0 0 78%;max-width:340px;scroll-snap-align:start;background:#e4ddd1;border-radius:6px;overflow:hidden;color:#1b1713;display:flex;flex-direction:column;text-align:left}
-.mod .im{position:relative;aspect-ratio:1/1;overflow:hidden;background:#e7e1d7}
-.mod .im img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .6s,transform .8s}
-.mod .im img.amb{opacity:0}
-.mod:hover .im img.amb,.mod.amb .im img.amb{opacity:1;transform:scale(1.04)}
-.mod .im .tag{position:absolute;left:12px;top:12px;background:rgba(239,233,223,.92);padding:5px 10px;border-radius:999px;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#5e564b}
-.mod .tx{padding:18px 18px 20px;display:flex;flex-direction:column;gap:4px;flex:1}
-.mod h3{font:400 32px/1 var(--serif);letter-spacing:0;text-transform:none;color:#1b1713;margin:0}
-.mod i{font:italic 400 17px/1.3 var(--serif);color:#9a7a48}
-.mod small{color:#6b6357;font-size:13px;margin-top:6px}
-.mod .btn{margin-top:16px;min-height:42px;font-size:11.5px;align-self:flex-start;background:#16120d;color:#efe8dc;border-color:#16120d}
-.flechas{display:flex;gap:8px}
-.flechas button{width:46px;height:46px;border-radius:50%;border:1px solid rgba(27,23,19,.25);font-size:18px;color:#1b1713}
-.cab-f{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+.mod{flex:0 0 78%;max-width:340px;scroll-snap-align:start;color:#1b1713;text-align:left}
+.mod .im{aspect-ratio:4/5;overflow:hidden;background:#e4ddd1}
+.mod .im img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s ease}
+.mod:hover .im img{transform:scale(1.03)}
+.mod .tx{padding:18px 2px 0}
+.mod .uso{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:#8f7043}
+.mod h3{font:300 34px/1.05 var(--serif);letter-spacing:0;text-transform:none;color:#1b1713;margin:6px 0 4px}
+.mod i{font:italic 400 17px/1.3 var(--serif);color:#5e564b}
+.mod small{display:block;color:#7b7266;font-size:13px;margin-top:8px}
+.lnk-g{margin-top:14px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:#1b1713;padding:0 0 4px;border-bottom:1px solid #8f7043}
+.lnk-g span{display:inline-block;transition:transform .3s}.lnk-g:hover span{transform:translateX(4px)}
+.flechas{display:flex;gap:8px;margin-bottom:36px}
+.flechas button{width:46px;height:46px;border-radius:50%;border:1px solid rgba(27,23,19,.25);font-size:17px;color:#1b1713}
 
 /* piedras */
-.pz{display:grid;gap:22px}
-.pz .vista{position:relative;border-radius:6px;overflow:hidden;aspect-ratio:4/3;background:var(--bg3)}
-.pz .vista img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .7s}
-.pz .vista .placa{position:absolute;right:14px;bottom:14px;width:34%;aspect-ratio:2/1;border-radius:4px;box-shadow:0 12px 36px rgba(0,0,0,.5);border:2px solid rgba(239,232,220,.9);background-size:cover;background-position:center;transition:background-image .4s}
-.pz .vista .placa::after{content:'Textura';position:absolute;left:0;right:0;top:-24px;text-align:center;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.8)}
-.pz .info h3{font:400 clamp(38px,6vw,56px)/1 var(--serif);color:var(--ink);letter-spacing:0;text-transform:none;margin:8px 0 10px}
-.pz .info p{color:#d9d1c3;font-size:16.5px;margin-bottom:14px}
-.pz .ficha{list-style:none;padding:0;margin:0 0 20px;border-top:1px solid var(--line2)}
-.pz .ficha li{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line2);font-size:14.5px}
-.pz .ficha span{color:var(--mut);font-size:11px;letter-spacing:.22em;text-transform:uppercase}
-.muestras{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 24px}
-.muestras button{width:52px;height:52px;border-radius:50%;background-size:cover;background-position:center;border:2px solid transparent;box-shadow:0 0 0 1px var(--line2);transition:.2s}
-.muestras button.on{border-color:var(--bg);box-shadow:0 0 0 2px var(--g);transform:scale(1.08)}
+.pz{display:grid;gap:24px}
+.pz .vista{position:relative;overflow:hidden;aspect-ratio:7/5;background:var(--bg3)}
+.pz .vista img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .6s}
+.pz .info h3{font:300 clamp(36px,5vw,50px)/1 var(--serif);color:var(--ink);letter-spacing:0;text-transform:none;margin:0 0 10px}
+.pz .info p{color:#d9d1c3;font-size:16px;margin-bottom:16px}
+.pz .ficha{list-style:none;padding:0;margin:0 0 24px;border-top:1px solid var(--line2)}
+.pz .ficha li{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line2);font-size:14.5px}
+.pz .ficha span{color:var(--mut);font-size:11px;letter-spacing:.2em;text-transform:uppercase}
+.muestras{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:0 0 26px;max-width:380px}
+.muestras button{aspect-ratio:1;border-radius:50%;background-size:cover;background-position:center;border:2px solid transparent;box-shadow:0 0 0 1px var(--line2);transition:.2s}
+.muestras button.on{border-color:var(--bg);box-shadow:0 0 0 2px var(--g)}
 
-/* por qué sinterizada */
-.virt{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:rgba(27,23,19,.12);border:1px solid rgba(27,23,19,.12);border-radius:6px;overflow:hidden}
-.virt div{background:#efe9df;padding:24px 18px}
-.virt svg{width:34px;height:34px;stroke:#9a7a48;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;margin-bottom:14px}
-.virt b{display:block;font:400 23px/1.15 var(--serif);color:#1b1713;margin-bottom:6px}
-.virt p{font-size:14px;line-height:1.5}
-.compara{margin-top:56px}
-.compara .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
-.compara .tabs button{padding:9px 16px;border-radius:999px;border:1px solid rgba(27,23,19,.2);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#5e564b}
-.compara .tabs button.on{background:#16120d;color:#efe8dc;border-color:#16120d}
-.compara table{width:100%;border-collapse:collapse;font-size:15px}
-.compara th,.compara td{text-align:left;padding:14px 8px;border-bottom:1px solid rgba(27,23,19,.12);vertical-align:top}
-.compara th{font:500 11px/1.3 var(--sans);letter-spacing:.2em;text-transform:uppercase;color:#7b7266}
-.compara td:nth-child(2){color:#1b1713;font-weight:400}
-.compara td:nth-child(3){color:#8a8175}
-.compara td b{color:#1b7a47;font-weight:500}
-.compara td s{text-decoration:none;color:#a5503f}
-
-/* anatomía */
-.anat{display:grid;gap:34px}
-.anat .foto-g{border-radius:6px;overflow:hidden;aspect-ratio:3/2}
-.anat .foto-g img{width:100%;height:100%;object-fit:cover}
-.capas{list-style:none;padding:0;margin:0;counter-reset:c}
-.capas li{display:grid;grid-template-columns:52px 1fr;gap:4px 14px;padding:18px 0;border-bottom:1px solid var(--line2);cursor:default}
-.capas li::before{counter-increment:c;content:'0' counter(c);grid-row:span 2;font:300 34px/1 var(--serif);color:var(--g)}
-.capas b{font:400 23px/1.15 var(--serif)}
-.capas span{color:var(--mut);font-size:14.5px}
-.colores{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-.colores i{width:22px;height:22px;border-radius:50%;border:1px solid var(--line2)}
+/* por qué */
+.virt{display:grid;grid-template-columns:1fr;gap:0;border-top:1px solid rgba(27,23,19,.14)}
+.virt div{padding:26px 0;border-bottom:1px solid rgba(27,23,19,.14);display:grid;grid-template-columns:44px 1fr;gap:2px 16px}
+.virt svg{grid-row:span 2;width:30px;height:30px;stroke:#8f7043;fill:none;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
+.virt b{font:400 23px/1.15 var(--serif);color:#1b1713}
+.virt p{font-size:14.5px;line-height:1.5}
 
 /* bases */
-.bs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.bs article{background:var(--bg2);border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+.bs{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.bs article{background:var(--bg2);border:1px solid var(--line2);overflow:hidden}
 .bs img{width:100%;aspect-ratio:3/2;object-fit:cover;background:var(--bg3)}
 .bs article div{padding:14px 14px 16px}
 .bs b{display:block;font:400 22px/1.1 var(--serif)}
@@ -286,147 +258,133 @@ footer .bot{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .bs .nueva{display:inline-block;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--g);margin-bottom:6px}
 .bs .otra{display:flex;flex-direction:column;justify-content:center;padding:22px;border-style:dashed;border-color:var(--line)}
 .bs .otra b{font-size:26px;margin-bottom:8px}.bs .otra .btn{margin-top:16px;align-self:flex-start}
+.colores-b{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;margin-top:34px;padding-top:24px;border-top:1px solid var(--line2)}
+.colores-b .et{margin-right:8px}
+.colores-b .c{display:flex;align-items:center;gap:8px;font-size:13px;color:#d9d1c3}
+.colores-b i{width:18px;height:18px;border-radius:50%;border:1px solid var(--line2)}
 
-/* espacios */
-.filtros{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -20px 22px;padding:0 20px}
-.filtros::-webkit-scrollbar{display:none}
-.filtros button{flex:none;padding:10px 18px;border-radius:999px;border:1px solid var(--line2);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
-.filtros button.on{border-color:var(--g);color:var(--ink);background:rgba(194,162,115,.12)}
-.mas-g{columns:2;column-gap:10px}
-.mas-g figure{break-inside:avoid;margin:0 0 10px;position:relative;border-radius:6px;overflow:hidden;cursor:zoom-in;background:var(--bg3)}
-.mas-g figure[hidden]{display:none}
-.mas-g img{width:100%;height:auto;transition:transform .8s}
-.mas-g figure:hover img{transform:scale(1.04)}
-.mas-g figcaption{position:absolute;left:0;right:0;bottom:0;padding:34px 12px 11px;background:linear-gradient(transparent,rgba(10,8,6,.82));font-size:12.5px;color:#efe8dc;line-height:1.3}
-.mas-g figcaption b{display:block;font:400 18px/1.15 var(--serif)}
+/* proyectos */
+.filtros{display:flex;gap:6px;margin-bottom:36px;flex-wrap:wrap}
+.filtros button{padding:10px 18px;border-radius:999px;border:1px solid var(--line2);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
+.filtros button.on{border-color:var(--g);color:var(--ink)}
+.grid-e{display:grid;grid-template-columns:1fr;gap:14px}
+.grid-e figure{margin:0;cursor:zoom-in}
+.grid-e figure[hidden]{display:none}
+.grid-e img{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--bg3);transition:opacity .3s}
+.grid-e figure:hover img{opacity:.88}
+.grid-e figcaption{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:12px 0 4px}
+.grid-e figcaption b{font:400 19px/1.2 var(--serif)}
+.grid-e figcaption span{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
 
 /* visor */
 .visor{position:fixed;inset:0;z-index:70;background:#0a0908;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .25s}
 .visor.ver{opacity:1;pointer-events:auto}
 .visor .img{flex:1;display:grid;place-items:center;padding:60px 10px 10px;min-height:0}
-.visor img{max-width:100%;max-height:100%;object-fit:contain;border-radius:4px}
+.visor img{max-width:100%;max-height:100%;object-fit:contain}
 .visor .pie{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 18px calc(16px + env(safe-area-inset-bottom));border-top:1px solid var(--line2)}
 .visor .pie b{display:block;font:400 24px/1.1 var(--serif)}.visor .pie span{color:var(--mut);font-size:13.5px}
 .visor .x{position:absolute;top:12px;right:14px}
 .visor .ant,.visor .sig{position:absolute;top:50%;width:46px;height:46px;border-radius:50%;background:rgba(14,12,10,.7);border:1px solid var(--line2);font-size:20px;color:var(--ink)}
 .visor .ant{left:10px}.visor .sig{right:10px}
 
-/* proceso */
-.pasos-g{display:grid;gap:12px;counter-reset:p}
-.pasos-g article{position:relative;border-radius:6px;overflow:hidden;background:var(--bg2);border:1px solid var(--line2)}
-.pasos-g img{width:100%;aspect-ratio:4/3;object-fit:cover}
-.pasos-g article div{padding:18px 18px 20px}
-.pasos-g article div::before{counter-increment:p;content:'0' counter(p);display:block;font:300 44px/1 var(--serif);color:transparent;-webkit-text-stroke:1px var(--g);margin-bottom:12px}
-.pasos-g b{display:block;font:400 25px/1.1 var(--serif);margin-bottom:6px}
-.pasos-g p{color:var(--mut);font-size:14.5px}
-.tiempo{display:flex;align-items:center;gap:18px;margin-top:30px;padding:22px;border:1px solid var(--line);border-radius:6px;background:var(--bg2)}
-.tiempo b{font:300 58px/1 var(--serif);color:var(--g2)}.tiempo span{color:#d9d1c3;font-size:15px}
+/* cómo funciona */
+.pasos-l{list-style:none;padding:0;margin:0;display:grid;gap:0;border-top:1px solid var(--line2)}
+.pasos-l li{padding:26px 0;border-bottom:1px solid var(--line2);display:grid;grid-template-columns:56px 1fr;gap:4px 12px}
+.pasos-l span{grid-row:span 2;font:300 30px/1 var(--serif);color:var(--g)}
+.pasos-l b{font:400 26px/1.1 var(--serif)}
+.pasos-l p{color:var(--mut);font-size:15px}
 
-/* encabezado del configurador */
-.cab-app{padding:96px 20px 40px;background:var(--bg);border-top:1px solid var(--line2)}
-
-/* showroom: tira que se mueve sola */
-.tira{overflow:hidden;margin:0 -20px;-webkit-mask:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
-.tira div{display:flex;gap:10px;width:max-content;animation:cinta 80s linear infinite}
-.tira:hover div{animation-play-state:paused}
-.tira img{height:clamp(220px,34vw,380px);width:auto;border-radius:6px;cursor:zoom-in}
+.cab-app{padding:88px 20px 36px;background:var(--bg);border-top:1px solid var(--line2)}
 
 /* preguntas */
-.faq{max-width:820px}
 .faq details{border-bottom:1px solid rgba(27,23,19,.14)}
-.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px 0;font:400 23px/1.25 var(--serif);color:#1b1713}
+.faq details:first-child{border-top:1px solid rgba(27,23,19,.14)}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px 0;font:400 22px/1.25 var(--serif);color:#1b1713}
 .faq summary::-webkit-details-marker{display:none}
-.faq summary::after{content:'+';font:300 30px/1 var(--sans);color:#9a7a48;transition:transform .3s}
+.faq summary::after{content:'+';font:300 28px/1 var(--sans);color:#8f7043;transition:transform .3s}
 .faq details[open] summary::after{transform:rotate(45deg)}
-.faq details p{padding:0 0 22px;font-size:15.5px;max-width:680px}
+.faq details p{padding:0 0 22px;font-size:15.5px;max-width:640px}
 
-/* final */
-.final{position:relative;min-height:88svh;display:flex;align-items:center;justify-content:center;text-align:center;padding:90px 22px;overflow:hidden}
+/* contacto */
+.final{position:relative;min-height:80svh;display:flex;align-items:center;justify-content:center;text-align:center;padding:90px 22px;overflow:hidden}
 .final img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.final::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(14,12,10,.55),rgba(14,12,10,.88))}
-.final>div{position:relative;z-index:2;max-width:680px}
-.final h2{font-size:clamp(44px,9vw,92px);margin:14px 0 18px}
+.final::after{content:'';position:absolute;inset:0;background:rgba(14,12,10,.72)}
+.final>div{position:relative;z-index:2;max-width:640px}
+.final h2{font-size:clamp(42px,8vw,80px);font-weight:300;margin:14px 0 18px}
 .final p{color:#d9d1c3;font-size:17px;margin-bottom:28px}
 .final .bot{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 footer .pie-nav{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:22px 0 10px}
 footer .pie-nav a{color:var(--mut);text-decoration:none;font-size:12px;letter-spacing:.18em;text-transform:uppercase}
 footer small{display:block;margin-top:16px;opacity:.7}
 
+@media (max-width:979px){.top .cot{display:none}}
 @media (min-width:700px){
-  .sec{padding:110px 5vw}.cab-app{padding:110px 5vw 46px}
-  .carr{padding:4px 5vw 18px;margin:0 -5vw}.filtros{margin:0 0 26px;padding:0}.tira{margin:0 -5vw}
-  .mod{flex-basis:340px}
-  .mas-g{columns:3;column-gap:14px}.mas-g figure{margin-bottom:14px}
-  .virt{grid-template-columns:repeat(3,1fr)}.virt div{padding:34px 28px}
-  .bs{grid-template-columns:repeat(3,1fr);gap:14px}
-  .pasos-g{grid-template-columns:repeat(3,1fr);gap:14px}
+  .sec{padding:120px 5vw}.cab-app{padding:120px 5vw 44px}
+  .carr{padding:0 5vw 8px;margin:0 -5vw}
+  .mod{flex-basis:320px}
+  .sellos .w{grid-template-columns:repeat(4,1fr)}.sellos span{border-top:0;border-right:1px solid var(--line2)}.sellos span:last-child{border-right:0}
+  .virt{grid-template-columns:repeat(3,1fr);column-gap:40px}
+  .bs{grid-template-columns:repeat(3,1fr);gap:16px}
+  .grid-e{grid-template-columns:repeat(2,1fr);gap:28px 18px}
+  .pasos-l{grid-template-columns:repeat(4,1fr);gap:30px;border-top:0}
+  .pasos-l li{display:block;border-bottom:0;border-top:1px solid var(--g);padding-top:22px}
+  .pasos-l span{display:block;margin-bottom:18px}.pasos-l b{display:block;margin-bottom:8px}
+  .faq-w{display:grid;grid-template-columns:1fr 1.4fr;gap:6vw;align-items:start}
 }
 @media (min-width:980px){
   .top nav .ln{display:inline}.menu-b{display:none}
-  .casa{grid-template-columns:1fr 1fr;align-items:center;gap:6vw}
-  .pz{grid-template-columns:1.35fr 1fr;align-items:center;gap:5vw}
-  .anat{grid-template-columns:1.2fr 1fr;align-items:center;gap:5vw}
+  .casa{grid-template-columns:1fr 1fr;align-items:center;gap:7vw}
+  .pz{grid-template-columns:1.4fr 1fr;align-items:center;gap:5vw}
   .bs{grid-template-columns:repeat(4,1fr)}
-  .mas-g{columns:4}
+  .grid-e{grid-template-columns:repeat(3,1fr)}
 }
-@media (prefers-reduced-motion:reduce){.cinta div,.tira div,.hero .scroll::after{animation:none}.rv{opacity:1;transform:none}}
-.hero .slides{position:absolute;inset:0;max-width:none;z-index:0}
-@media (max-width:700px){.hero .scroll{display:none}}
-@media (max-width:420px){.muestras{gap:8px}.muestras button{width:44px;height:44px}}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}}
+.sec.claro .cab p:not(.et){color:#5e564b}
 </style></head><body>
-<header class="top" id="top"><a class="logo" href="./"><img src="img/dkas-claro.png" alt="DKAS"></a><nav><a class="ln" href="#coleccion">Colección</a><a class="ln" href="#piedras">Piedras</a><a class="ln" href="#bases">Bases</a><a class="ln" href="#espacios">Espacios</a><a class="ln" href="#proceso">Proceso</a><a class="ln" href="#app">Diseña tu mesa</a><a id="mis" class="lnk" hidden>Mi pedido</a><a class="btn chico" data-wa="0" href="https://wa.me/525535977670" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>WhatsApp</a><button class="menu-b" id="menu-b" aria-label="Menú"><i></i></button></nav></header>
-<nav class="menu" id="menu" aria-hidden="true"><button class="btn chico x" id="menu-x">Cerrar</button><a href="#coleccion"><em>01</em>Colección</a><a href="#piedras"><em>02</em>Piedras</a><a href="#bases"><em>03</em>Bases</a><a href="#espacios"><em>04</em>Espacios</a><a href="#proceso"><em>05</em>Proceso</a><a href="#app"><em>06</em>Diseña tu mesa</a><div class="bot"><a class="btn chico" data-wa="0" href="https://wa.me/525535977670" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>55 3597 7670</a><a class="btn chico" data-wa="1" href="https://wa.me/525551090027" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>55 5109 0027</a></div></nav>
-<section class="hero"><div class="slides"><img src="img/l/hero-1.jpg" srcset="img/l/hero-1-m.jpg 960w, img/l/hero-1.jpg 1920w" sizes="100vw" alt="Comedor con mesa DKAS de piedra sinterizada" decoding="async" class="on" fetchpriority="high">
-  <img src="img/l/hero-2.jpg" srcset="img/l/hero-2-m.jpg 960w, img/l/hero-2.jpg 1920w" sizes="100vw" alt="Mesa DKAS en terraza con jardín" loading="lazy" decoding="async"><img src="img/l/hero-3.jpg" srcset="img/l/hero-3-m.jpg 960w, img/l/hero-3.jpg 1920w" sizes="100vw" alt="Mesa DKAS en terraza" loading="lazy" decoding="async"></div>
-  <div><p class="et">DKAS · Piedra sinterizada · Colección 2026</p><h1>Tu mesa de piedra, <em>a tu medida.</em></h1>
-  <p class="l">Hacemos cada mesa desde cero en nuestro taller: la piedra, el corte y la base de acero. Diséñala aquí en 3D y te cotizamos por WhatsApp.</p>
-  <div class="bot"><a class="btn oro" href="#app">Diseñar mi mesa</a><a class="btn" href="#coleccion">Ver la colección</a></div></div>
-  <span class="scroll">Descubre</span></section>
-<div class="cinta" aria-hidden="true"><div><span>Piedra sinterizada</span><span>Acero hecho a mano</span><span>A tu medida</span><span>Interior y exterior</span><span>Entrega e instalación</span><span>Diseño en 3D</span><span>11 piedras</span><span>Piedra sinterizada</span><span>Acero hecho a mano</span><span>A tu medida</span><span>Interior y exterior</span><span>Entrega e instalación</span><span>Diseño en 3D</span><span>11 piedras</span></div></div>
+<header class="top" id="top"><a class="logo" href="./"><img src="img/dkas-claro.png" alt="DKAS"></a><nav><a class="ln" href="#coleccion">Colección</a><a class="ln" href="#piedras">Piedras</a><a class="ln" href="#bases">Bases</a><a class="ln" href="#proyectos">Proyectos</a><a class="ln" href="#como">Cómo funciona</a><a id="mis" class="lnk" hidden>Mi pedido</a><a class="btn oro chico cot" href="#app">Cotizar</a><a class="wa-i" data-wa="0" href="https://wa.me/525535977670" target="_blank" rel="noopener" aria-label="WhatsApp"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg></a><button class="menu-b" id="menu-b" aria-label="Menú"><i></i></button></nav></header>
+<nav class="menu" id="menu" aria-hidden="true"><button class="btn chico x" id="menu-x">Cerrar</button><a href="#coleccion">Colección</a><a href="#piedras">Piedras</a><a href="#bases">Bases</a><a href="#proyectos">Proyectos</a><a href="#como">Cómo funciona</a><a href="#app">Diseña tu mesa</a><div class="bot"><a class="btn chico" data-wa="0" href="https://wa.me/525535977670" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>55 3597 7670</a><a class="btn chico" data-wa="1" href="https://wa.me/525551090027" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>55 5109 0027</a></div></nav>
+
+<section class="hero"><div class="slides"><img src="img/l/hero-1.jpg" srcset="img/l/hero-1-m.jpg 960w, img/l/hero-1.jpg 1920w" sizes="100vw" alt="Comedor con mesa DKAS de piedra sinterizada" decoding="async" class="on" fetchpriority="high"><img src="img/l/hero-2.jpg" srcset="img/l/hero-2-m.jpg 960w, img/l/hero-2.jpg 1920w" sizes="100vw" alt="Mesa DKAS en terraza con jardín" loading="lazy" decoding="async"><img src="img/l/hero-3.jpg" srcset="img/l/hero-3-m.jpg 960w, img/l/hero-3.jpg 1920w" sizes="100vw" alt="Mesa DKAS en terraza" loading="lazy" decoding="async"></div>
+  <div><p class="et">Mesas de piedra sinterizada</p><h1>Tu mesa de piedra, <em>a tu medida.</em></h1>
+  <p class="l">Diseñamos y fabricamos cada mesa en nuestro taller: la piedra, el corte y la base de acero.</p>
+  <div class="bot"><a class="btn oro" href="#app">Diseñar mi mesa</a><a class="btn" href="#coleccion">Ver la colección</a></div></div></section>
+<div class="sellos"><div class="w"><span>Fabricación propia</span><span>11 piedras sinterizadas</span><span>Hecha a tu medida</span><span>Entrega e instalación</span></div></div>
 
 <section class="sec" id="casa"><div class="w casa">
-  <div class="foto-g rv"><img src="img/l/quienes.jpg" srcset="img/l/quienes-m.jpg 960w, img/l/quienes.jpg 1920w" sizes="(min-width:980px) 50vw, 100vw" alt="Showroom DKAS con mesas de piedra" loading="lazy" decoding="async"><p class="sello">Mesas reales, firmes y hechas a tu medida.</p></div>
-  <div class="rv"><span class="num et">01 · La casa</span><h2>Somos <em>DKAS.</em></h2>
-    <p class="l">Fabricamos mesas de piedra sinterizada desde cero, en nuestro propio taller.</p>
-    <p class="sub" style="margin:0">Elegimos la placa, la cortamos, la pulimos y la montamos sobre una base de acero que hacemos nosotros. Sin intermediarios: hablas directo con quien la fabrica.</p>
-    <div class="cifras-g"><div><b>11</b><span>piedras</span></div><div><b>7+</b><span>bases de acero</span></div><div><b>320</b><span>cm de largo</span></div></div>
-    <div class="mas"><a class="btn oro" href="#app">Diseñar mi mesa</a></div></div></div></section>
+  <div class="foto-g rv"><img src="img/l/quienes.jpg" srcset="img/l/quienes-m.jpg 960w, img/l/quienes.jpg 1920w" sizes="(min-width:980px) 50vw, 100vw" alt="Showroom DKAS con placas de piedra" loading="lazy" decoding="async"></div>
+  <div class="rv"><p class="et">Somos DKAS</p><h2>Hechas por nosotros, <em>de principio a fin.</em></h2>
+    <p class="l">Elegimos la placa, la cortamos, la pulimos y la montamos sobre una base de acero que hacemos en nuestro taller.</p>
+    <p class="sub" style="margin:0">Sin intermediarios: hablas directo con quien fabrica tu mesa.</p>
+    <div class="cifras-g"><div><b>11</b><span>piedras</span></div><div><b>7</b><span>bases de acero</span></div><div><b>320</b><span>cm de largo máximo</span></div></div></div></div></section>
 
 <section class="sec claro" id="coleccion"><div class="w">
-  <div class="cab-f"><div class="cab rv"><p class="et">02 · Colección 2026</p><h2>Nuestros <em>modelos.</em></h2><p>Son puntos de partida: cada uno se hace en cualquiera de las 11 piedras, con la medida y la base que prefieras.</p></div>
+  <div class="cab-f"><div class="cab rv"><p class="et">Colección 2026</p><h2>Nuestros <em>modelos.</em></h2><p>Puntos de partida: cada modelo se hace en cualquiera de las 11 piedras, a la medida que necesites.</p></div>
   <div class="flechas rv"><button data-carr="-1" aria-label="Anterior">←</button><button data-carr="1" aria-label="Siguiente">→</button></div></div>
-  <div class="carr" id="carr"><article class="mod"><div class="im"><img src="img/modelos/maestra.jpg" alt="Modelo Maestra" loading="lazy"><img class="amb" src="img/l/p-statuario-m.jpg" alt="" loading="lazy"><span class="tag">Comedor</span></div><div class="tx"><h3>Maestra</h3><i>Nuestro modelo insignia.</i><small>280 × 150 cm · Base Y maestra · Statuario</small><button class="btn" data-modelo="maestra">Diseñarla</button></div></article><article class="mod"><div class="im"><img src="img/modelos/aura.jpg" alt="Modelo Aura" loading="lazy"><img class="amb" src="img/l/p-mont-blanc-m.jpg" alt="" loading="lazy"><span class="tag">Comedor</span></div><div class="tx"><h3>Aura</h3><i>Elegancia en equilibrio.</i><small>240 × 110 cm · Base Marco · Mont Blanc</small><button class="btn" data-modelo="aura">Diseñarla</button></div></article><article class="mod"><div class="im"><img src="img/modelos/valor.jpg" alt="Modelo Valor" loading="lazy"><img class="amb" src="img/l/p-taj-mahal-light-m.jpg" alt="" loading="lazy"><span class="tag">Comedor</span></div><div class="tx"><h3>Valor</h3><i>Fuerza en cada línea.</i><small>210 × 100 cm · Base 4 patas · Taj Mahal Light</small><button class="btn" data-modelo="valor">Diseñarla</button></div></article><article class="mod"><div class="im"><img src="img/modelos/terra.jpg" alt="Modelo Terra" loading="lazy"><img class="amb" src="img/l/p-cardenaskin-m.jpg" alt="" loading="lazy"><span class="tag">Comedor</span></div><div class="tx"><h3>Terra</h3><i>Arte natural en tu comedor.</i><small>260 × 120 cm · Base T doble · Cardenaskin</small><button class="btn" data-modelo="terra">Diseñarla</button></div></article><article class="mod"><div class="im"><img src="img/modelos/zeta.jpg" alt="Modelo Zeta" loading="lazy"><img class="amb" src="img/l/p-bulgaria-dark-grey-m.jpg" alt="" loading="lazy"><span class="tag">Comedor</span></div><div class="tx"><h3>Zeta</h3><i>Ligera y moderna.</i><small>220 × 100 cm · Base Z · Bulgaria Dark Grey</small><button class="btn" data-modelo="zeta">Diseñarla</button></div></article><article class="mod"><div class="im"><img src="img/modelos/cruce.jpg" alt="Modelo Cruce" loading="lazy"><img class="amb" src="img/l/p-classic-bulgar-m.jpg" alt="" loading="lazy"><span class="tag">Comedor</span></div><div class="tx"><h3>Cruce</h3><i>Clásica, con carácter.</i><small>200 × 100 cm · Base X · Classic Bulgar</small><button class="btn" data-modelo="cruce">Diseñarla</button></div></article><article class="mod"><div class="im"><img src="img/modelos/nexo.jpg" alt="Modelo Nexo" loading="lazy"><img class="amb" src="img/l/p-statuario-m.jpg" alt="" loading="lazy"><span class="tag">Comedor</span></div><div class="tx"><h3>Nexo</h3><i>Conecta espacios.</i><small>Ø 140 cm · Base Pedestal · Statuario</small><button class="btn" data-modelo="nexo">Diseñarla</button></div></article><article class="mod"><div class="im"><img src="img/modelos/cuadra.jpg" alt="Modelo Cuadra" loading="lazy"><img class="amb" src="img/l/p-saloran-grey-m.jpg" alt="" loading="lazy"><span class="tag">Comedor</span></div><div class="tx"><h3>Cuadra</h3><i>Todos de frente.</i><small>140 × 140 cm · Base 4 patas · Saloran Grey</small><button class="btn" data-modelo="cuadra">Diseñarla</button></div></article><article class="mod"><div class="im"><img src="img/modelos/origen.jpg" alt="Modelo Origen" loading="lazy"><img class="amb" src="img/l/p-travertine-m.jpg" alt="" loading="lazy"><span class="tag">Centro</span></div><div class="tx"><h3>Origen</h3><i>Formas puras y naturales.</i><small>120 × 70 cm · Base 4 patas · Travertine</small><button class="btn" data-modelo="origen">Diseñarla</button></div></article><article class="mod"><div class="im"><img src="img/modelos/luna.jpg" alt="Modelo Luna" loading="lazy"><img class="amb" src="img/l/p-peacock-m.jpg" alt="" loading="lazy"><span class="tag">Centro</span></div><div class="tx"><h3>Luna</h3><i>El centro de la sala.</i><small>Ø 90 cm · Base Pedestal · Peacock</small><button class="btn" data-modelo="luna">Diseñarla</button></div></article><article class="mod"><div class="im"><img src="img/modelos/alta.jpg" alt="Modelo Alta" loading="lazy"><img class="amb" src="img/l/p-pure-white-m.jpg" alt="" loading="lazy"><span class="tag">Periquera</span></div><div class="tx"><h3>Alta</h3><i>Estilo en cada momento.</i><small>Ø 70 cm · Base Pedestal · Pure White</small><button class="btn" data-modelo="alta">Diseñarla</button></div></article><article class="mod"><div class="im"><img src="img/modelos/barra.jpg" alt="Modelo Barra" loading="lazy"><img class="amb" src="img/l/p-limestone-cream-m.jpg" alt="" loading="lazy"><span class="tag">Periquera</span></div><div class="tx"><h3>Barra</h3><i>Para la barra o la terraza.</i><small>180 × 60 cm · Base Marco · Limestone Cream</small><button class="btn" data-modelo="barra">Diseñarla</button></div></article></div></div></section>
+  <div class="carr" id="carr"><article class="mod"><div class="im"><img src="img/l/m-maestra.jpg" srcset="img/l/m-maestra-m.jpg 500w, img/l/m-maestra.jpg 1000w" sizes="(min-width:700px) 340px, 78vw" alt="Mesa Maestra de DKAS" loading="lazy" decoding="async"></div><div class="tx"><p class="uso">Comedor</p><h3>Maestra</h3><i>Nuestro modelo insignia.</i><small>280 × 150 cm · Base Y maestra</small><button class="lnk-g" data-modelo="maestra">Diseñarla a mi medida <span>→</span></button></div></article><article class="mod"><div class="im"><img src="img/l/m-aura.jpg" srcset="img/l/m-aura-m.jpg 500w, img/l/m-aura.jpg 1000w" sizes="(min-width:700px) 340px, 78vw" alt="Mesa Aura de DKAS" loading="lazy" decoding="async"></div><div class="tx"><p class="uso">Comedor</p><h3>Aura</h3><i>Elegancia en equilibrio.</i><small>240 × 110 cm · Base Marco</small><button class="lnk-g" data-modelo="aura">Diseñarla a mi medida <span>→</span></button></div></article><article class="mod"><div class="im"><img src="img/l/m-valor.jpg" srcset="img/l/m-valor-m.jpg 500w, img/l/m-valor.jpg 1000w" sizes="(min-width:700px) 340px, 78vw" alt="Mesa Valor de DKAS" loading="lazy" decoding="async"></div><div class="tx"><p class="uso">Comedor</p><h3>Valor</h3><i>Fuerza en cada línea.</i><small>210 × 100 cm · Base 4 patas</small><button class="lnk-g" data-modelo="valor">Diseñarla a mi medida <span>→</span></button></div></article><article class="mod"><div class="im"><img src="img/l/m-terra.jpg" srcset="img/l/m-terra-m.jpg 500w, img/l/m-terra.jpg 1000w" sizes="(min-width:700px) 340px, 78vw" alt="Mesa Terra de DKAS" loading="lazy" decoding="async"></div><div class="tx"><p class="uso">Comedor</p><h3>Terra</h3><i>Arte natural en tu comedor.</i><small>260 × 120 cm · Base T doble</small><button class="lnk-g" data-modelo="terra">Diseñarla a mi medida <span>→</span></button></div></article><article class="mod"><div class="im"><img src="img/l/m-zeta.jpg" srcset="img/l/m-zeta-m.jpg 500w, img/l/m-zeta.jpg 1000w" sizes="(min-width:700px) 340px, 78vw" alt="Mesa Zeta de DKAS" loading="lazy" decoding="async"></div><div class="tx"><p class="uso">Comedor</p><h3>Zeta</h3><i>Ligera y moderna.</i><small>220 × 100 cm · Base Z</small><button class="lnk-g" data-modelo="zeta">Diseñarla a mi medida <span>→</span></button></div></article><article class="mod"><div class="im"><img src="img/l/m-cruce.jpg" srcset="img/l/m-cruce-m.jpg 500w, img/l/m-cruce.jpg 1000w" sizes="(min-width:700px) 340px, 78vw" alt="Mesa Cruce de DKAS" loading="lazy" decoding="async"></div><div class="tx"><p class="uso">Comedor</p><h3>Cruce</h3><i>Clásica, con carácter.</i><small>200 × 100 cm · Base X</small><button class="lnk-g" data-modelo="cruce">Diseñarla a mi medida <span>→</span></button></div></article><article class="mod"><div class="im"><img src="img/l/m-nexo.jpg" srcset="img/l/m-nexo-m.jpg 500w, img/l/m-nexo.jpg 1000w" sizes="(min-width:700px) 340px, 78vw" alt="Mesa Nexo de DKAS" loading="lazy" decoding="async"></div><div class="tx"><p class="uso">Comedor</p><h3>Nexo</h3><i>Conecta espacios.</i><small>Ø 140 cm · Base Pedestal</small><button class="lnk-g" data-modelo="nexo">Diseñarla a mi medida <span>→</span></button></div></article><article class="mod"><div class="im"><img src="img/l/m-cuadra.jpg" srcset="img/l/m-cuadra-m.jpg 500w, img/l/m-cuadra.jpg 1000w" sizes="(min-width:700px) 340px, 78vw" alt="Mesa Cuadra de DKAS" loading="lazy" decoding="async"></div><div class="tx"><p class="uso">Comedor</p><h3>Cuadra</h3><i>Todos de frente.</i><small>140 × 140 cm · Base 4 patas</small><button class="lnk-g" data-modelo="cuadra">Diseñarla a mi medida <span>→</span></button></div></article><article class="mod"><div class="im"><img src="img/l/m-origen.jpg" srcset="img/l/m-origen-m.jpg 500w, img/l/m-origen.jpg 1000w" sizes="(min-width:700px) 340px, 78vw" alt="Mesa Origen de DKAS" loading="lazy" decoding="async"></div><div class="tx"><p class="uso">Centro</p><h3>Origen</h3><i>Formas puras y naturales.</i><small>120 × 70 cm · Base 4 patas</small><button class="lnk-g" data-modelo="origen">Diseñarla a mi medida <span>→</span></button></div></article><article class="mod"><div class="im"><img src="img/l/m-luna.jpg" srcset="img/l/m-luna-m.jpg 500w, img/l/m-luna.jpg 1000w" sizes="(min-width:700px) 340px, 78vw" alt="Mesa Luna de DKAS" loading="lazy" decoding="async"></div><div class="tx"><p class="uso">Centro</p><h3>Luna</h3><i>El centro de la sala.</i><small>Ø 90 cm · Base Pedestal</small><button class="lnk-g" data-modelo="luna">Diseñarla a mi medida <span>→</span></button></div></article><article class="mod"><div class="im"><img src="img/l/m-alta.jpg" srcset="img/l/m-alta-m.jpg 500w, img/l/m-alta.jpg 1000w" sizes="(min-width:700px) 340px, 78vw" alt="Mesa Alta de DKAS" loading="lazy" decoding="async"></div><div class="tx"><p class="uso">Periquera</p><h3>Alta</h3><i>Estilo en cada momento.</i><small>Ø 70 cm · Base Pedestal</small><button class="lnk-g" data-modelo="alta">Diseñarla a mi medida <span>→</span></button></div></article><article class="mod"><div class="im"><img src="img/l/m-barra.jpg" srcset="img/l/m-barra-m.jpg 500w, img/l/m-barra.jpg 1000w" sizes="(min-width:700px) 340px, 78vw" alt="Mesa Barra de DKAS" loading="lazy" decoding="async"></div><div class="tx"><p class="uso">Periquera</p><h3>Barra</h3><i>Para la barra o la terraza.</i><small>180 × 60 cm · Base Marco</small><button class="lnk-g" data-modelo="barra">Diseñarla a mi medida <span>→</span></button></div></article></div></div></section>
 
-<section class="sec" id="piedras"><div class="w"><div class="cab rv"><p class="et">03 · La piedra</p><h2>Once <em>piedras.</em></h2><p>Todas sinterizadas, en placas de 320 × 160 cm. Toca una para ver la placa completa.</p></div>
-  <div class="pz rv"><div class="vista" id="pz-vista"><img src="img/l/p-statuario.jpg" srcset="img/l/p-statuario-m.jpg 700w, img/l/p-statuario.jpg 1400w" sizes="(min-width:980px) 58vw, 100vw" alt="Placa Statuario" loading="lazy" decoding="async"><div class="placa" id="pz-placa" style="background-image:url(img/piedras/statuario.jpg)"></div></div>
-  <div class="info"><div class="muestras" id="muestras"><button class="on" data-pz="statuario" style="background-image:url(img/piedras/statuario.jpg)" aria-label="Statuario"></button><button data-pz="mont-blanc" style="background-image:url(img/piedras/mont-blanc.jpg)" aria-label="Mont Blanc"></button><button data-pz="pure-white" style="background-image:url(img/piedras/pure-white.jpg)" aria-label="Pure White"></button><button data-pz="taj-mahal-light" style="background-image:url(img/piedras/taj-mahal-light.jpg)" aria-label="Taj Mahal Light"></button><button data-pz="classic-bulgar" style="background-image:url(img/piedras/classic-bulgar.jpg)" aria-label="Classic Bulgar"></button><button data-pz="peacock" style="background-image:url(img/piedras/peacock.jpg)" aria-label="Peacock"></button><button data-pz="cardenaskin" style="background-image:url(img/piedras/cardenaskin.jpg)" aria-label="Cardenaskin"></button><button data-pz="travertine" style="background-image:url(img/piedras/travertine.jpg)" aria-label="Travertine"></button><button data-pz="limestone-cream" style="background-image:url(img/piedras/limestone-cream.jpg)" aria-label="Limestone Cream"></button><button data-pz="saloran-grey" style="background-image:url(img/piedras/saloran-grey.jpg)" aria-label="Saloran Grey"></button><button data-pz="bulgaria-dark-grey" style="background-image:url(img/piedras/bulgaria-dark-grey.jpg)" aria-label="Bulgaria Dark Grey"></button></div>
-    <p class="et">Piedra sinterizada</p><h3 id="pz-n">Statuario</h3><p id="pz-d">Blanco con veta gris marcada.</p>
+<section class="sec" id="piedras"><div class="w"><div class="cab rv"><p class="et">La piedra</p><h2>Once <em>piedras.</em></h2><p>Todas sinterizadas, en placas de 320 × 160 cm. Toca una para ver la placa completa.</p></div>
+  <div class="pz rv"><div class="vista" id="pz-vista"><img src="img/l/p-statuario.jpg" srcset="img/l/p-statuario-m.jpg 700w, img/l/p-statuario.jpg 1400w" sizes="(min-width:980px) 58vw, 100vw" alt="Placa Statuario" loading="lazy" decoding="async"></div>
+  <div class="info"><div class="muestras" id="muestras"><button class="on" data-pz="statuario" style="background-image:url(img/piedras/statuario.jpg)" aria-label="Statuario" title="Statuario"></button><button data-pz="mont-blanc" style="background-image:url(img/piedras/mont-blanc.jpg)" aria-label="Mont Blanc" title="Mont Blanc"></button><button data-pz="pure-white" style="background-image:url(img/piedras/pure-white.jpg)" aria-label="Pure White" title="Pure White"></button><button data-pz="taj-mahal-light" style="background-image:url(img/piedras/taj-mahal-light.jpg)" aria-label="Taj Mahal Light" title="Taj Mahal Light"></button><button data-pz="classic-bulgar" style="background-image:url(img/piedras/classic-bulgar.jpg)" aria-label="Classic Bulgar" title="Classic Bulgar"></button><button data-pz="peacock" style="background-image:url(img/piedras/peacock.jpg)" aria-label="Peacock" title="Peacock"></button><button data-pz="cardenaskin" style="background-image:url(img/piedras/cardenaskin.jpg)" aria-label="Cardenaskin" title="Cardenaskin"></button><button data-pz="travertine" style="background-image:url(img/piedras/travertine.jpg)" aria-label="Travertine" title="Travertine"></button><button data-pz="limestone-cream" style="background-image:url(img/piedras/limestone-cream.jpg)" aria-label="Limestone Cream" title="Limestone Cream"></button><button data-pz="saloran-grey" style="background-image:url(img/piedras/saloran-grey.jpg)" aria-label="Saloran Grey" title="Saloran Grey"></button><button data-pz="bulgaria-dark-grey" style="background-image:url(img/piedras/bulgaria-dark-grey.jpg)" aria-label="Bulgaria Dark Grey" title="Bulgaria Dark Grey"></button></div>
+    <h3 id="pz-n">Statuario</h3><p id="pz-d">Blanco con veta gris marcada.</p>
     <ul class="ficha"><li><span>Placa</span>320 × 160 cm</li><li><span>Grosor</span>12 mm</li><li><span>Uso</span>Interior y exterior</li></ul>
     <button class="btn oro" id="pz-btn" data-piedra="statuario">Diseñar con esta piedra</button></div></div></div></section>
 
-<section class="sec claro" id="porque"><div class="w"><div class="cab rv"><p class="et">04 · Por qué sinterizada</p><h2>Hecha para <em>vivirse.</em></h2><p>La piedra sinterizada se hace con minerales naturales prensados y horneados a muy alta temperatura. El resultado se ve como mármol, pero aguanta mucho más.</p></div>
-  <div class="virt rv"><div><svg viewBox="0 0 24 24"><path d="M12 3c2 3-1 4 0 7M17 3c2 3-1 4 0 7M7 3c2 3-1 4 0 7"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><b>Aguanta lo caliente</b><p>Puedes poner una olla o un plato recién servido sin que se marque.</p></div><div><svg viewBox="0 0 24 24"><path d="M4 20 20 4M14 4h6v6"/><path d="M4 14l6 6"/></svg><b>No se raya</b><p>Cuchillos, llaves y el uso de todos los días no la dañan.</p></div><div><svg viewBox="0 0 24 24"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11Z"/><path d="m4 4 16 16"/></svg><b>No se mancha</b><p>No es porosa: vino, café y aceite se limpian con un trapo.</p></div><div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg><b>Adentro y afuera</b><p>El sol no la decolora y la lluvia no la hincha ni la agrieta.</p></div><div><svg viewBox="0 0 24 24"><path d="M4 20h16M7 20V9l5-5 5 5v11"/><path d="M10 14h4"/></svg><b>Se limpia fácil</b><p>Agua y jabón. Nunca hay que sellarla ni pulirla.</p></div><div><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="10" rx="1"/><path d="M6 7v10M2 12h4"/></svg><b>Placas enormes</b><p>320 × 160 cm: mesas largas de una sola pieza, sin uniones.</p></div></div>
-  <div class="compara rv"><p class="et" style="margin-bottom:14px">Compárala con</p><div class="tabs"><button data-cmp="2" class="on">Mármol</button><button data-cmp="3">Madera</button><button data-cmp="4">Vidrio</button></div>
-  <table><thead><tr><th></th><th>Piedra sinterizada</th><th id="cmp-t">Mármol</th></tr></thead><tbody><tr data-r='["Calor","<b>Resiste</b>","Resiste","<s>Se marca</s>","Resiste"]'><th>Calor</th><td><b>Resiste</b></td><td>Resiste</td></tr><tr data-r='["Rayones","<b>Resiste</b>","<s>Se raya</s>","<s>Se raya</s>","<s>Se raya</s>"]'><th>Rayones</th><td><b>Resiste</b></td><td><s>Se raya</s></td></tr><tr data-r='["Manchas","<b>No se mancha</b>","<s>Es porosa, se mancha</s>","<s>Se mancha</s>","Se ve cada huella"]'><th>Manchas</th><td><b>No se mancha</b></td><td><s>Es porosa, se mancha</s></td></tr><tr data-r='["Sol y lluvia","<b>Sí</b>","<s>Se opaca</s>","<s>No</s>","Sí"]'><th>Sol y lluvia</th><td><b>Sí</b></td><td><s>Se opaca</s></td></tr><tr data-r='["Mantenimiento","<b>Ninguno</b>","<s>Sellar cada año</s>","<s>Barniz y cuidado</s>","Limpiar a diario"]'><th>Mantenimiento</th><td><b>Ninguno</b></td><td><s>Sellar cada año</s></td></tr></tbody></table></div></div></section>
+<section class="sec claro" id="porque"><div class="w"><div class="cab rv"><p class="et">Por qué sinterizada</p><h2>Se ve como mármol. <em>Aguanta mucho más.</em></h2><p>Minerales naturales prensados y horneados a muy alta temperatura: una superficie hecha para usarse todos los días.</p></div>
+  <div class="virt rv"><div><svg viewBox="0 0 24 24"><path d="M12 3c2 3-1 4 0 7M17 3c2 3-1 4 0 7M7 3c2 3-1 4 0 7"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><b>Aguanta lo caliente</b><p>Una olla o un plato recién servido no la marcan.</p></div><div><svg viewBox="0 0 24 24"><path d="M4 20 20 4M14 4h6v6"/><path d="M4 14l6 6"/></svg><b>No se raya</b><p>Cuchillos, llaves y el uso diario no la dañan.</p></div><div><svg viewBox="0 0 24 24"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11Z"/><path d="m4 4 16 16"/></svg><b>No se mancha</b><p>No es porosa: vino, café y aceite se limpian con un trapo.</p></div><div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg><b>Adentro y afuera</b><p>El sol no la decolora y la lluvia no la afecta.</p></div><div><svg viewBox="0 0 24 24"><path d="M4 20h16M7 20V9l5-5 5 5v11"/><path d="M10 14h4"/></svg><b>Cero mantenimiento</b><p>Agua y jabón. Nunca hay que sellarla ni pulirla.</p></div><div><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="10" rx="1"/><path d="M6 7v10M2 12h4"/></svg><b>Una sola pieza</b><p>Placas de 320 × 160 cm: mesas largas sin uniones.</p></div></div></div></section>
 
-<section class="sec" id="anatomia"><div class="w anat"><div class="foto-g rv"><img src="img/l/anatomia.jpg" srcset="img/l/anatomia-m.jpg 960w, img/l/anatomia.jpg 1920w" sizes="(min-width:980px) 55vw, 100vw" alt="Vista de abajo de una mesa DKAS: bastidor y base de acero" loading="lazy" decoding="async"></div>
-  <div class="rv"><span class="num et">05 · Anatomía</span><h2 class="g">Bien hecha, <em>arriba y abajo.</em></h2>
-  <ol class="capas"><li><b>Cubierta</b><span>Piedra sinterizada de 12 mm, con el canto pulido.</span></li><li><b>Refuerzo</b><span>Tablero pegado y atornillado bajo la piedra.</span></li>
-  <li><b>Bastidor</b><span>Tubo de acero soldado que carga toda la cubierta.</span></li><li><b>Base</b><span>Acero pintado en el color que elijas.<span class="colores"><i title="Negro mate" style="background:#1f1e1d"></i><i title="Blanco mate" style="background:#ecebe6"></i><i title="Gris grafito" style="background:#4b4b4b"></i><i title="Dorado" style="background:#b8954f"></i><i title="Champagne" style="background:#cdbb97"></i><i title="Bronce" style="background:#7a5a3a"></i></span></span></li></ol></div></div></section>
-
-<section class="sec oscuro2" id="bases"><div class="w"><div class="cab rv"><p class="et">06 · El acero</p><h2>Nuestras <em>bases.</em></h2><p>Las cortamos, soldamos y pintamos en nuestro taller, a la medida exacta de tu mesa.</p></div>
+<section class="sec" id="bases"><div class="w"><div class="cab rv"><p class="et">El acero</p><h2>Nuestras <em>bases.</em></h2><p>Las cortamos, soldamos y pintamos en nuestro taller, a la medida exacta de tu mesa.</p></div>
   <div class="bs rv" id="bs"><article><img src="img/bases/patas.jpg" alt="Base 4 patas" loading="lazy"><div><b>4 patas</b><small>Cuatro patas rectas y bastidor. La más sencilla y firme.</small></div></article><article><img src="img/bases/marco.jpg" alt="Base Marco" loading="lazy"><div><b>Marco</b><small>Un marco cerrado en cada extremo, unido por largueros.</small></div></article><article><img src="img/bases/x.jpg" alt="Base X" loading="lazy"><div><b>X</b><small>Dos patas cruzadas en X en cada extremo.</small></div></article><article><img src="img/bases/zeta.jpg" alt="Base Z" loading="lazy"><div><b>Z</b><small>Una Z de PTR en cada esquina: ligera y moderna.</small></div></article><article><img src="img/bases/t.jpg" alt="Base T doble" loading="lazy"><div><b>T doble</b><small>Un poste con pie en cada extremo y viga central. Deja libres los lados.</small></div></article><article><img src="img/bases/ym.jpg" alt="Base Y maestra" loading="lazy"><div><b>Y maestra</b><small>Una Y de PTR en cada extremo sobre un pie al piso, unidas por una viga baja. Nuestra insignia.</small></div></article><article><img src="img/bases/ped.jpg" alt="Base Pedestal" loading="lazy"><div><b>Pedestal</b><small>Una columna al centro con plato al piso y cruz arriba.</small></div></article>
-  <article class="otra"><b>¿Tienes <em>otra idea?</em></b><small>Mándanos una foto o un dibujo y la diseñamos contigo.</small><a class="btn chico" data-wa="0" href="https://wa.me/525535977670" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>Mandar mi idea</a></article></div></div></section>
+  <article class="otra"><b>¿Tienes <em>otra idea?</em></b><small>Mándanos una foto o un dibujo y la diseñamos contigo.</small><a class="btn chico" data-wa="0" href="https://wa.me/525535977670" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>Mandar mi idea</a></article></div>
+  <div class="colores-b rv"><span class="et">Colores de base</span><span class="c"><i style="background:#1f1e1d"></i>Negro mate</span><span class="c"><i style="background:#ecebe6"></i>Blanco mate</span><span class="c"><i style="background:#4b4b4b"></i>Gris grafito</span><span class="c"><i style="background:#b8954f"></i>Dorado</span><span class="c"><i style="background:#cdbb97"></i>Champagne</span><span class="c"><i style="background:#7a5a3a"></i>Bronce</span></div></div></section>
 
-<section class="sec" id="espacios"><div class="w"><div class="cab rv"><p class="et">07 · En casa</p><h2>Donde <em>viven.</em></h2><p>Comedores, terrazas y salas. Toca una foto y diseña una así.</p></div>
-  <div class="filtros rv"><button class="on" data-f="">Todos</button><button data-f="comedor">Comedor</button><button data-f="exterior">Terraza y jardín</button><button data-f="sala">Centro y barra</button></div>
-  <div class="mas-g" id="mas-g"><figure class="rv" data-c="comedor" data-v='{"t":"Comedor para 12","p":"bulgaria-dark-grey","u":"comedor","f":"rect","k":"e-r1"}'><img src="img/l/e-r1.jpg" srcset="img/l/e-r1-m.jpg 800w, img/l/e-r1.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Comedor para 12 · mesa en Bulgaria Dark Grey" loading="lazy" decoding="async"><figcaption><b>Comedor para 12</b>Bulgaria Dark Grey</figcaption></figure><figure class="rv" data-c="exterior" data-v='{"t":"Terraza con jardín","p":"bulgaria-dark-grey","u":"comedor","f":"ovcuad","k":"e-p20"}'><img src="img/l/e-p20.jpg" srcset="img/l/e-p20-m.jpg 800w, img/l/e-p20.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Terraza con jardín · mesa en Bulgaria Dark Grey" loading="lazy" decoding="async"><figcaption><b>Terraza con jardín</b>Bulgaria Dark Grey</figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Redonda de comedor","p":"statuario","u":"comedor","f":"round","k":"e-p22"}'><img src="img/l/e-p22.jpg" srcset="img/l/e-p22-m.jpg 800w, img/l/e-p22.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Redonda de comedor · mesa en Statuario" loading="lazy" decoding="async"><figcaption><b>Redonda de comedor</b>Statuario</figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Comedor","p":"travertine","u":"comedor","f":"rect","k":"e-p21"}'><img src="img/l/e-p21.jpg" srcset="img/l/e-p21-m.jpg 800w, img/l/e-p21.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Comedor · mesa en Travertine" loading="lazy" decoding="async"><figcaption><b>Comedor</b>Travertine</figcaption></figure><figure class="rv" data-c="exterior" data-v='{"t":"Junto a la alberca","p":"bulgaria-dark-grey","u":"comedor","f":"square","k":"e-r6"}'><img src="img/l/e-r6.jpg" srcset="img/l/e-r6-m.jpg 800w, img/l/e-r6.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Junto a la alberca · mesa en Bulgaria Dark Grey" loading="lazy" decoding="async"><figcaption><b>Junto a la alberca</b>Bulgaria Dark Grey</figcaption></figure><figure class="rv" data-c="sala" data-v='{"t":"Mesa de centro","p":"travertine","u":"centro","f":"rect","k":"e-p14"}'><img src="img/l/e-p14.jpg" srcset="img/l/e-p14-m.jpg 800w, img/l/e-p14.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Mesa de centro · mesa en Travertine" loading="lazy" decoding="async"><figcaption><b>Mesa de centro</b>Travertine</figcaption></figure><figure class="rv" data-c="exterior" data-v='{"t":"Terraza","p":"","u":"comedor","f":"rect","k":"e-r3"}'><img src="img/l/e-r3.jpg" srcset="img/l/e-r3-m.jpg 800w, img/l/e-r3.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Terraza · mesa DKAS" loading="lazy" decoding="async"><figcaption><b>Terraza</b></figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Redonda","p":"peacock","u":"comedor","f":"round","k":"e-p8"}'><img src="img/l/e-p8.jpg" srcset="img/l/e-p8-m.jpg 800w, img/l/e-p8.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Redonda · mesa en Peacock" loading="lazy" decoding="async"><figcaption><b>Redonda</b>Peacock</figcaption></figure><figure class="rv" data-c="sala" data-v='{"t":"Barra","p":"","u":"periquera","f":"rect","k":"e-p13"}'><img src="img/l/e-p13.jpg" srcset="img/l/e-p13-m.jpg 800w, img/l/e-p13.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Barra · mesa DKAS" loading="lazy" decoding="async"><figcaption><b>Barra</b></figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Comedor cuadrado","p":"","u":"comedor","f":"square","k":"e-p12"}'><img src="img/l/e-p12.jpg" srcset="img/l/e-p12-m.jpg 800w, img/l/e-p12.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Comedor cuadrado · mesa DKAS" loading="lazy" decoding="async"><figcaption><b>Comedor cuadrado</b></figcaption></figure><figure class="rv" data-c="exterior" data-v='{"t":"Comedor en jardín","p":"bulgaria-dark-grey","u":"comedor","f":"ovcuad","k":"e-p20f"}'><img src="img/l/e-p20f.jpg" srcset="img/l/e-p20f-m.jpg 800w, img/l/e-p20f.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Comedor en jardín · mesa en Bulgaria Dark Grey" loading="lazy" decoding="async"><figcaption><b>Comedor en jardín</b>Bulgaria Dark Grey</figcaption></figure><figure class="rv" data-c="exterior" data-v='{"t":"Terraza","p":"","u":"comedor","f":"rect","k":"e-arriba"}'><img src="img/l/e-arriba.jpg" srcset="img/l/e-arriba-m.jpg 800w, img/l/e-arriba.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Terraza · mesa DKAS" loading="lazy" decoding="async"><figcaption><b>Terraza</b></figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Comedor","p":"","u":"comedor","f":"rect","k":"e-p29"}'><img src="img/l/e-p29.jpg" srcset="img/l/e-p29-m.jpg 800w, img/l/e-p29.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Comedor · mesa DKAS" loading="lazy" decoding="async"><figcaption><b>Comedor</b></figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Redonda para 4","p":"","u":"comedor","f":"round","k":"e-p4"}'><img src="img/l/e-p4.jpg" srcset="img/l/e-p4-m.jpg 800w, img/l/e-p4.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Redonda para 4 · mesa DKAS" loading="lazy" decoding="async"><figcaption><b>Redonda para 4</b></figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Comedor para 8","p":"","u":"comedor","f":"rect","k":"e-p9"}'><img src="img/l/e-p9.jpg" srcset="img/l/e-p9-m.jpg 800w, img/l/e-p9.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Comedor para 8 · mesa DKAS" loading="lazy" decoding="async"><figcaption><b>Comedor para 8</b></figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Comedor de día","p":"bulgaria-dark-grey","u":"comedor","f":"ovcuad","k":"e-r2"}'><img src="img/l/e-r2.jpg" srcset="img/l/e-r2-m.jpg 800w, img/l/e-r2.jpg 1600w" sizes="(min-width:980px) 25vw, (min-width:700px) 33vw, 50vw" alt="Comedor de día · mesa en Bulgaria Dark Grey" loading="lazy" decoding="async"><figcaption><b>Comedor de día</b>Bulgaria Dark Grey</figcaption></figure></div></div></section>
+<section class="sec oscuro2" id="proyectos"><div class="w"><div class="cab-f"><div class="cab rv"><p class="et">Proyectos</p><h2>Mesas <em>DKAS.</em></h2><p>Comedores y terrazas. Toca una foto para verla en grande y diseñar una así.</p></div>
+  <div class="filtros rv"><button class="on" data-f="">Todas</button><button data-f="comedor">Comedor</button><button data-f="exterior">Terraza y jardín</button></div></div>
+  <div class="grid-e" id="mas-g"><figure class="rv" data-c="comedor" data-v='{"t":"Comedor para 12","p":"bulgaria-dark-grey","u":"comedor","f":"rect","k":"e-r1"}'><img src="img/l/e-r1.jpg" srcset="img/l/e-r1-m.jpg 700w, img/l/e-r1.jpg 1400w" sizes="(min-width:980px) 33vw, (min-width:700px) 50vw, 100vw" alt="Comedor para 12 · mesa en Bulgaria Dark Grey" loading="lazy" decoding="async"><figcaption><b>Comedor para 12</b><span>Bulgaria Dark Grey</span></figcaption></figure><figure class="rv" data-c="exterior" data-v='{"t":"Terraza con jardín","p":"bulgaria-dark-grey","u":"comedor","f":"ovcuad","k":"e-p20"}'><img src="img/l/e-p20.jpg" srcset="img/l/e-p20-m.jpg 700w, img/l/e-p20.jpg 1400w" sizes="(min-width:980px) 33vw, (min-width:700px) 50vw, 100vw" alt="Terraza con jardín · mesa en Bulgaria Dark Grey" loading="lazy" decoding="async"><figcaption><b>Terraza con jardín</b><span>Bulgaria Dark Grey</span></figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Comedor","p":"travertine","u":"comedor","f":"rect","k":"e-p21"}'><img src="img/l/e-p21.jpg" srcset="img/l/e-p21-m.jpg 700w, img/l/e-p21.jpg 1400w" sizes="(min-width:980px) 33vw, (min-width:700px) 50vw, 100vw" alt="Comedor · mesa en Travertine" loading="lazy" decoding="async"><figcaption><b>Comedor</b><span>Travertine</span></figcaption></figure><figure class="rv" data-c="exterior" data-v='{"t":"Junto a la alberca","p":"bulgaria-dark-grey","u":"comedor","f":"square","k":"e-r6"}'><img src="img/l/e-r6.jpg" srcset="img/l/e-r6-m.jpg 700w, img/l/e-r6.jpg 1400w" sizes="(min-width:980px) 33vw, (min-width:700px) 50vw, 100vw" alt="Junto a la alberca · mesa en Bulgaria Dark Grey" loading="lazy" decoding="async"><figcaption><b>Junto a la alberca</b><span>Bulgaria Dark Grey</span></figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Comedor para 8","p":"","u":"comedor","f":"rect","k":"e-p9"}'><img src="img/l/e-p9.jpg" srcset="img/l/e-p9-m.jpg 700w, img/l/e-p9.jpg 1400w" sizes="(min-width:980px) 33vw, (min-width:700px) 50vw, 100vw" alt="Comedor para 8 · mesa DKAS" loading="lazy" decoding="async"><figcaption><b>Comedor para 8</b></figcaption></figure><figure class="rv" data-c="exterior" data-v='{"t":"Comedor en jardín","p":"bulgaria-dark-grey","u":"comedor","f":"ovcuad","k":"e-p20f"}'><img src="img/l/e-p20f.jpg" srcset="img/l/e-p20f-m.jpg 700w, img/l/e-p20f.jpg 1400w" sizes="(min-width:980px) 33vw, (min-width:700px) 50vw, 100vw" alt="Comedor en jardín · mesa en Bulgaria Dark Grey" loading="lazy" decoding="async"><figcaption><b>Comedor en jardín</b><span>Bulgaria Dark Grey</span></figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Comedor de día","p":"bulgaria-dark-grey","u":"comedor","f":"ovcuad","k":"e-r2"}'><img src="img/l/e-r2.jpg" srcset="img/l/e-r2-m.jpg 700w, img/l/e-r2.jpg 1400w" sizes="(min-width:980px) 33vw, (min-width:700px) 50vw, 100vw" alt="Comedor de día · mesa en Bulgaria Dark Grey" loading="lazy" decoding="async"><figcaption><b>Comedor de día</b><span>Bulgaria Dark Grey</span></figcaption></figure><figure class="rv" data-c="exterior" data-v='{"t":"Terraza","p":"","u":"comedor","f":"rect","k":"e-r3"}'><img src="img/l/e-r3.jpg" srcset="img/l/e-r3-m.jpg 700w, img/l/e-r3.jpg 1400w" sizes="(min-width:980px) 33vw, (min-width:700px) 50vw, 100vw" alt="Terraza · mesa DKAS" loading="lazy" decoding="async"><figcaption><b>Terraza</b></figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Comedor","p":"","u":"comedor","f":"rect","k":"e-p29"}'><img src="img/l/e-p29.jpg" srcset="img/l/e-p29-m.jpg 700w, img/l/e-p29.jpg 1400w" sizes="(min-width:980px) 33vw, (min-width:700px) 50vw, 100vw" alt="Comedor · mesa DKAS" loading="lazy" decoding="async"><figcaption><b>Comedor</b></figcaption></figure><figure class="rv" data-c="exterior" data-v='{"t":"Terraza techada","p":"","u":"comedor","f":"rect","k":"e-arriba"}'><img src="img/l/e-arriba.jpg" srcset="img/l/e-arriba-m.jpg 700w, img/l/e-arriba.jpg 1400w" sizes="(min-width:980px) 33vw, (min-width:700px) 50vw, 100vw" alt="Terraza techada · mesa DKAS" loading="lazy" decoding="async"><figcaption><b>Terraza techada</b></figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Comedor ovalado","p":"bulgaria-dark-grey","u":"comedor","f":"ovcuad","k":"e-p2"}'><img src="img/l/e-p2.jpg" srcset="img/l/e-p2-m.jpg 700w, img/l/e-p2.jpg 1400w" sizes="(min-width:980px) 33vw, (min-width:700px) 50vw, 100vw" alt="Comedor ovalado · mesa en Bulgaria Dark Grey" loading="lazy" decoding="async"><figcaption><b>Comedor ovalado</b><span>Bulgaria Dark Grey</span></figcaption></figure><figure class="rv" data-c="comedor" data-v='{"t":"Comedor para 6","p":"","u":"comedor","f":"ovcuad","k":"e-p6"}'><img src="img/l/e-p6.jpg" srcset="img/l/e-p6-m.jpg 700w, img/l/e-p6.jpg 1400w" sizes="(min-width:980px) 33vw, (min-width:700px) 50vw, 100vw" alt="Comedor para 6 · mesa DKAS" loading="lazy" decoding="async"><figcaption><b>Comedor para 6</b></figcaption></figure></div></div></section>
 
-<section class="sec oscuro2" id="proceso"><div class="w"><div class="cab rv"><p class="et">08 · Cómo trabajamos</p><h2>De tu idea <em>a tu casa.</em></h2><p>Todo pasa en nuestro taller, con nuestra gente. Así nace cada mesa DKAS.</p></div>
-  <div class="pasos-g"><article class="rv"><img src="img/l/pr-diseno.jpg" srcset="img/l/pr-diseno-m.jpg 600w, img/l/pr-diseno.jpg 1200w" sizes="(min-width:700px) 33vw, 100vw" alt="Diseñas" loading="lazy" decoding="async"><div><b>Diseñas</b><p>Con tu idea, una foto o aquí en 3D. Te mandamos la cotización por WhatsApp con medidas, croquis y precio.</p></div></article><article class="rv"><img src="img/l/pr-placa.jpg" srcset="img/l/pr-placa-m.jpg 600w, img/l/pr-placa.jpg 1200w" sizes="(min-width:700px) 33vw, 100vw" alt="Eliges tu placa" loading="lazy" decoding="async"><div><b>Eliges tu placa</b><p>Placas completas de 320 × 160 cm. La cortamos a la medida exacta de tu mesa.</p></div></article><article class="rv"><img src="img/l/pr-herreria.jpg" srcset="img/l/pr-herreria-m.jpg 600w, img/l/pr-herreria.jpg 1200w" sizes="(min-width:700px) 33vw, 100vw" alt="Hacemos la base" loading="lazy" decoding="async"><div><b>Hacemos la base</b><p>Cortamos, soldamos y pintamos el acero en nuestro taller.</p></div></article><article class="rv"><img src="img/l/pr-revision.jpg" srcset="img/l/pr-revision-m.jpg 600w, img/l/pr-revision.jpg 1200w" sizes="(min-width:700px) 33vw, 100vw" alt="Revisamos cada medida" loading="lazy" decoding="async"><div><b>Revisamos cada medida</b><p>Grosor, escuadra y acabado, pieza por pieza, antes de salir.</p></div></article><article class="rv"><img src="img/l/pr-armado.jpg" srcset="img/l/pr-armado-m.jpg 600w, img/l/pr-armado.jpg 1200w" sizes="(min-width:700px) 33vw, 100vw" alt="Armamos en tu casa" loading="lazy" decoding="async"><div><b>Armamos en tu casa</b><p>Montamos la base, la nivelamos y colocamos la piedra encima.</p></div></article><article class="rv"><img src="img/l/pr-entrega.jpg" srcset="img/l/pr-entrega-m.jpg 600w, img/l/pr-entrega.jpg 1200w" sizes="(min-width:700px) 33vw, 100vw" alt="Lista para usarse" loading="lazy" decoding="async"><div><b>Lista para usarse</b><p>Te la dejamos instalada y limpia, lista para estrenar.</p></div></article></div>
-  <div class="tiempo rv"><b>≈3</b><span>semanas desde tu anticipo hasta que la mesa está en tu casa. Te confirmamos la fecha al cotizar.</span></div></div></section>
+<section class="sec" id="como"><div class="w"><div class="cab rv"><p class="et">Cómo funciona</p><h2>De tu idea <em>a tu casa.</em></h2></div>
+  <ol class="pasos-l rv"><li><span>01</span><b>Diseña</b><p>Arma tu mesa aquí en 3D, o mándanos tu idea o una foto por WhatsApp.</p></li><li><span>02</span><b>Cotiza</b><p>Te mandamos precio, medidas y croquis. Con el 50% de anticipo empezamos.</p></li><li><span>03</span><b>Fabricamos</b><p>Cortamos la piedra y hacemos la base en nuestro taller. Alrededor de 3 semanas.</p></li><li><span>04</span><b>Instalamos</b><p>La llevamos, la armamos y la nivelamos en tu espacio, lista para usarse.</p></li></ol></div></section>
 
-<div class="cab-app" id="disena"><div class="w"><div class="cab rv"><p class="et">09 · Diseña tu mesa</p><h2>Ármala <em>en 3D.</em></h2><p>Elige forma, medida, piedra y base. Gírala, ponla en tu espacio con tu celular y mándanos tu diseño para cotizarlo.</p></div></div></div>
+<div class="cab-app" id="disena"><div class="w"><div class="cab rv"><p class="et">Diseña tu mesa</p><h2>Ármala <em>en 3D.</em></h2><p>Elige forma, medida, piedra y base. Gírala, ponla en tu espacio con tu celular y mándanos tu diseño para cotizarlo.</p></div></div></div>
 <main class="app" id="app">
   <section class="stage"><div id="v3d"></div><div class="chip" id="chip"></div>
     <div class="vistas"><button class="on" data-vista="tres">3D</button><button data-vista="frente">Frente</button><button data-vista="arriba">Arriba</button></div>
@@ -446,17 +404,14 @@ footer small{display:block;margin-top:16px;opacity:.7}
 </main>
 <nav class="bar" id="bar"><button class="btn" id="atras">Atrás</button><span id="cuenta"></span><button class="btn oro" id="sig">Siguiente</button></nav>
 
-<section class="sec" id="showroom"><div class="w"><div class="cab rv"><p class="et">10 · Showroom</p><h2>Hechas en <em>nuestro taller.</em></h2><p>Mesas terminadas en nuestro showroom.</p></div>
-  <div class="tira" id="tira"><div><img src="img/l/s-p1-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p1"><img src="img/l/s-p11-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p11"><img src="img/l/s-p16-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p16"><img src="img/l/s-p2-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p2"><img src="img/l/s-p4-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p4"><img src="img/l/s-p6-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p6"><img src="img/l/s-p9-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p9"><img src="img/l/s-p10-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p10"><img src="img/l/s-p15-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p15"><img src="img/l/s-p17-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p17"><img src="img/l/s-p3-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p3"><img src="img/l/s-p5-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p5"><img src="img/l/s-p29-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p29"><img src="img/l/s-p20-fondo-elegante-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p20-fondo-elegante"><img aria-hidden="true" src="img/l/s-p1-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p1"><img aria-hidden="true" src="img/l/s-p11-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p11"><img aria-hidden="true" src="img/l/s-p16-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p16"><img aria-hidden="true" src="img/l/s-p2-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p2"><img aria-hidden="true" src="img/l/s-p4-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p4"><img aria-hidden="true" src="img/l/s-p6-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p6"><img aria-hidden="true" src="img/l/s-p9-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p9"><img aria-hidden="true" src="img/l/s-p10-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p10"><img aria-hidden="true" src="img/l/s-p15-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p15"><img aria-hidden="true" src="img/l/s-p17-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p17"><img aria-hidden="true" src="img/l/s-p3-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p3"><img aria-hidden="true" src="img/l/s-p5-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p5"><img aria-hidden="true" src="img/l/s-p29-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p29"><img aria-hidden="true" src="img/l/s-p20-fondo-elegante-m.jpg" alt="Mesa DKAS" loading="lazy" decoding="async" data-k="s-p20-fondo-elegante"></div></div></div></section>
+<section class="sec claro" id="preguntas"><div class="w faq-w"><div class="cab rv"><p class="et">Preguntas</p><h2>Lo que <em>nos preguntan.</em></h2><p>¿Tienes otra duda? Escríbenos por WhatsApp.</p></div>
+  <div class="faq rv"><details open><summary>¿Cuánto tarda mi mesa?</summary><p>Alrededor de 3 semanas desde tu anticipo. Al cotizar te confirmamos la fecha de entrega exacta.</p></details><details><summary>¿Cómo se paga?</summary><p>Con un anticipo del 50% empezamos a fabricar, y el resto lo pagas el día de la entrega.</p></details><details><summary>¿Ustedes la entregan e instalan?</summary><p>Sí. Nuestro equipo la lleva, la sube, la arma y la nivela. Si estás en otra ciudad, escríbenos y lo vemos contigo.</p></details><details><summary>¿Se puede poner afuera?</summary><p>La piedra sinterizada aguanta sol y lluvia. Para exterior te recomendamos terraza o lugar techado, para cuidar la base de acero.</p></details><details><summary>¿Cómo se limpia?</summary><p>Con agua y jabón neutro. Evita fibras metálicas y químicos abrasivos. No necesita sellador ni pulido.</p></details><details><summary>¿Puedo pedir otra medida o una base que no está?</summary><p>Sí. Todas nuestras mesas se hacen a tu medida. Si tienes otra base en mente, mándanos una foto o un dibujo y la diseñamos contigo.</p></details></div></div></section>
 
-<section class="sec claro" id="preguntas"><div class="w"><div class="cab rv"><p class="et">11 · Preguntas</p><h2>Lo que <em>nos preguntan.</em></h2></div>
-  <div class="faq rv"><details open><summary>¿Cuánto tarda mi mesa?</summary><p>Alrededor de 3 semanas desde tu anticipo. Al cotizar te confirmamos la fecha de entrega exacta.</p></details><details><summary>¿Cómo se paga?</summary><p>Con un anticipo del 50% empezamos a fabricar, y el resto lo pagas el día de la entrega.</p></details><details><summary>¿Ustedes la entregan e instalan?</summary><p>Sí. Nuestro equipo la lleva, la sube, la arma y la nivela. Si estás en otra ciudad, escríbenos y lo vemos contigo.</p></details><details><summary>¿Se puede poner afuera?</summary><p>La piedra sinterizada aguanta sol y lluvia sin problema. Para exterior te recomendamos terraza o lugar techado, para cuidar la base de acero.</p></details><details><summary>¿Cómo se limpia?</summary><p>Con agua y jabón neutro. Evita fibras metálicas y químicos abrasivos. No necesita sellador ni pulido.</p></details><details><summary>¿Puedo pedir otra medida o una base que no está?</summary><p>Sí. Todas nuestras mesas se hacen a tu medida. Si tienes otra base en mente, mándanos una foto o un dibujo y la diseñamos contigo.</p></details><details><summary>¿Qué grosor tiene la cubierta?</summary><p>La piedra es de 12 mm y va pegada sobre un tablero de refuerzo, atornillado a un bastidor de acero. Se ve ligera y es muy firme.</p></details></div></div></section>
-
-<section class="final"><img src="img/l/final.jpg" srcset="img/l/final-m.jpg 960w, img/l/final.jpg 1920w" sizes="100vw" alt="Showroom DKAS" loading="lazy" decoding="async"><div class="rv"><p class="et">DKAS</p><h2>Tu mesa empieza <em>con una idea.</em></h2><p>Cuéntanos cómo la imaginas. Te ayudamos a escoger la piedra, la medida y la base.</p>
-  <div class="bot"><a class="btn oro" href="#app">Diseñar mi mesa</a><a class="btn " data-wa="0" href="https://wa.me/525535977670" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>Escríbenos</a></div></div></section>
+<section class="final" id="contacto"><img src="img/l/final.jpg" srcset="img/l/final-m.jpg 960w, img/l/final.jpg 1920w" sizes="100vw" alt="Showroom DKAS" loading="lazy" decoding="async"><div class="rv"><p class="et">Contacto</p><h2>Hablemos de <em>tu mesa.</em></h2><p>Cuéntanos cómo la imaginas y te ayudamos a escoger la piedra, la medida y la base.</p>
+  <div class="bot"><a class="btn oro" data-wa="0" href="https://wa.me/525535977670" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>55 3597 7670</a><a class="btn " data-wa="1" href="https://wa.me/525551090027" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>55 5109 0027</a></div></div></section>
 
 <div class="visor" id="visor" aria-hidden="true"><button class="btn chico x" id="vi-x">Cerrar</button><button class="ant" id="vi-a" aria-label="Anterior">←</button><button class="sig" id="vi-s" aria-label="Siguiente">→</button>
   <div class="img"><img id="vi-img" alt=""></div><div class="pie"><div><b id="vi-t"></b><span id="vi-p"></span></div><button class="btn oro chico" id="vi-btn">Quiero una así</button></div></div>
-<footer><img src="img/dkas-claro.png" alt="DKAS"><p class="et">Piedra sinterizada · Muebles · Diseño</p><div class="pie-nav"><a href="#coleccion">Colección</a><a href="#piedras">Piedras</a><a href="#bases">Bases</a><a href="#espacios">Espacios</a><a href="#preguntas">Preguntas</a><a href="pedido.html">Mi pedido</a></div><div class="bot"><a class="btn chico" data-wa="0" href="https://wa.me/525535977670" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>55 3597 7670</a><a class="btn chico" data-wa="1" href="https://wa.me/525551090027" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>55 5109 0027</a></div><small>© 2026 DKAS · Mesas de piedra sinterizada hechas en México</small></footer>
+<footer><img src="img/dkas-claro.png" alt="DKAS"><p class="et">Piedra sinterizada · Muebles · Diseño</p><div class="pie-nav"><a href="#coleccion">Colección</a><a href="#piedras">Piedras</a><a href="#bases">Bases</a><a href="#proyectos">Proyectos</a><a href="#preguntas">Preguntas</a><a href="pedido.html">Mi pedido</a></div><div class="bot"><a class="btn chico" data-wa="0" href="https://wa.me/525535977670" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>55 3597 7670</a><a class="btn chico" data-wa="1" href="https://wa.me/525551090027" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>55 5109 0027</a></div><small>© 2026 DKAS · Mesas de piedra sinterizada hechas en México</small></footer>
 <div class="modal" id="arm" hidden><div class="caja"><header><b id="ar-tit"></b><button class="btn chico" id="ar-x">Cerrar</button></header><div id="ar-box"><p id="ar-msg"></p></div></div></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=deb2a05335"></script><script src="js/dkas-api.js?v=07422344b9"></script><script src="js/crea-ui.js?v=6601329223"></script><script src="js/landing.js?v=56bda0ae82"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=deb2a05335"></script><script src="js/dkas-api.js?v=07422344b9"></script><script src="js/crea-ui.js?v=6601329223"></script><script src="js/landing.js?v=92b921d78b"></script></body></html>

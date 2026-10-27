@@ -1,4 +1,4 @@
-/* DKAS · lo interactivo de la página: menú, portada, piedras, comparación, espacios, visor y atajos al configurador */
+/* DKAS · lo interactivo de la página: menú, portada, piedras, proyectos, visor y atajos al configurador */
 (function () {
   const D = window.DKAS, A = window.DAZK_API;
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -22,7 +22,7 @@
   if (slides.length > 1 && !matchMedia('(prefers-reduced-motion:reduce)').matches) setInterval(() => {
     if (document.hidden || scrollY > innerHeight) return;
     slides[si].classList.remove('on'); si = (si + 1) % slides.length; slides[si].loading = 'eager'; slides[si].classList.add('on');
-  }, 6500);
+  }, 7000);
 
   // ---------- aparece al bajar ----------
   const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' }) : null;
@@ -30,11 +30,11 @@
 
   // ---------- colección ----------
   const carr = $('#carr');
-  $$('[data-carr]').forEach(b => b.onclick = () => carr.scrollBy({ left: +b.dataset.carr * (carr.querySelector('.mod').offsetWidth + 14), behavior: 'smooth' }));
+  $$('[data-carr]').forEach(b => b.onclick = () => carr.scrollBy({ left: +b.dataset.carr * (carr.querySelector('.mod').offsetWidth + 18), behavior: 'smooth' }));
   carr.addEventListener('click', e => {
-    const b = e.target.closest('[data-modelo]');
-    if (b) { const m = D.MODELOS.find(x => x.id === b.dataset.modelo); return disenar(Object.assign({}, m, { modelo: m.id }), 2); }
-    const card = e.target.closest('.mod'); if (card) card.classList.toggle('amb'); // en celular: tocar la foto la muestra en un espacio
+    const b = e.target.closest('[data-modelo]'); if (!b) return;
+    const m = D.MODELOS.find(x => x.id === b.dataset.modelo);
+    disenar(Object.assign({}, m, { modelo: m.id }), 2);
   });
 
   // ---------- piedras ----------
@@ -45,19 +45,11 @@
     $$('#muestras button').forEach(x => x.classList.toggle('on', x === b));
     const nuevo = viejo.cloneNode(); nuevo.style.opacity = 0; nuevo.loading = 'eager';
     nuevo.srcset = 'img/l/p-' + p.id + '-m.jpg 700w, img/l/p-' + p.id + '.jpg 1400w'; nuevo.src = 'img/l/p-' + p.id + '.jpg'; nuevo.alt = 'Placa ' + p.nombre;
-    nuevo.onload = () => { requestAnimationFrame(() => { nuevo.style.opacity = 1; }); setTimeout(() => viejo.remove(), 750); };
-    vista.insertBefore(nuevo, $('#pz-placa'));
-    $('#pz-placa').style.backgroundImage = 'url(img/piedras/' + p.id + '.jpg)';
+    nuevo.onload = () => { requestAnimationFrame(() => { nuevo.style.opacity = 1; }); setTimeout(() => viejo.remove(), 650); };
+    vista.appendChild(nuevo);
     $('#pz-n').textContent = p.nombre; $('#pz-d').textContent = p.desc + '.'; $('#pz-btn').dataset.piedra = p.id;
   });
   $('#pz-btn').onclick = () => disenar({ piedra: $('#pz-btn').dataset.piedra }, 0);
-
-  // ---------- comparación ----------
-  $$('[data-cmp]').forEach(b => b.onclick = () => {
-    const c = +b.dataset.cmp;
-    $$('[data-cmp]').forEach(x => x.classList.toggle('on', x === b)); $('#cmp-t').textContent = b.textContent;
-    $$('.compara tbody tr').forEach(tr => { tr.lastElementChild.innerHTML = JSON.parse(tr.dataset.r)[c]; });
-  });
 
   // ---------- bases diseñadas en el taller ----------
   A.basesPublicas().then(bs => {
@@ -72,7 +64,7 @@
     });
   }).catch(() => {});
 
-  // ---------- espacios: filtro y visor ----------
+  // ---------- proyectos: filtro y visor ----------
   const figs = $$('#mas-g figure');
   $$('[data-f]').forEach(b => b.onclick = () => {
     $$('[data-f]').forEach(x => x.classList.toggle('on', x === b));
@@ -85,7 +77,7 @@
     const x = lista[vi], img = $('#vi-img');
     img.src = 'img/l/' + x.k + (innerWidth < 800 ? '-m' : '') + '.jpg'; img.alt = x.t || 'Mesa DKAS';
     $('#vi-t').textContent = x.t || 'Mesa DKAS';
-    $('#vi-p').textContent = x.p ? 'Piedra ' + D.piedra(x.p).nombre : 'Hecha en nuestro taller';
+    $('#vi-p').textContent = x.p ? 'Piedra ' + D.piedra(x.p).nombre : 'Hecha a la medida';
     $('#vi-btn').textContent = x.p ? 'Quiero una así' : 'Diseñar la mía';
   }
   function abrirVisor(l, i) { lista = l; vi = i; pintarVisor(); visor.classList.add('ver'); visor.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; }
@@ -98,17 +90,13 @@
   visor.addEventListener('touchend', e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) mover(dx < 0 ? 1 : -1); x0 = null; });
   $('#vi-btn').onclick = () => {
     const x = lista[vi];
-    if (!x.p) return disenar({}, 0);
-    disenar(Object.assign({ uso: x.u, forma: x.f, piedra: x.p }, D.tamanoPara(x.u, x.f, x.u === 'comedor' ? 8 : 4)), 1);
+    const cambios = Object.assign({ uso: x.u, forma: x.f }, D.tamanoPara(x.u, x.f, x.u === 'comedor' ? 8 : 4));
+    if (x.p) cambios.piedra = x.p;
+    disenar(cambios, 1);
   };
   $('#mas-g').addEventListener('click', e => {
     const f = e.target.closest('figure'); if (!f) return;
     const vis = figs.filter(x => !x.hidden);
     abrirVisor(vis.map(x => JSON.parse(x.dataset.v)), vis.indexOf(f));
-  });
-  $('#tira').addEventListener('click', e => {
-    const im = e.target.closest('img'); if (!im) return;
-    const l = $$('#tira img:not([aria-hidden])').map(x => ({ k: x.dataset.k }));
-    abrirVisor(l, l.findIndex(x => x.k === im.dataset.k));
   });
 })();

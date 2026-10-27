@@ -44,7 +44,7 @@
     const p = D.piedra(b.dataset.pz), viejo = vista.querySelector('img');
     $$('#muestras button').forEach(x => x.classList.toggle('on', x === b));
     const nuevo = viejo.cloneNode(); nuevo.style.opacity = 0; nuevo.loading = 'eager';
-    nuevo.srcset = 'img/l/p-' + p.id + '-m.jpg 700w, img/l/p-' + p.id + '.jpg 1400w'; nuevo.src = 'img/l/p-' + p.id + '.jpg'; nuevo.alt = 'Mesa en ' + p.nombre;
+    nuevo.srcset = 'img/l/p-' + p.id + '-m.jpg 700w, img/l/p-' + p.id + '.jpg 1400w'; nuevo.src = 'img/l/p-' + p.id + '.jpg'; nuevo.alt = 'Placa ' + p.nombre;
     nuevo.onload = () => { requestAnimationFrame(() => { nuevo.style.opacity = 1; }); setTimeout(() => viejo.remove(), 750); };
     vista.insertBefore(nuevo, $('#pz-placa'));
     $('#pz-placa').style.backgroundImage = 'url(img/piedras/' + p.id + '.jpg)';

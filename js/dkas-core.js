@@ -274,8 +274,23 @@
     return out;
   }
 
+  // ---------- bases diseñadas en el panel ----------
+  // segs: tramos de la vista de frente [x1, y1, x2, y2]; x de -1 a 1 (punta a punta de la base), y de 0 (piso) a 1 (arriba)
+  const PERFILES = { ligero: { nombre: 'PTR 2" × 2"', fondo: 5, alto: 5, mat: 'PTR 2" × 2" cal. 14' }, robusto: { nombre: 'PTR 4" × 2"', fondo: 5, alto: 10, mat: 'PTR 4" × 2" cal. 14' }, solera: { nombre: 'Solera 6" × 1/2"', fondo: 15, alto: 1.27, mat: 'Solera 6" × 1/2"' } };
+  const propias = [];
+  function registrarBase(id, b) {
+    if (!b || !Array.isArray(b.segs) || !b.segs.length) return;
+    BASES[id] = { nombre: String(b.nombre || 'Base nueva').slice(0, 40), desc: String(b.desc || 'Diseño DKAS hecho en el taller.').slice(0, 140), segs: b.segs.map(q => q.map(Number)), perfil: PERFILES[b.perfil] ? b.perfil : 'ligero', foto: b.foto || null, propia: true };
+    if (!propias.includes(id)) propias.push(id);
+  }
+  function quitarBase(id) { const i = propias.indexOf(id); if (i >= 0) propias.splice(i, 1); delete BASES[id]; }
+
   // qué bases sí funcionan para esa mesa
   function basesPara(m) {
+    const extra = ['rect', 'ovcuad', 'oval'].includes(m.forma) ? propias.slice() : [];
+    return basesNuestras(m).concat(extra);
+  }
+  function basesNuestras(m) {
     const { uso, forma, L, W } = m;
     if (uso === 'comedor') {
       if (forma === 'round') return L >= 110 ? ['ped', 'patas'] : ['ped'];
@@ -354,6 +369,16 @@
       c('Pies al piso', 2, 2 * y.fz, 'PTR 4" × 2" cal. 14 (acostado)');
       c('Viga baja', 1, 2 * y.xe - 10, 'PTR 3" × 2" cal. 14');
     }
+    if (BASES[m.base] && BASES[m.base].propia) {
+      const P = piezas({ base: B, m }), pf = PERFILES[BASES[m.base].perfil], grupos = {};
+      P.barras.forEach(([a, b, w, h]) => {
+        const len = r1(Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])), dx = Math.abs(b[0] - a[0]), dy = Math.abs(b[1] - a[1]), dz = Math.abs(b[2] - a[2]);
+        const tipo = dy < 0.5 ? (dz > dx ? 'Travesaños' : len >= B.L * 0.85 ? 'Largueros' : 'Horizontales') : dx < 0.5 && dz < 0.5 ? 'Postes' : 'Diagonales';
+        const mat = w === 5 && h === 5 ? 'PTR 2" × 2" cal. 14' : pf.mat, k = tipo + '|' + len + '|' + mat;
+        grupos[k] = grupos[k] || { pieza: tipo, cant: 0, med: len, mat }; grupos[k].cant++;
+      });
+      Object.values(grupos).sort((a, b) => b.med - a.med).forEach(g => c(g.pieza, g.cant, g.med, g.mat));
+    }
     if (m.base === 'ped') { c('Columna', 1, B.H - s - 1.3, 'Tubo ' + (B.columna > 10 ? '4 1/2"' : '3 1/2"') + ' cal. 12'); c('Plato al piso (Ø ' + B.plato + ')', 1, B.plato, 'Placa 1/2"'); c('Brazos de la cruz', 2, B.L); c('Placa de arriba', 1, 20, 'Placa 1/4" 20 × 20'); }
     const metros = r1(cortes.filter(x => /^PTR/.test(x.mat)).reduce((a, x) => a + x.cant * x.med, 0) / 100);
     // piedra
@@ -430,6 +455,17 @@
       });
       bar([-xe + 5, y.yv, 0], [xe - 5, y.yv, 0], 5, 7.6, [0, 0, 1]);                              // viga baja
     }
+    if (BASES[k] && BASES[k].propia) {
+      const pf = PERFILES[BASES[k].perfil], z0 = hz - s / 2, X = x => x * (hx - s / 2), Y = y => 0.8 + y * (Hb - s - 0.8);
+      rieles(0); [-1, 1].forEach(sx => bar([sx * (hx - s / 2), Hb - s / 2, -hz + s], [sx * (hx - s / 2), Hb - s / 2, hz - s]));
+      const piso = new Set();
+      BASES[k].segs.forEach(([x1, y1, x2, y2]) => {
+        [-1, 1].forEach(sz => bar([X(x1), Y(y1), sz * z0], [X(x2), Y(y2), sz * z0], pf.fondo, pf.alto, [0, 0, 1]));
+        [[x1, y1], [x2, y2]].forEach(([x, y]) => { if (y < 0.03) piso.add(Math.round(X(x) * 10) / 10); });
+      });
+      // donde la base toca el piso: un travesaño de lado a lado y regatones
+      piso.forEach(x => { bar([x, 0.8 + s / 2, -z0 + s / 2], [x, 0.8 + s / 2, z0 - s / 2]); [-1, 1].forEach(sz => pie(x, sz * z0)); });
+    }
     if (k === 'ped') {
       ped = { plato: B.plato, columna: B.columna, H: Hb - s };
       const ar = B.L / 2, gira = c.m.forma === 'square' ? Math.PI / 4 : 0;
@@ -463,7 +499,7 @@
 
   const DKAS = { PLACA, POR_PERSONA, CUBIERTA, PIEDRAS, FORMAS, FORMA_DESC, BASES, USOS, USO_DESC, MODELOS, COSTOS, CFG,
     piedra, radio, formasDe, limites, anchoPara, personas, perimetro, tamanoPara, opcionesPersonas, basesPara, normalizar,
-    medida, titulo, resumen, calcular, piezas, costear, ganancia, sugerido, redonda };
+    medida, titulo, resumen, calcular, piezas, costear, ganancia, sugerido, redonda, registrarBase, quitarBase, PERFILES, propias };
   if (typeof module !== 'undefined') module.exports = DKAS; else root.DKAS = DKAS;
 })(typeof window !== 'undefined' ? window : globalThis);
 

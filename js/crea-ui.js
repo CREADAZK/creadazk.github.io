@@ -69,7 +69,7 @@
       '<button class="piedra' + (st.piedra === p.id ? ' sel' : '') + '" data-piedra="' + p.id + '"><img src="img/piedras/' + p.id + '.jpg" alt="" loading="lazy"><b>' + p.nombre + '</b><small>' + p.desc + '</small></button>').join('') + '</div>';
     // 5 · base
     $('#p3').innerHTML = tit(3, 'El acero', 'Elige la <em>base.</em>') + '<p class="sub">Solo te mostramos las bases que funcionan con tu mesa.</p><div class="bases">' + D.basesPara(st).map(b =>
-      '<button class="base' + (st.base === b ? ' sel' : '') + '" data-base="' + b + '"><img src="img/bases/' + b + '.jpg" alt="" loading="lazy"><b>' + D.BASES[b].nombre + '</b><small>' + D.BASES[b].desc + '</small></button>').join('') + '</div>';
+      '<button class="base' + (st.base === b ? ' sel' : '') + '" data-base="' + b + '"><img src="' + (D.BASES[b].foto || 'img/bases/' + b + '.jpg') + '" alt="" loading="lazy"><b>' + D.BASES[b].nombre + '</b><small>' + D.BASES[b].desc + '</small></button>').join('') + '</div>';
     // 5 · enviar
     if (!enviado) $('#p5res').innerHTML = D.resumen(st).map(([k, v]) => '<li><span>' + k + '</span><b>' + esc(v) + '</b></li>').join('');
     $('#atras').disabled = paso === 0; $('#sig').hidden = paso === PASOS.length - 1; $('#cuenta').textContent = (paso + 1) + ' / ' + PASOS.length;
@@ -180,5 +180,11 @@
   addEventListener('scroll', alBajar, { passive: true }); addEventListener('resize', alBajar);
   if (enlace) setTimeout(() => $('#app').scrollIntoView(), 50);
   V.mostrar(st); ir(paso); alBajar();
+  // bases nuevas que el taller diseñó y subió: aparecen solas en el paso de la base
+  A.basesPublicas().then(bs => {
+    Object.entries(bs || {}).forEach(([id, b]) => D.registrarBase(id, b));
+    if (enlace && deCodigo(enlace)) st = D.normalizar(deCodigo(enlace));
+    V.mostrar(st); pintar();
+  }).catch(() => {});
   window.DKAS_ST = () => st; window.DKAS_V = V; // pruebas y fotos de los modelos
 })();

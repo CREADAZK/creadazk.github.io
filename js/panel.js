@@ -121,13 +121,17 @@
   async function recargar() {
     const [l, c] = await Promise.all([A.listar(), A.config().catch(() => ({}))]);
     todos = l; cfg = c || {};
+    // las bases diseñadas en el panel (Diseñar bases) entran al sistema como cualquier otra
+    try { const bs = await A.basesPublicas(); Object.entries(bs || {}).forEach(([id, b]) => D.registrarBase(id, b)); } catch (e) {}
   }
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : 'log';
+    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : 'log';
+    if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
     $$('#top-nav a[data-sec]').forEach(a => a.classList.toggle('on', a.dataset.sec === sec));
     if (h === '#precios') return precios();
+    if (h === '#bases') return DKAS_DISENA.pantalla(main, { toast, alerta });
     if (h === '#nuevo') return nuevo();
     if (h === '#taller') return lista('taller');
     const id = (h.match(/^#([pt])=([\w-]+)/) || []);

@@ -37,5 +37,7 @@
       + (l.length ? '<ul class="res">' + l.map(x => '<li><a href="#t=' + x.token + '">Pedido #' + x.folio + '</a><b>' + new Date(x.fecha).toLocaleDateString('es-MX') + '</b></li>').join('') + '</ul>' : '<p class="sub">En este celular no hay pedidos. Abre el link que te mandamos por WhatsApp.</p>')
       + '<a class="btn oro grande" href="./">Diseñar una mesa</a>';
   }
-  addEventListener('hashchange', pintar); pintar();
+  addEventListener('hashchange', pintar);
+  // si la mesa lleva una base diseñada en el taller, primero se conoce esa base
+  A.basesPublicas().then(bs => Object.entries(bs || {}).forEach(([id, b]) => D.registrarBase(id, b))).catch(() => {}).then(pintar);
 })();

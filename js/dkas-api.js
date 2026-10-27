@@ -203,6 +203,10 @@
     // the picture of the client's design: fotos/<token>, written once when the order is sent
     async guardarFoto(t, url, staff) { await db('fotos/' + t, 'PUT', url, !!staff); },
     async verFoto(t) { return db('fotos/' + t); },
+    // bases diseñadas en el panel: todos las leen (la página de clientes también), solo el taller las escribe
+    async basesPublicas() { return (await db('catalogo/bases')) || {}; },
+    async guardarBase(id, b) { await db('catalogo/bases/' + id, 'PUT', b, true); },
+    async borrarBase(id) { await db('catalogo/bases/' + id, 'DELETE', undefined, true); },
     async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=1000&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
   };
 
@@ -266,6 +270,9 @@
     async aceptarCotizacion(q) { edit(x => x.token === q.token, (p, ev) => { p.cotizacion.aceptada = Date.now(); if (p.estado === 'cotizado') p.estado = 'confirmado'; ev({ autor: 'cliente', autor_nombre: p.nombre, tipo: 'acepto', texto: 'Aceptó la cotización.' }); }); },
     async guardarFoto(t, url) { const d = load('dazk-demo-fotos', {}); d[t] = url; save('dazk-demo-fotos', d); },
     async verFoto(t) { return load('dazk-demo-fotos', {})[t] || null; },
+    async basesPublicas() { return load('dazk-demo-bases', {}); },
+    async guardarBase(id, b) { const d = load('dazk-demo-bases', {}); d[id] = b; save('dazk-demo-bases', d); },
+    async borrarBase(id) { const d = load('dazk-demo-bases', {}); delete d[id]; save('dazk-demo-bases', d); },
     async staffEstado(id, est) { edit(x => x.id === id, (p, ev) => { p.estado = est; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: estado(est) }); }); },
   };
 

@@ -199,7 +199,24 @@ img.sin{min-height:52px}
 }
 .top nav a .lg{margin-left:.28em}
 .hoy button b{white-space:nowrap}
+
+/* diseñar bases */
+.lienzo{border:1px solid var(--linea);border-radius:12px;overflow:hidden;background:#fbfaf8;touch-action:none}
+.lienzo canvas{display:block;width:100%;height:auto;cursor:crosshair;touch-action:none}
+.prop{display:grid;gap:16px;margin-bottom:6px}
+.prop-n{font-size:14.5px;color:var(--gris);margin-bottom:12px}.prop-n b{color:var(--tinta)}
+.frente-box{border:1px solid var(--linea);border-radius:12px;background:#fbfaf8;overflow:hidden}.frente-box svg{display:block;width:100%;height:auto}
+.visor3d{position:relative;min-height:300px;border-radius:12px;overflow:hidden;background:#f3f1ed;border:1px solid var(--linea)}
+.visor3d canvas{display:block;width:100%!important;height:100%!important;position:absolute;inset:0}
+.decide{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.subir{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--linea)}
+.subir label{flex:1;min-width:220px}.subir .btn{min-height:46px}
+.mis-bases{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.mb{border:1px solid var(--linea);border-radius:12px;padding:10px;background:var(--suave)}
+.mb img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:8px;margin-bottom:8px}
+.mb b{display:block}.mb small{display:block;color:var(--gris);font-size:12.5px;margin-bottom:4px}
+@media (min-width:860px){.prop{grid-template-columns:1fr 1fr}.visor3d{min-height:0}}
 </style></head><body>
-<header class="top"><a href="#"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#" data-sec="log">Pedidos<span class="lg"> y logística</span></a><a href="#taller" data-sec="taller">Taller<span class="lg"> y creación</span></a><a href="#precios" data-sec="precios">Precios</a><a href="#" id="salir">Salir</a></nav></header>
+<header class="top"><a href="#"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#" data-sec="log">Pedidos<span class="lg"> y logística</span></a><a href="#taller" data-sec="taller">Taller<span class="lg"> y creación</span></a><a href="#bases" data-sec="bases">Diseñar<span class="lg"> bases</span></a><a href="#precios" data-sec="precios">Precios</a><a href="#" id="salir">Salir</a></nav></header>
 <main id="m"></main><div id="toast" hidden></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=84f22fd501"></script><script src="js/dkas-api.js?v=1b95fccc54"></script><script src="js/dkas-croquis.js?v=15785b4fab"></script><script src="js/panel.js?v=07e06dbd76"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=deb2a05335"></script><script src="js/dkas-api.js?v=c608d5c298"></script><script src="js/dkas-croquis.js?v=15785b4fab"></script><script src="js/disena.js?v=cbae2a2d2d"></script><script src="js/panel.js?v=17d5f069f4"></script></body></html>

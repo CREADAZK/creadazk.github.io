@@ -35,6 +35,7 @@
   const BASES = {
     patas: { nombre: '4 patas', desc: 'Cuatro patas rectas y bastidor. La más sencilla y firme.' },
     marco: { nombre: 'Marco rectangular', desc: 'Un marco cerrado en cada extremo, unido por largueros.' },
+    trapecio: { nombre: 'Trapecio', desc: 'Un marco en cada extremo que se abre hacia el piso.' },
     x: { nombre: 'X', desc: 'Dos patas cruzadas en X en cada extremo.' },
     zeta: { nombre: 'Z', desc: 'Una Z de PTR en cada esquina: ligera y moderna.' },
     t: { nombre: 'T doble', desc: 'Un poste con pie en cada extremo y viga central. Deja libres los lados.' },
@@ -157,16 +158,16 @@
       if (forma === 'round') return L >= 110 ? ['ped', 'patas'] : ['ped'];
       if (forma === 'square') return L <= 130 ? ['patas', 'ped'] : ['patas'];
       if (forma === 'oval') return ['t', 'x', 'patas'];
-      return ['patas', 'marco', 'x', 'zeta', 't'].concat(L >= 220 && W >= 100 ? ['ym'] : []);
+      return ['patas', 'marco', 'trapecio', 'x', 'zeta', 't'].concat(L >= 220 && W >= 100 ? ['ym'] : []);
     }
     if (uso === 'centro') {
       if (forma === 'round') return L >= 80 ? ['ped', 'patas'] : ['ped'];
       if (forma === 'square') return ['patas', 'ped'];
       if (forma === 'oval') return ['patas', 'x'];
-      return ['patas', 'marco', 'x'];
+      return ['patas', 'marco', 'trapecio', 'x'];
     }
     if (redonda(forma)) return ['ped'];
-    return ['patas', 'marco', 't'];
+    return ['patas', 'marco', 'trapecio', 't'];
   }
 
   // deja la mesa dentro de lo que se puede hacer
@@ -218,6 +219,7 @@
     const B = base, cent = B.L > 150 ? 1 : 0;
     if (m.base === 'patas') { c('Patas', 4, B.H - s); c('Largueros', 2, B.L); c('Travesaños', 2 + cent, B.W - 2 * s); }
     if (m.base === 'marco') { c('Postes del marco', 4, B.H - 2 * s); c('Travesaños del marco (arriba y abajo)', 4, B.W); c('Largueros', 2, B.L - 2 * s); if (cent) c('Travesaño central', 1, B.W - 2 * s); }
+    if (m.base === 'trapecio') { const d = 12; c('Patas inclinadas', 4, Math.hypot(d, B.H - 2 * s)); c('Travesaños de arriba', 2, B.W - 2 * d); c('Travesaños al piso', 2, B.W); c('Largueros', 2, B.L - 2 * s); if (cent) c('Travesaño central', 1, B.W - 2 * d - 2 * s); }
     if (m.base === 'x') { c('Patas en X (diagonal)', 4, Math.hypot(B.W - s, B.H - s)); c('Travesaños de arriba', 2, B.W); c('Largueros', 2, B.L - 2 * s); if (cent) c('Travesaño central', 1, B.W - 2 * s); }
     if (m.base === 'zeta') { const a = r5(B.H * 0.4); B.z = a; c('Diagonales de la Z', 4, Math.hypot(a, B.H - 2 * s)); c('Pies de la Z (al piso)', 4, a); c('Travesaños (arriba y abajo)', 4, B.W - 2 * s); c('Largueros', 2, B.L); }
     if (m.base === 't') { c('Postes', 2, B.H - 2 * s, 'PTR 4" × 2" cal. 14'); c('Pies (al piso)', 2, B.W, 'PTR 4" × 2" cal. 14'); c('Travesaños de arriba', 2, B.W); c('Viga central', 1, B.L - 2 * s, 'PTR 4" × 2" cal. 14'); c('Largueros', 2, B.L); }
@@ -278,6 +280,14 @@
         [-1, 1].forEach(sz => bar([x, s, sz * (hz - s / 2)], [x, Hb - s, sz * (hz - s / 2)], s, s, [1, 0, 0]));
         bar([x, Hb - s / 2, -hz], [x, Hb - s / 2, hz]); bar([x, s / 2, -hz], [x, s / 2, hz]); });
       rieles(s); cent();
+    }
+    if (k === 'trapecio') {
+      const d = 12, zt = hz - s / 2 - d, zb = hz - s / 2;
+      [-1, 1].forEach(sx => { const x = sx * (hx - s / 2);
+        [-1, 1].forEach(sz => bar([x, s, sz * zb], [x, Hb - s, sz * zt], s, s, [1, 0, 0]));
+        bar([x, Hb - s / 2, -zt - s / 2], [x, Hb - s / 2, zt + s / 2]); bar([x, s / 2, -zb - s / 2], [x, s / 2, zb + s / 2]); pie(x, -zb); pie(x, zb); });
+      [-1, 1].forEach(sz => bar([-hx + s, Hb - s / 2, sz * zt], [hx - s, Hb - s / 2, sz * zt]));
+      if (L > 150) bar([0, Hb - s / 2, -zt + s / 2], [0, Hb - s / 2, zt - s / 2]);
     }
     if (k === 'x') {
       [-1, 1].forEach(sx => { const x = sx * (hx - s / 2);

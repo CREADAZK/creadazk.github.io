@@ -158,10 +158,10 @@
     ['classic-bulgar', 'Classic Bulgar', 'Blanco con veta gris vino y toques cobre', ''],
     ['peacock', 'Peacock', 'Blanco con manchas azul acero y chocolate', 'Pulido'],
     ['cardenaskin', 'Cardenaskin', 'Blanco cálido con veta dorada', 'Mate suave'],
-    ['travertine', 'Travertine', 'Beige arena con nubes suaves', 'Velvet'],
+    ['travertine', 'Travertine', 'Beige arena con nubes suaves', 'Aterciopelado'],
     ['limestone-cream', 'Limestone Cream', 'Crema tipo cantera, textura natural', ''],
-    ['saloran-grey', 'Saloran Grey', 'Gris cemento, textura de gamuza', 'Velvet'],
-    ['bulgaria-dark-grey', 'Bulgaria Dark Grey', 'Gris oscuro con veta blanca', 'Velvet'],
+    ['saloran-grey', 'Saloran Grey', 'Gris cemento, textura de gamuza', 'Aterciopelado'],
+    ['bulgaria-dark-grey', 'Bulgaria Dark Grey', 'Gris oscuro con veta blanca', 'Aterciopelado'],
   ].map(([id, nombre, desc, acabado]) => ({ id, nombre, desc, acabado }));
   const RUGOSIDAD = { statuario: 0.2, 'mont-blanc': 0.2, 'classic-bulgar': 0.2, peacock: 0.16, 'pure-white': 0.55, 'taj-mahal-light': 0.45, cardenaskin: 0.45, travertine: 0.6, 'limestone-cream': 0.7, 'saloran-grey': 0.6, 'bulgaria-dark-grey': 0.6 };
 
@@ -176,7 +176,7 @@
   // PTR de 2" (5 × 5 cm) pintado negro, salvo donde se dice otra cosa
   const BASES = {
     patas: { nombre: '4 patas', desc: 'Cuatro patas rectas y bastidor. La más sencilla y firme.' },
-    marco: { nombre: 'Marco', desc: 'Un marco cerrado en cada extremo, unido por largueros.' },
+    marco: { nombre: 'Marco rectangular', desc: 'Un marco cerrado en cada extremo, unido por largueros.' },
     x: { nombre: 'X', desc: 'Dos patas cruzadas en X en cada extremo.' },
     zeta: { nombre: 'Z', desc: 'Una Z de PTR en cada esquina: ligera y moderna.' },
     t: { nombre: 'T doble', desc: 'Un poste con pie en cada extremo y viga central. Deja libres los lados.' },

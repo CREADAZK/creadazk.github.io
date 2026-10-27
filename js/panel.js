@@ -4,7 +4,7 @@
    Todo lo calcula DKAS (dkas-data.js); aquí solo se captura lo que cuesta, lo que se pactó, quién la hace, cuándo se entrega y lo que se cobró.
    El sistema camina solo: con el anticipo pasa a Confirmado y se pone la fecha de entrega; con herrero pasa a En fabricación. */
 (function () {
-  const D = window.DKAS, A = window.DAZK_API, CQ = window.DKAS_CQ, WA = window.DKAS_WA, SITE = 'https://creadazk.github.io/';
+  const D = window.DKAS, A = window.DAZK_API, CQ = window.DKAS_CQ, WA = window.DKAS_WA, SITE = 'https://dkas.mx/';
   const $ = s => document.querySelector(s), esc = A.esc, main = $('#m');
   const $$ = s => [...document.querySelectorAll(s)];
   const pesos = n => '$' + Math.round(+n || 0).toLocaleString('es-MX');
@@ -426,7 +426,7 @@
     g.fillStyle = '#f6f4f0'; g.fillRect(70, 1110, 940, 160);
     g.fillStyle = '#6e6962'; g.font = '600 24px Inter,Arial'; g.fillText('TOTAL', 110, 1160); g.fillText('ANTICIPO 50%', 600, 1160);
     g.fillStyle = '#1a1917'; g.font = '700 56px Inter,Arial'; g.fillText(pesos(x.pactado), 110, 1230); g.fillText(pesos(Math.ceil(x.pactado / 2)), 600, 1230);
-    g.fillStyle = '#6e6962'; g.font = '400 22px Inter,Arial'; g.fillText('WhatsApp ' + WA.map(w => w.label).join(' · ') + '  ·  creadazk.github.io', 70, 1315);
+    g.fillStyle = '#6e6962'; g.font = '400 22px Inter,Arial'; g.fillText('WhatsApp ' + WA.map(w => w.label).join(' · ') + '  ·  dkas.mx', 70, 1315);
     return new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.9));
   }
 
@@ -465,7 +465,7 @@
     txt(pr ? pesos(pr) : '—', 110, yb + 118, '700 58px Inter,Arial', '#1a1917');
     if (para === 'cliente' && pr) { txt('ANTICIPO 50%', 640, yb + 52, '600 22px Inter,Arial', '#8a8378'); txt(pesos(Math.ceil(pr / 2)), 640, yb + 118, '700 58px Inter,Arial', '#1a1917'); }
     else if (para === 'herrero') { txt('BASE', 640, yb + 52, '600 22px Inter,Arial', '#8a8378'); txt(baseDe(p) + ' · PTR ' + c.metros + ' m', 640, yb + 112, '600 30px Inter,Arial', '#1a1917'); }
-    txt('DKAS · Piedra sinterizada · WhatsApp ' + WA.map(w => w.label).join(' · ') + ' · creadazk.github.io', W / 2, H - 40, '400 20px Inter,Arial', '#8a8378', 'center');
+    txt('DKAS · Piedra sinterizada · WhatsApp ' + WA.map(w => w.label).join(' · ') + ' · dkas.mx', W / 2, H - 40, '400 20px Inter,Arial', '#8a8378', 'center');
     return new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.9));
   }
   async function pintarOC(p) {

@@ -1,6 +1,6 @@
 /* DKAS · Crea tu mesa: el cliente arma su mesa en 6 pasos y solo puede elegir mesas que el taller sí hace. */
 (function () {
-  const D = window.DKAS, A = window.DAZK_API, WA = window.DKAS_WA, SITE = 'https://creadazk.github.io/';
+  const D = window.DKAS, A = window.DAZK_API, WA = window.DKAS_WA, SITE = 'https://dkas.mx/';
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
   const esc = A.esc;
   const PASOS = ['Mesa', 'Tamaño', 'Piedra', 'Base', 'Enviar'];

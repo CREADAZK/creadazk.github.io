@@ -474,6 +474,9 @@
   const D = window.DKAS, T = THREE;
   const cm = v => v / 100;
 
+  // calibración de la piedra contra las fotos reales (se midió el color promedio de cada placa contra el 3D)
+  const PIEDRA_LUZ = Object.assign({ k: 0.75, env: 0.05, cc: 0.2 }, window.DKAS_CAL || {});
+
   function ruido(n, a, b) {
     const c = document.createElement('canvas'); c.width = c.height = n; const x = c.getContext('2d'), im = x.createImageData(n, n);
     for (let i = 0; i < n * n; i++) { const v = a + Math.random() * (b - a); im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; }
@@ -616,8 +619,9 @@
       actual = m; const c = D.calcular(m), M = c.m;
       [mesa, sillas].forEach(g => { while (g.children.length) { const o = g.children.pop(); o.traverse(x => x.geometry && x.geometry.dispose()); } });
       const tx = textura(M.piedra), pul = /statuario|classic|peacock|mont/.test(M.piedra);
-      const cara = new T.MeshPhysicalMaterial({ map: tx.tex, roughness: pul ? 0.12 : 0.38, clearcoat: pul ? 0.6 : 0.1, clearcoatRoughness: 0.15, envMapIntensity: 0.55 });
-      const canto = new T.MeshStandardMaterial({ color: tx.color, roughness: 0.4 });
+      // la piedra se ve con el color de su foto: sin el filtro de cine (tone mapping) que la deslava, y con poco reflejo
+      const K = PIEDRA_LUZ.k, cara = new T.MeshPhysicalMaterial({ map: tx.tex, color: new T.Color(K, K, K), roughness: pul ? 0.18 : 0.45, clearcoat: pul ? PIEDRA_LUZ.cc : 0.04, clearcoatRoughness: 0.2, envMapIntensity: PIEDRA_LUZ.env, toneMapped: false });
+      const canto = new T.MeshStandardMaterial({ color: tx.color.clone().multiplyScalar(K), roughness: 0.45, toneMapped: false });
       const top = new T.Mesh(placa(M.forma, M.L, M.W, D.radio(M), 1.2 - 0.3, 0.15), [cara, canto]); top.position.y = cm(M.H - 1.2 + 0.15); top.castShadow = top.receiveShadow = true; top.name = 'piedra';
       top.userData.canto = canto;
       const mdf = new T.Mesh(placa(c.mdf.forma, c.mdf.L, c.mdf.W, c.mdf.r, 1.2, 0), mdfMat); mdf.position.y = cm(M.H - 2.5 + 0.05); mdf.castShadow = true;

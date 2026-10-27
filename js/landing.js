@@ -6,7 +6,7 @@
   // manda al configurador con algo ya elegido
   function disenar(cambios, paso) {
     if (window.DKAS_PONER) window.DKAS_PONER(cambios, paso);
-    cerrarVisor(); $('#app').scrollIntoView({ behavior: 'smooth' });
+    cerrarVisor(); if (location.hash !== '#app') location.hash = '#app'; else scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // ---------- menú del celular ----------
@@ -28,28 +28,30 @@
   const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' }) : null;
   $$('.rv').forEach(el => io ? io.observe(el) : el.classList.add('in'));
 
-  // ---------- colección ----------
-  const carr = $('#carr');
-  $$('[data-carr]').forEach(b => b.onclick = () => carr.scrollBy({ left: +b.dataset.carr * (carr.querySelector('.mod').offsetWidth + 18), behavior: 'smooth' }));
-  carr.addEventListener('click', e => {
-    const b = e.target.closest('[data-modelo]'); if (!b) return;
-    const m = D.MODELOS.find(x => x.id === b.dataset.modelo);
-    disenar(Object.assign({}, m, { modelo: m.id }), 2);
+  // ---------- rieles: colección, piedras y proyectos (una pantalla por foto, de lado) ----------
+  $$('.riel').forEach(r => {
+    const pista = r.querySelector('.pista'), sls = [...pista.children], cnt = r.querySelector('.cnt b'), barra = r.querySelector('.barra i');
+    const ir = d => pista.scrollBy({ left: d * pista.clientWidth, behavior: 'smooth' });
+    r.querySelectorAll('[data-r]').forEach(b => b.onclick = () => ir(+b.dataset.r));
+    const marcar = () => {
+      const i = Math.round(pista.scrollLeft / pista.clientWidth);
+      cnt.textContent = String(i + 1).padStart(2, '0'); barra.style.width = ((i + 1) / sls.length * 100) + '%';
+      sls.forEach((s, k) => s.classList.toggle('on', k === i));
+    };
+    pista.addEventListener('scroll', () => requestAnimationFrame(marcar), { passive: true }); marcar();
+    pista.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.modelo) { const m = D.MODELOS.find(x => x.id === b.dataset.modelo); return disenar(Object.assign({}, m, { modelo: m.id }), 2); }
+      if (b.dataset.piedra) return disenar({ piedra: b.dataset.piedra }, 0);
+      if (b.dataset.v) { const x = JSON.parse(b.dataset.v), c = Object.assign({ uso: x.u, forma: x.f }, D.tamanoPara(x.u, x.f, x.u === 'comedor' ? 8 : 4)); if (x.p) c.piedra = x.p; disenar(c, 1); }
+    });
   });
-
-  // ---------- piedras ----------
-  const vista = $('#pz-vista');
-  $('#muestras').addEventListener('click', e => {
-    const b = e.target.closest('[data-pz]'); if (!b) return;
-    const p = D.piedra(b.dataset.pz), viejo = vista.querySelector('img');
-    $$('#muestras button').forEach(x => x.classList.toggle('on', x === b));
-    const nuevo = viejo.cloneNode(); nuevo.style.opacity = 0; nuevo.loading = 'eager';
-    nuevo.srcset = 'img/l/p-' + p.id + '-m.jpg 700w, img/l/p-' + p.id + '.jpg 1400w'; nuevo.src = 'img/l/p-' + p.id + '.jpg'; nuevo.alt = 'Placa ' + p.nombre;
-    nuevo.onload = () => { requestAnimationFrame(() => { nuevo.style.opacity = 1; }); setTimeout(() => viejo.remove(), 650); };
-    vista.appendChild(nuevo);
-    $('#pz-n').textContent = p.nombre; $('#pz-a').textContent = p.acabado || '—'; $('#pz-d').textContent = p.desc + '.'; $('#pz-btn').dataset.piedra = p.id;
+  // con el teclado: flechas mueven el riel que está en pantalla
+  addEventListener('keydown', e => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(e.key) || document.querySelector('.visor.ver')) return;
+    const r = $$('.riel').find(x => { const b = x.getBoundingClientRect(); return b.top < innerHeight / 2 && b.bottom > innerHeight / 2; });
+    if (r) r.querySelector('[data-r="' + (e.key === 'ArrowLeft' ? -1 : 1) + '"]').click();
   });
-  $('#pz-btn').onclick = () => disenar({ piedra: $('#pz-btn').dataset.piedra }, 0);
 
   // ---------- bases diseñadas en el taller ----------
   A.basesPublicas().then(bs => {
@@ -63,13 +65,6 @@
       otra.before(a);
     });
   }).catch(() => {});
-
-  // ---------- proyectos: filtro y visor ----------
-  const figs = $$('#mas-g figure');
-  $$('[data-f]').forEach(b => b.onclick = () => {
-    $$('[data-f]').forEach(x => x.classList.toggle('on', x === b));
-    figs.forEach(f => { f.hidden = !!b.dataset.f && f.dataset.c !== b.dataset.f; if (!f.hidden) f.classList.add('in'); });
-  });
 
   const visor = $('#visor');
   let lista = [], vi = 0;
@@ -94,15 +89,9 @@
     if (x.p) cambios.piedra = x.p;
     disenar(cambios, 1);
   };
-  $('#mas-g').addEventListener('click', e => {
-    const f = e.target.closest('figure'); if (!f) return;
-    const vis = figs.filter(x => !x.hidden);
-    abrirVisor(vis.map(x => JSON.parse(x.dataset.v)), vis.indexOf(f));
-  });
-
   // ---------- botón flotante: se esconde en el configurador ----------
   const flota = $('#flota');
-  const verFlota = () => { const r = $('#app').getBoundingClientRect(); flota.classList.toggle('fuera', scrollY < innerHeight * 0.6 || (r.top < innerHeight && r.bottom > 0)); };
+  const verFlota = () => flota.classList.toggle('fuera', ['crea', 'inicio'].includes(document.body.dataset.p));
   addEventListener('scroll', verFlota, { passive: true }); verFlota();
 
   // ---------- dibuja tu idea: un lienzo que se manda por WhatsApp ----------
@@ -124,4 +113,33 @@
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mi-mesa-dkas.png'; a.click();
     open('https://wa.me/' + num + '?text=' + encodeURIComponent(txt + ' (te adjunto el dibujo)'), '_blank');
   }, 'image/png');
+
+  // ---------- pantallas: cada sección se abre sola (con el #) ----------
+  const PANT = { inicio: ['.hero', '#accesos', '.sellos'], crea: ['#disena', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
+    bases: ['#bases'], proyectos: ['#proyectos'], como: ['#casa', '#como', '#preguntas'], contacto: ['#contacto'] };
+  const ALIAS = { app: 'crea', disena: 'crea', casa: 'como', preguntas: 'como', porque: 'piedras', espacios: 'proyectos' };
+  const ORDEN = ['inicio', 'crea', 'coleccion', 'piedras', 'bases', 'proyectos', 'como', 'contacto'];
+  const NOMBRE = { inicio: 'Inicio', crea: 'Crea tu mesa', coleccion: 'Colección', piedras: 'Piedras', bases: 'Bases', proyectos: 'Proyectos', como: 'Nosotros', contacto: 'Contacto' };
+  const HREF = p => p === 'crea' ? '#app' : p === 'inicio' ? '#' : '#' + p;
+  const todas = [...new Set(Object.values(PANT).flat())].map(s => $(s)).filter(Boolean);
+  // al final de cada pantalla: ir a la siguiente o volver al inicio
+  ORDEN.forEach((p, i) => {
+    const ult = $(PANT[p][PANT[p].length - 1]), sig = ORDEN[(i + 1) % ORDEN.length]; if (!ult) return;
+    const n = document.createElement('nav'); n.className = 'sig-pant';
+    n.innerHTML = (p === 'inicio' ? '' : '<a href="#">← Inicio</a>') + '<a class="sig" href="' + HREF(sig) + '"><small>Siguiente</small>' + NOMBRE[sig] + ' →</a>';
+    ult.after(n); PANT[p].push(n);
+  });
+  function pantalla() {
+    const h = location.hash.slice(1);
+    let p = h.startsWith('d=') ? 'crea' : (ALIAS[h] || h || 'inicio'); if (!PANT[p]) p = 'inicio';
+    document.body.dataset.p = p;
+    const bar = $('#bar'); if (bar) bar.hidden = p !== 'crea'; // la barra Atrás/Siguiente solo en Crea tu mesa
+    const ver = new Set(PANT[p].map(s => typeof s === 'string' ? $(s) : s));
+    todas.concat($$('.sig-pant')).forEach(el => { el.hidden = !ver.has(el); });
+    $$('.top nav .ln').forEach(a => a.classList.toggle('on', a.getAttribute('href') === HREF(p)));
+    scrollTo(0, 0); setTimeout(() => scrollTo(0, 0), 0); requestAnimationFrame(() => scrollTo(0, 0)); // el navegador salta al # después
+    ver.forEach(el => el.querySelectorAll && el.querySelectorAll('.rv').forEach(x => x.classList.add('in')));
+    verFlota();
+  }
+  addEventListener('hashchange', pantalla); pantalla();
 })();

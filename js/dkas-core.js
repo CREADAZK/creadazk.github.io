@@ -148,19 +148,22 @@
   const MDF_ESP = 1.2, CUBIERTA = 2.5; // piedra 12 mm + MDF 12 mm + pegamento: la base mide la altura menos 2.5 cm
   const POR_PERSONA = 70;
 
+  // las 11 piedras, descritas como se ven en la placa real (fotos de la fábrica, oct 2026); acabado = lo que dice la etiqueta del canto
+  // rugosidad para el 3D: pulida brilla, mate y velvet no
   const PIEDRAS = [
-    ['statuario', 'Statuario', 'Blanco con veta gris marcada'],
-    ['mont-blanc', 'Mont Blanc', 'Arena claro con vetas horizontales'],
-    ['pure-white', 'Pure White', 'Blanco liso, cepillado'],
-    ['taj-mahal-light', 'Taj Mahal Light', 'Blanco grisáceo, veta muy suave'],
-    ['classic-bulgar', 'Classic Bulgar', 'Blanco con veta negra intensa'],
-    ['peacock', 'Peacock', 'Blanco con mancha azul y café'],
-    ['cardenaskin', 'Cardenaskin', 'Blanco con veta gris y dorada'],
-    ['travertine', 'Travertine', 'Travertino arena'],
-    ['limestone-cream', 'Limestone Cream', 'Crema liso, tipo cantera'],
-    ['saloran-grey', 'Saloran Grey', 'Gris cálido, textura de tela'],
-    ['bulgaria-dark-grey', 'Bulgaria Dark Grey', 'Gris oscuro con veta blanca'],
-  ].map(([id, nombre, desc]) => ({ id, nombre, desc }));
+    ['statuario', 'Statuario', 'Blanco con veta gris fina', ''],
+    ['mont-blanc', 'Mont Blanc', 'Blanco con veta gris suave', ''],
+    ['pure-white', 'Pure White', 'Blanco liso, textura cepillada', 'Cepillado'],
+    ['taj-mahal-light', 'Taj Mahal Light', 'Hueso cálido con veta muy suave', 'Mate suave'],
+    ['classic-bulgar', 'Classic Bulgar', 'Blanco con veta gris vino y toques cobre', ''],
+    ['peacock', 'Peacock', 'Blanco con manchas azul acero y chocolate', 'Pulido'],
+    ['cardenaskin', 'Cardenaskin', 'Blanco cálido con veta dorada', 'Mate suave'],
+    ['travertine', 'Travertine', 'Beige arena con nubes suaves', 'Velvet'],
+    ['limestone-cream', 'Limestone Cream', 'Crema tipo cantera, textura natural', ''],
+    ['saloran-grey', 'Saloran Grey', 'Gris cemento, textura de gamuza', 'Velvet'],
+    ['bulgaria-dark-grey', 'Bulgaria Dark Grey', 'Gris oscuro con veta blanca', 'Velvet'],
+  ].map(([id, nombre, desc, acabado]) => ({ id, nombre, desc, acabado }));
+  const RUGOSIDAD = { statuario: 0.2, 'mont-blanc': 0.2, 'classic-bulgar': 0.2, peacock: 0.16, 'pure-white': 0.55, 'taj-mahal-light': 0.45, cardenaskin: 0.45, travertine: 0.6, 'limestone-cream': 0.7, 'saloran-grey': 0.6, 'bulgaria-dark-grey': 0.6 };
 
   const FORMAS = {
     rect: 'Rectangular', ovcuad: 'Ovalada cuadrada', oval: 'Ovalada', square: 'Cuadrada', round: 'Redonda',
@@ -330,7 +333,7 @@
   function resumen(m) {
     const n = personas(m);
     return [['Uso', USOS[m.uso].nombre], ['Forma', FORMAS[m.forma]], ['Medidas', medida(m)], ['Altura', m.H + ' cm'],
-      ['Piedra', piedra(m.piedra).nombre], ['Base', BASES[m.base].nombre]].concat(n ? [['Personas', n + ' personas']] : []);
+      ['Piedra', piedra(m.piedra).nombre + (piedra(m.piedra).acabado ? ' · ' + piedra(m.piedra).acabado.toLowerCase() : '')], ['Base', BASES[m.base].nombre]].concat(n ? [['Personas', n + ' personas']] : []);
   }
 
   // ---------- el cálculo del taller: MDF, base, cortes, piedra ----------
@@ -497,7 +500,7 @@
   }
   const sugerido = (costo, pct) => Math.ceil(costo * (1 + (pct == null ? CFG.minimo : pct) / 100) / 100) * 100;
 
-  const DKAS = { PLACA, POR_PERSONA, CUBIERTA, PIEDRAS, FORMAS, FORMA_DESC, BASES, USOS, USO_DESC, MODELOS, COSTOS, CFG,
+  const DKAS = { PLACA, POR_PERSONA, CUBIERTA, PIEDRAS, RUGOSIDAD, FORMAS, FORMA_DESC, BASES, USOS, USO_DESC, MODELOS, COSTOS, CFG,
     piedra, radio, formasDe, limites, anchoPara, personas, perimetro, tamanoPara, opcionesPersonas, basesPara, normalizar,
     medida, titulo, resumen, calcular, piezas, costear, ganancia, sugerido, redonda, registrarBase, quitarBase, PERFILES, propias };
   if (typeof module !== 'undefined') module.exports = DKAS; else root.DKAS = DKAS;
@@ -654,9 +657,9 @@
     function construir(m) {
       actual = m; const c = D.calcular(m), M = c.m;
       [mesa, sillas].forEach(g => { while (g.children.length) { const o = g.children.pop(); o.traverse(x => x.geometry && x.geometry.dispose()); } });
-      const tx = textura(M.piedra), pul = /statuario|classic|peacock|mont/.test(M.piedra);
+      const tx = textura(M.piedra), rug = (D.RUGOSIDAD || {})[M.piedra] ?? 0.45, pul = rug < 0.3;
       // la piedra se ve con el color de su foto: sin el filtro de cine (tone mapping) que la deslava, y con poco reflejo
-      const K = PIEDRA_LUZ.k, cara = new T.MeshPhysicalMaterial({ map: tx.tex, color: new T.Color(K, K, K), roughness: pul ? 0.18 : 0.45, clearcoat: pul ? PIEDRA_LUZ.cc : 0.04, clearcoatRoughness: 0.2, envMapIntensity: PIEDRA_LUZ.env, toneMapped: false });
+      const K = PIEDRA_LUZ.k, cara = new T.MeshPhysicalMaterial({ map: tx.tex, color: new T.Color(K, K, K), roughness: rug, clearcoat: pul ? PIEDRA_LUZ.cc : 0.04, clearcoatRoughness: 0.2, envMapIntensity: PIEDRA_LUZ.env, toneMapped: false });
       const canto = new T.MeshStandardMaterial({ color: tx.color.clone().multiplyScalar(K), roughness: 0.45, toneMapped: false });
       const top = new T.Mesh(placa(M.forma, M.L, M.W, D.radio(M), 1.2 - 0.3, 0.15), [cara, canto]); top.position.y = cm(M.H - 1.2 + 0.15); top.castShadow = top.receiveShadow = true; top.name = 'piedra';
       top.userData.canto = canto;

@@ -66,7 +66,7 @@
       + '<p class="nota">Medida máxima 320 × 160 cm: el tamaño de una placa completa de piedra.</p></div>';
     // 4 · piedra
     $('#p2').innerHTML = tit(2, 'La piedra', 'Elige tu <em>piedra.</em>') + '<p class="sub">Fotos reales de cada placa. Así se verá tu mesa.</p><div class="piedras">' + D.PIEDRAS.map(p =>
-      '<button class="piedra' + (st.piedra === p.id ? ' sel' : '') + '" data-piedra="' + p.id + '"><img src="img/piedras/' + p.id + '.jpg" alt="" loading="lazy"><b>' + p.nombre + '</b><small>' + p.desc + '</small></button>').join('') + '</div>';
+      '<button class="piedra' + (st.piedra === p.id ? ' sel' : '') + '" data-piedra="' + p.id + '"><img src="img/piedras/' + p.id + '.jpg" alt="" loading="lazy"><b>' + p.nombre + '</b><small>' + p.desc + (p.acabado ? ' · ' + p.acabado.toLowerCase() : '') + '</small></button>').join('') + '</div><p class="nota">Todas en placa de 320 × 160 cm y 12 mm de grosor.</p>';
     // 5 · base
     $('#p3').innerHTML = tit(3, 'El acero', 'Elige la <em>base.</em>') + '<p class="sub">Solo te mostramos las bases que funcionan con tu mesa.</p><div class="bases">' + D.basesPara(st).map(b =>
       '<button class="base' + (st.base === b ? ' sel' : '') + '" data-base="' + b + '"><img src="' + (D.BASES[b].foto || 'img/bases/' + b + '.jpg') + '" alt="" loading="lazy"><b>' + D.BASES[b].nombre + '</b><small>' + D.BASES[b].desc + '</small></button>').join('') + '</div>';

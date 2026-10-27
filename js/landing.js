@@ -47,7 +47,7 @@
     nuevo.srcset = 'img/l/p-' + p.id + '-m.jpg 700w, img/l/p-' + p.id + '.jpg 1400w'; nuevo.src = 'img/l/p-' + p.id + '.jpg'; nuevo.alt = 'Placa ' + p.nombre;
     nuevo.onload = () => { requestAnimationFrame(() => { nuevo.style.opacity = 1; }); setTimeout(() => viejo.remove(), 650); };
     vista.appendChild(nuevo);
-    $('#pz-n').textContent = p.nombre; $('#pz-d').textContent = p.desc + '.'; $('#pz-btn').dataset.piedra = p.id;
+    $('#pz-n').textContent = p.nombre; $('#pz-a').textContent = p.acabado || '—'; $('#pz-d').textContent = p.desc + '.'; $('#pz-btn').dataset.piedra = p.id;
   });
   $('#pz-btn').onclick = () => disenar({ piedra: $('#pz-btn').dataset.piedra }, 0);
 

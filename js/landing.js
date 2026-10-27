@@ -43,7 +43,7 @@
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.modelo) { const m = D.MODELOS.find(x => x.id === b.dataset.modelo); return disenar(Object.assign({}, m, { modelo: m.id }), 2); }
       if (b.dataset.piedra) return disenar({ piedra: b.dataset.piedra }, 0);
-      if (b.dataset.v) { const x = JSON.parse(b.dataset.v), c = Object.assign({ uso: x.u, forma: x.f }, D.tamanoPara(x.u, x.f, x.u === 'comedor' ? 8 : 4)); if (x.p) c.piedra = x.p; disenar(c, 1); }
+      if (b.dataset.v) { const x = JSON.parse(b.dataset.v), c = Object.assign({ uso: x.u, forma: x.f }, D.tamanoPara(x.u, x.f, x.u === 'comedor' ? 8 : 4)); if (x.p) c.piedra = x.p; if (x.b) c.base = x.b; disenar(c, 1); }
     });
   });
   // con el teclado: flechas mueven el riel que está en pantalla
@@ -142,4 +142,34 @@
     verFlota();
   }
   addEventListener('hashchange', pantalla); pantalla();
+
+  // ---------- bienvenida y registro de visitas: pide el nombre una vez; el panel ve quién entró ----------
+  (function () {
+    const yo = A.load('dazk-yo', {}), staff = A.load('dazk-ses', null);
+    let v = A.load('dazk-v', null); if (!v) { v = A.rnd(); A.save('dazk-v', v); }
+    const id = A.rnd(), w = Math.min(screen.width, screen.height), ref = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : '';
+    const origen = A.canal(new URLSearchParams(location.search).get('c') || (!ref || ref === location.hostname ? 'directo' : ref)) || 'directo';
+    let primera = true, enviado = '', paso = 0, folio = 0;
+    function registra() {
+      if (staff) return; // el taller viendo su propia página no cuenta
+      const n = (A.load('dazk-yo', {}).nombre || '').slice(0, 80);
+      if (document.body.dataset.p === 'crea') paso = Math.max(paso, 1);
+      if (window.DKAS_ST && DKAS_ST().modelo) paso = Math.max(paso, 1);
+      const d = Object.assign({ v, disp: w < 600 ? 'celular' : w < 1000 ? 'tablet' : 'computadora', origen, paso }, n ? { nombre: n } : {}, folio ? { folio } : {});
+      const s = JSON.stringify(d); if (s === enviado) return; enviado = s;
+      A.visita(id, d, primera).catch(() => {}); primera = false;
+    }
+    window.DKAS_VISITA = (p, f) => { paso = Math.max(paso, p); if (f) folio = f; registra(); }; // crea-ui avisa: 2 = armó su mesa, 3 = la mandó
+    addEventListener('hashchange', () => setTimeout(registra, 300));
+    const caja = $('#bienv');
+    if (!yo.nombre && !staff) {
+      caja.hidden = false; document.body.style.overflow = 'hidden'; setTimeout(() => $('#bienv-n').focus(), 300);
+      $('#bienv-f').onsubmit = e => {
+        e.preventDefault(); const n = $('#bienv-n').value.trim().replace(/\s+/g, ' ');
+        if (n.length < 2) return;
+        A.save('dazk-yo', Object.assign(A.load('dazk-yo', {}), { nombre: n })); const f = $('#nombre'); if (f && !f.value) f.value = n;
+        caja.hidden = true; document.body.style.overflow = ''; registra();
+      };
+    } else registra();
+  })();
 })();

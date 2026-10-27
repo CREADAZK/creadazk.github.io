@@ -127,10 +127,11 @@
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : 'log';
+    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : 'log';
     if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
     $$('#top-nav a[data-sec]').forEach(a => a.classList.toggle('on', a.dataset.sec === sec));
     if (h === '#precios') return precios();
+    if (h === '#visitas') return visitas();
     if (h === '#bases') return DKAS_DISENA.pantalla(main, { toast, alerta });
     if (h === '#nuevo') return nuevo();
     if (h === '#taller') return lista('taller');
@@ -536,6 +537,23 @@
     pinta();
   }
   function chica(url) { return new Promise(ok => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = 1000; c.height = Math.round(1000 * im.height / im.width); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', 0.8)); }; im.src = url; }); }
+
+  // ---------- quién ha entrado a la página de clientes (dan su nombre al entrar y la página los recuerda) ----------
+  async function visitas() {
+    main.innerHTML = '<h1>Visitas</h1><p class="sub">Cargando…</p>';
+    let l; try { l = await A.visitas(); } catch (e) { main.innerHTML = '<h1>Visitas</h1><p class="err">' + esc(e.message) + '</p>'; return; }
+    // una fila por persona (mismo navegador = misma persona)
+    const per = {};
+    l.forEach(x => { const k = x.v || x.t; const a = per[k] = per[k] || { nombre: '', veces: 0, primera: x.t, ult: 0, disp: x.disp, origen: x.origen, max: 0, folio: 0 };
+      a.veces++; a.primera = Math.min(a.primera, x.t); a.ult = Math.max(a.ult, x.ult || x.t); if (x.nombre) a.nombre = x.nombre; a.max = Math.max(a.max, x.paso || 0); if (x.folio) a.folio = x.folio; });
+    const gente = Object.values(per).sort((a, b) => b.ult - a.ult), hoy = new Date().toDateString();
+    const PASO = ['Vio la página', 'Abrió el 3D', 'Armó su mesa', 'Mandó su diseño'];
+    const cuando = t => { const d = new Date(t); return d.toDateString() === hoy ? 'hoy ' + d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }) : A.fecha(t); };
+    main.innerHTML = '<h1>Visitas</h1><p class="sub">Quién ha entrado a dkas.mx. Al entrar se les pide su nombre y la página los recuerda.</p>'
+      + '<div class="resumen-g"><div><b>' + gente.length + '</b><span>personas</span></div><div><b>' + gente.filter(g => new Date(g.ult).toDateString() === hoy).length + '</b><span>hoy</span></div><div><b>' + gente.filter(g => g.max >= 3).length + '</b><span>mandaron diseño</span></div></div>'
+      + '<div class="sec">' + (gente.length ? gente.map(g => '<div class="fila vis"><div><b>' + esc(g.nombre || 'Sin nombre') + '</b><small>' + esc([g.disp, g.origen].filter(Boolean).join(' · ')) + '</small></div>'
+        + '<div><span>' + PASO[Math.min(3, g.max)] + (g.folio ? ' · pedido #' + g.folio : '') + '</span><small>' + g.veces + (g.veces === 1 ? ' visita' : ' visitas') + ' · última ' + cuando(g.ult) + '</small></div></div>').join('') : '<p class="sub">Todavía nadie.</p>') + '</div>';
+  }
 
   // ---------- precios, herreros y días de fabricación ----------
   function precios() {

@@ -80,6 +80,7 @@
   }
   function ir(i) {
     paso = Math.max(0, Math.min(PASOS.length - 1, i));
+    if (paso >= 3 && window.DKAS_VISITA) DKAS_VISITA(2); // para el panel: ya armó su mesa
     $$('.paso').forEach((p, k) => { p.hidden = k !== paso; });
     if (paso === 4 && !enviado) setTimeout(foto, 60);
     pintar(); if (ir.listo) { const y = $('#app').getBoundingClientRect().top + scrollY - 62; if (Math.abs(scrollY - y) > 4 && (innerWidth < 980 || scrollY < y)) scrollTo({ top: y, behavior: 'smooth' }); }
@@ -135,6 +136,7 @@
       A.save('dazk-yo', { nombre: $('#nombre').value.trim(), tel: $('#tel').value.trim() });
       A.save('dazk-pedidos', [{ folio: r.folio, token: r.token, fecha: new Date().toISOString() }].concat(A.load('dazk-pedidos', [])));
       enviado = Object.assign({ img }, r);
+      if (window.DKAS_VISITA) DKAS_VISITA(3, r.folio);
       $('#form').hidden = true; $('#listo').hidden = false;
       $('#folio').textContent = '#' + r.folio; $('#seguir').href = A.seguimiento(r.token);
     } catch (x) { err.textContent = x.message; err.hidden = false; }

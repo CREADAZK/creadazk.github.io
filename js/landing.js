@@ -99,4 +99,29 @@
     const vis = figs.filter(x => !x.hidden);
     abrirVisor(vis.map(x => JSON.parse(x.dataset.v)), vis.indexOf(f));
   });
+
+  // ---------- botón flotante: se esconde en el configurador ----------
+  const flota = $('#flota');
+  const verFlota = () => { const r = $('#app').getBoundingClientRect(); flota.classList.toggle('fuera', scrollY < innerHeight * 0.6 || (r.top < innerHeight && r.bottom > 0)); };
+  addEventListener('scroll', verFlota, { passive: true }); verFlota();
+
+  // ---------- dibuja tu idea: un lienzo que se manda por WhatsApp ----------
+  const dib = $('#dib'), cv = $('#dib-c'), cx = cv.getContext('2d');
+  const limpiar = () => { cx.fillStyle = '#f3efe8'; cx.fillRect(0, 0, cv.width, cv.height); cx.fillStyle = '#9a8f80'; cx.font = '26px sans-serif'; cx.fillText('DKAS · mi idea de mesa', 24, 44); };
+  limpiar();
+  let traz = null;
+  const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
+  cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); traz = pt(e); });
+  cv.addEventListener('pointermove', e => { if (!traz) return; const p = pt(e); cx.strokeStyle = '#1b1713'; cx.lineWidth = 6; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(traz[0], traz[1]); cx.lineTo(p[0], p[1]); cx.stroke(); traz = p; });
+  ['pointerup', 'pointercancel'].forEach(t => cv.addEventListener(t, () => { traz = null; }));
+  $$('[data-dibuja]').forEach(b => b.onclick = () => { dib.hidden = false; document.body.style.overflow = 'hidden'; });
+  $('#dib-x').onclick = () => { dib.hidden = true; document.body.style.overflow = ''; };
+  $('#dib-b').onclick = limpiar;
+  $('#dib-m').onclick = () => cv.toBlob(async blob => {
+    const txt = 'Hola DKAS, les mando el dibujo de la mesa que quiero.', num = window.DKAS_WA[0].num, f = new File([blob], 'mi-mesa-dkas.png', { type: 'image/png' });
+    try { if (navigator.canShare && navigator.canShare({ files: [f] })) return await navigator.share({ files: [f], text: txt }); } catch (e) { if (e.name === 'AbortError') return; }
+    // sin compartir archivos (compu): se descarga el dibujo y se abre WhatsApp para adjuntarlo
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mi-mesa-dkas.png'; a.click();
+    open('https://wa.me/' + num + '?text=' + encodeURIComponent(txt + ' (te adjunto el dibujo)'), '_blank');
+  }, 'image/png');
 })();

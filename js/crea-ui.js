@@ -186,5 +186,7 @@
     if (enlace && deCodigo(enlace)) st = D.normalizar(deCodigo(enlace));
     V.mostrar(st); pintar();
   }).catch(() => {});
+  // la página principal manda aquí lo que el cliente eligió (un modelo, una piedra o una foto)
+  window.DKAS_PONER = (cambios, p) => set(cambios || {}, p);
   window.DKAS_ST = () => st; window.DKAS_V = V; // pruebas y fotos de los modelos
 })();

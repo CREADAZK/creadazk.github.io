@@ -73,8 +73,8 @@
   const emailOk = e => { e = String(e || '').trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) throw new Error('Revisa el correo.'); return e; };
   const itemsDe = l => l.map(it => Object.assign({ tipo: ['mesa', 'sillas', 'bancos'].includes(it.tipo) ? it.tipo : 'mesa', titulo: String(it.titulo || 'Mesa').slice(0, 160), cantidad: Math.max(1, Math.min(99, +it.cantidad || 1)),
     specs: (it.specs || []).slice(0, 20).map(s => [String(s[0]).slice(0, 120), String(s[1]).slice(0, 120)]) }, it.uso ? { uso: String(it.uso).slice(0, 20) } : {},
-    // only links to our own configurator are stored, so staff never open a foreign URL
-    String(it.link || '').startsWith(SITE) ? { link: it.link.slice(0, 600) } : {}));
+    // only links to our own configurator are stored, so staff never open a foreign URL; dkas.mx links are kept as creadazk.github.io (the database rule wants it, and it redirects)
+    /^https:\/\/(dkas\.mx|creadazk\.github\.io)\//.test(it.link || '') ? { link: (SITE + it.link.replace(/^https:\/\/[^/]+\//, '')).slice(0, 600) } : {}));
   const authErr = e => /QUOTA_EXCEEDED/.test(e.code) ? 'Por hoy ya se mandaron todos los correos de entrada que permite el plan gratis de Firebase (5 al día). Mañana vuelve a funcionar; si ya entraste en otro aparato, úsalo ahí.' : /TOO_MANY_ATTEMPTS/.test(e.code) ? 'Demasiados intentos. Espera unos minutos.' : /INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND|INVALID_EMAIL|USER_DISABLED/.test(e.code) ? 'Correo o contraseña incorrectos.'
     : /EXPIRED_OOB|INVALID_OOB/.test(e.code) ? 'Este enlace ya se usó o caducó. Escribe tu correo otra vez y te mandamos otro.' : /WEAK_PASSWORD/.test(e.code) ? 'Esa contraseña es muy débil: usa al menos 8 caracteres.' : e.message;
   // Spanish email with a one-time sign-in link; Google's page sends it on to taller.html?mode=signIn&oobCode=… (creadazk.github.io is an authorized domain)

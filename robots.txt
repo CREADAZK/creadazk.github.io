@@ -1,4 +1,4 @@
 User-agent: *
 Disallow: /taller.html
 Disallow: /pedido.html
-Sitemap: https://creadazk.github.io/sitemap.xml
+Sitemap: https://dkas.mx/sitemap.xml

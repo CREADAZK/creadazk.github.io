@@ -35,7 +35,8 @@
     const l = A.load('dazk-pedidos', []);
     main.innerHTML = '<div class="tt"><p class="et">Tus pedidos</p><h2>Mis <em>mesas.</em></h2></div>'
       + (l.length ? '<ul class="res">' + l.map(x => '<li><a href="#t=' + x.token + '">Pedido #' + x.folio + '</a><b>' + new Date(x.fecha).toLocaleDateString('es-MX') + '</b></li>').join('') + '</ul>' : '<p class="sub">En este celular no hay pedidos. Abre el link que te mandamos por WhatsApp.</p>')
-      + '<a class="btn oro grande" href="./">Diseñar una mesa</a>';
+      + '<a class="btn oro grande" href="./">Diseñar una mesa</a>'
+      + (l.length ? '' : '<a class="btn grande" target="_blank" rel="noopener" href="https://wa.me/' + WA[0].num + '?text=' + encodeURIComponent('Hola DKAS, ya tengo un pedido y quiero mi link para ver cómo va mi mesa.') + '">Ya tengo pedido: pedir mi link</a>');
   }
   addEventListener('hashchange', pintar);
   // si la mesa lleva una base diseñada en el taller, primero se conoce esa base

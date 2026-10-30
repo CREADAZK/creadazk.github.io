@@ -55,7 +55,7 @@
   }
   function sigue(p) {
     const x = numeros(p), anticipo = Math.ceil(x.pactado / 2), f = ficha(p);
-    return { nuevo: x.pactado ? 'Mandar la cotización al cliente' : 'Poner el precio (Taller y creación)',
+    return { nuevo: !f.bienvenida && p.tel ? 'Mandarle la bienvenida por WhatsApp' : x.pactado ? 'Mandar la cotización al cliente' : 'Poner el precio (Taller y creación)',
       cotizado: 'Esperar que acepte y cobrar anticipo (50%)',
       confirmado: x.pagado >= anticipo && anticipo ? (f.herrero ? 'Mandar a fabricar' : 'Asignar herrero') : 'Cobrar anticipo de ' + pesos(anticipo - x.pagado),
       fabricacion: 'Terminar y avisar que está lista', listo: x.pagado < x.pactado ? 'Entregar y cobrar saldo de ' + pesos(x.pactado - x.pagado) : 'Entregar',
@@ -216,7 +216,7 @@
     const m = mesaDe(p), x = numeros(p), f = ficha(p), tel = p.tel ? A.waNum(p.tel) : '', e = entrega(p), tall = modo === 'taller';
     const ac = accion(p);
     const cab = '<a class="volver" href="' + (tall ? '#taller' : '#') + '">← ' + (tall ? 'Taller y creación' : 'Pedidos y logística') + '</a>'
-      + '<div class="hcab"><div><p class="folio">Pedido #' + p.folio + ' · ' + A.fecha(p.creado) + (p.canal ? ' · ' + esc(p.canal) : '') + '</p><h1>' + esc(p.nombre) + '</h1>'
+      + '<div class="hcab"><div><p class="folio">Pedido #' + p.folio + ' · ' + A.fecha(p.creado) + (p.canal ? ' · ' + esc(p.canal) : '') + (f.bienvenida ? ' · bienvenida enviada ' + A.fecha(f.bienvenida) : '') + '</p><h1>' + esc(p.nombre) + '</h1>'
       + '<p class="sub">' + esc(D.titulo(m)) + (p.tel ? ' · ' + esc(p.tel) : '') + '</p></div>'
       + (tel ? '<div class="botones"><a class="btn verde" target="_blank" rel="noopener" href="https://wa.me/' + tel + '">WhatsApp</a><a class="btn" target="_blank" rel="noopener" title="Le manda su link para ver cómo va su mesa" href="https://wa.me/' + tel + '?text=' + encodeURIComponent('Hola ' + p.nombre.split(' ')[0] + ', aquí puedes ver cómo va tu mesa DKAS (pedido #' + p.folio + '): ' + SITE + 'pedido.html#t=' + p.token) + '">Mandarle su link</a></div>' : '') + '</div>'
       + etapas(p)
@@ -339,13 +339,36 @@
     const ir = (tab, sel) => modo => { enfocar = sel; const h = '#' + tab + '=' + p.id; if (location.hash === h) pedido(p, modo); else location.hash = h; };
     const est = s => modo => ponerEstado(p, s, location.hash.startsWith('#t=') ? 'taller' : location.hash.startsWith('#p=') ? 'log' : null).then(() => { if (!location.hash.match(/^#[pt]=/)) ruta(); });
     switch (p.estado) {
-      case 'nuevo': return x.pactado ? { txt: 'Mandar cotización', run: ir('p', '#mandar') } : { txt: 'Poner precio', run: ir('t', '#pactado') };
+      case 'nuevo': if (!f.bienvenida && p.tel) return { txt: 'Mandar bienvenida', run: modo => bienvenida(p, modo) };
+        return x.pactado ?{ txt: 'Mandar cotización', run: ir('p', '#mandar') } : { txt: 'Poner precio', run: ir('t', '#pactado') };
       case 'cotizado': return { txt: 'Registrar anticipo', run: ir('p', '#pmonto') };
       case 'confirmado': return x.pagado < anticipo ? { txt: 'Registrar anticipo', run: ir('p', '#pmonto') } : !f.herrero ? { txt: 'Asignar herrero', run: ir('p', '[data-ent="herrero"]') } : { txt: 'Mandar a fabricar', run: est('fabricacion') };
       case 'fabricacion': return { txt: 'Marcar como lista', run: est('listo') };
       case 'listo': return x.pagado < x.pactado ? { txt: 'Cobrar saldo', run: ir('p', '#pmonto') } : { txt: 'Marcar entregada', run: est('entregado') };
     }
     return null;
+  }
+  // el primer mensaje al cliente: profesional, sin detalles del pedido, y solo una vez
+  function textoBienvenida(p) {
+    const h = new Date().getHours(), saludo = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+    const n = String(p.nombre || '').trim().split(/\s+/)[0] || '', nombre = n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
+    return saludo + (nombre ? ', ' + nombre : '') + '. 👋\n\n'
+      + 'Te escribimos de *DKAS · Piedra Sinterizada*. Recibimos la solicitud de tu mesa (folio #' + p.folio + '). Muchas gracias por tomarnos en cuenta.\n\n'
+      + 'Ya estamos revisando tu diseño y en breve te enviamos tu cotización formal por este medio.\n\n'
+      + 'Si tienes alguna duda, las medidas de tu espacio o una fecha ideal de entrega, compártela aquí y con gusto la tomamos en cuenta.\n\n'
+      + 'Quedamos a tus órdenes.\n*DKAS*';
+  }
+  async function bienvenida(p, modo) {
+    const txt = textoBienvenida(p);
+    window.open('https://wa.me/' + A.waNum(p.tel) + '?text=' + encodeURIComponent(txt), '_blank'); // antes de cualquier await, para que no lo bloquee el navegador
+    try { await navigator.clipboard.writeText(txt); } catch (e) {}
+    const f = Object.assign({}, ficha(p), { bienvenida: Date.now() });
+    try {
+      await A.guardarFicha(p.id, 'dkas', JSON.parse(JSON.stringify(f)), 'Se le mandó la bienvenida por WhatsApp.');
+      p.fichas = Object.assign({}, p.fichas, { dkas: f });
+      toast('Bienvenida lista en WhatsApp. También quedó copiada: si no se abrió, pégala en el chat.');
+      if (location.hash.match(/^#[pt]=/)) { const y = scrollY; pedido(p, modo === 'taller' ? 'taller' : 'log'); scrollTo(0, y); } else ruta();
+    } catch (e) { alerta(e.message); }
   }
   const kpi = (t, v, s) => '<div class="kpi"><span>' + t + '</span><b>' + esc(v) + '</b><small>' + esc(s) + '</small></div>';
   async function guardarEntrega(p, k, v, modo, foco) {

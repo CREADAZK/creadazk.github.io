@@ -354,8 +354,8 @@
     const n = String(p.nombre || '').trim().split(/\s+/)[0] || '', nombre = n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
     return saludo + (nombre ? ', ' + nombre : '') + '. 👋 Soy Zury, de *DKAS · Piedra Sinterizada*.\n\n'
       + 'Vi la mesa que diseñaste (folio #' + p.folio + '). ¡Muchas gracias por escribirnos!\n\n'
-      + 'Me gustaría platicar contigo unos minutos para entender bien lo que buscas y prepararte la mejor propuesta. ¿Te puedo marcar? Dime qué día y hora te acomodan.\n\n'
-      + 'Quedo atento.\nZury · DKAS';
+      + 'Me gustaría platicar contigo para entender bien lo que buscas y prepararte la mejor propuesta. ¿Cuándo lo platicamos? Cuando tú quieras, quedo pendiente.\n\n'
+      + 'Zury · DKAS';
   }
   async function bienvenida(p, modo) {
     const txt = textoBienvenida(p);

@@ -352,10 +352,13 @@
   function textoBienvenida(p) {
     const h = new Date().getHours(), saludo = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
     const n = String(p.nombre || '').trim().split(/\s+/)[0] || '', nombre = n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
-    return saludo + (nombre ? ', ' + nombre : '') + '. 👋 Soy Zury, de *DKAS · Piedra Sinterizada*.\n\n'
-      + 'Vi la mesa que diseñaste (folio #' + p.folio + '). ¡Muchas gracias por escribirnos!\n\n'
-      + 'Me gustaría platicar contigo para entender bien lo que buscas y prepararte la mejor propuesta. ¿Cuándo lo platicamos? Cuando tú quieras, quedo pendiente.\n\n'
-      + 'Zury · DKAS';
+    const hola = '¡Hola' + (nombre ? ', ' + nombre : '') + '!';
+    // tres versiones; cada cliente recibe una según su folio, para que no todos lean el mismo mensaje
+    return [
+      hola + ' Soy Zury, de DKAS 👋\n\nMe llegó la mesa que diseñaste. Me encantaría platicarla contigo para afinar los detalles y que quede exactamente como la imaginas.\n\n¿Cuándo te queda bien? Quedo pendiente.',
+      saludo + (nombre ? ', ' + nombre : '') + '. Soy Zury, de DKAS · Piedra Sinterizada.\n\nGracias por diseñar tu mesa con nosotros. Antes de prepararte la propuesta, me gustaría conocer un poco más tu espacio y lo que tienes en mente.\n\n¿Cuándo lo platicamos? Cuando tú puedas, aquí estoy.',
+      hola + ' Soy Zury, de DKAS. Ya vi tu diseño 🙌\n\n¿Cuándo lo platicamos para dejarla perfecta? Quedo pendiente.',
+    ][(+p.folio || 0) % 3];
   }
   async function bienvenida(p, modo) {
     const txt = textoBienvenida(p);

@@ -312,29 +312,71 @@
     return ['patas', 'marco', 'trapecio', 't'];
   }
 
-  // deja la mesa dentro de lo que se puede hacer
+  // medidas libres: el cliente pone la que quiera; solo se descartan números imposibles (viabilidad() le dice qué tan difícil es)
+  const ABS = { L: [30, 1200], W: [30, 400], H: [30, 120] };
   function normalizar(m) {
     const uso = USOS[m.uso] ? m.uso : 'comedor';
     const forma = USOS[uso].formas[m.forma] ? m.forma : formasDe(uso)[0];
     const f = USOS[uso].formas[forma];
-    let L = clamp(Math.round(+m.L || f.L[0]), f.L[0], f.L[1]);
-    let W = redonda(forma) ? L : clamp(Math.round(+m.W || anchoPara(uso, forma, L)), ...limites(uso, forma, L).W);
-    const out = { uso, forma, L, W, H: USOS[uso].H, piedra: piedra(m.piedra).id };
+    let L = clamp(Math.round(+m.L || f.L[0]), ...ABS.L);
+    let W = redonda(forma) ? L : clamp(Math.round(+m.W || anchoPara(uso, forma, L)), ...ABS.W);
+    if (W > L) [L, W] = [clamp(W, ...ABS.L), L]; // 100 × 250 es la misma mesa que 250 × 100
+    const H = +m.H ? clamp(Math.round(+m.H), ...ABS.H) : USOS[uso].H;
+    const out = { uso, forma, L, W, H, piedra: piedra(m.piedra).id };
     const bs = basesPara(out);
     out.base = bs.includes(m.base) ? m.base : bs[0];
     if (m.modelo && MODELOS.some(x => x.id === m.modelo && x.uso === uso && x.forma === forma && x.L === L && x.W === W && x.base === out.base)) out.modelo = m.modelo;
     return out;
   }
 
-  const medida = m => redonda(m.forma) ? (m.forma === 'round' ? 'Ø ' + m.L + ' cm' : m.L + ' × ' + m.L + ' cm') : m.L + ' × ' + m.W + ' cm';
+  // ---------- qué tan difícil es de fabricar (nunca se bloquea: siempre se puede cotizar) ----------
+  const NIVELES = [
+    { id: 'estandar', t: 'Fabricación estándar', d: 'Sale de una sola placa y la hacemos sin complicaciones.' },
+    { id: 'especial', t: 'Proyecto especial', d: 'Se puede hacer. Tiene detalles que revisamos contigo al cotizar.' },
+    { id: 'reto', t: 'Alta complejidad', d: 'Es un reto de fabricación. Cotízala y la revisamos juntos antes de confirmar.' },
+  ];
+  function area(m) {
+    const { forma, L, W } = m;
+    return forma === 'round' ? Math.PI * L * L / 4 : forma === 'oval' ? Math.PI * L * W / 4 : forma === 'ovcuad' ? L * W - (4 - Math.PI) * radio(m) ** 2 : L * W;
+  }
+  function viabilidad(m0) {
+    const m = m0.H ? m0 : normalizar(m0), { uso, forma, L, W, H } = m, red = redonda(forma), U = USOS[uso], pts = [];
+    let nivel = 0;
+    const sube = (n, txt) => { pts.push({ n, txt }); nivel = Math.max(nivel, n); };
+    // la placa mide 320 × 160: lo que pase de ahí se arma con piezas
+    const nL = Math.ceil(L / PLACA.L), nW = Math.ceil(W / PLACA.W), placas = nL * nW, uniones = (nL - 1) + (nW - 1);
+    const m2 = Math.round(area(m) / 1000) / 10, peso = Math.round(m2 * 28.8);
+    if (placas > 1) {
+      sube(1, 'Pasa de una placa (320 × 160 cm): se arma con ' + placas + ' piezas y ' + (uniones === 1 ? 'una unión' : uniones + ' uniones') + '. La unión se pega y se pule a ras; se nota como una línea fina.');
+      if (forma !== 'rect' && forma !== 'square') sube(2, 'Forma curva en varias piezas: el corte y la unión de las curvas son más delicados.');
+    }
+    if (L > 480 || W > 200) sube(2, 'Medida fuera de lo común: lleva base reforzada con apoyos intermedios, maniobra y flete especiales.');
+    // una placa completa pesa ~147 kg: el peso solo complica cuando son varias piezas
+    if (peso > 200) sube(2, 'La piedra pesa cerca de ' + peso + ' kg: se sube por piezas entre varias personas; revisamos puertas, escaleras y elevador.');
+    const f = U.formas[forma], lim = limites(uso, forma, Math.min(L, f.L[1]));
+    if (L < f.L[0]) sube(1, (red ? 'Chica' : 'Corta') + ' para ' + (uso === 'periquera' ? 'periquera' : U.nombre.toLowerCase()) + ': lo usual empieza en ' + f.L[0] + ' cm.');
+    if (!red && W < lim.W[0]) sube(1, uso === 'comedor' ? 'Angosta: con menos de ' + lim.W[0] + ' cm los platos de enfrente quedan muy juntos.' : 'Angosta: lo usual empieza en ' + lim.W[0] + ' cm.');
+    if (!red && L <= f.L[1] && W > lim.W[1] && W <= PLACA.W) sube(1, 'El ancho está muy cerca del largo: una forma cuadrada o redonda puede verse mejor.');
+    if (forma === 'round' && L > 180 && uso === 'comedor') sube(1, 'Redonda de más de 180 cm: el centro queda lejos de todos los lugares.');
+    if (Math.abs(H - U.H) > 4) sube(1, 'Altura de ' + H + ' cm: lo usual para ' + (uso === 'periquera' ? 'periquera' : U.nombre.toLowerCase()) + ' es ' + U.H + ' cm. La base se hace a tu altura.');
+    return Object.assign({ nivel, pts, placas, nL, nW, uniones, m2, peso }, NIVELES[nivel]);
+  }
+  // espacio que conviene dejar libre alrededor (sillas y paso): 90 cm por lado en comedor, 75 en periquera, 45 en centro
+  function espacio(m) {
+    const k = m.uso === 'comedor' ? 90 : m.uso === 'periquera' ? 75 : 45;
+    return { L: m.L + 2 * k, W: m.W + 2 * k, k };
+  }
+
+  const medida = m =>redonda(m.forma) ? (m.forma === 'round' ? 'Ø ' + m.L + ' cm' : m.L + ' × ' + m.L + ' cm') : m.L + ' × ' + m.W + ' cm';
   function titulo(m) {
     const mod = m.modelo && MODELOS.find(x => x.id === m.modelo);
     return (mod ? mod.nombre + ' · ' : '') + 'Mesa ' + (m.uso === 'periquera' ? 'periquera' : 'de ' + USOS[m.uso].nombre.toLowerCase()) + ' ' + FORMAS[m.forma].toLowerCase() + ' ' + medida(m);
   }
   function resumen(m) {
-    const n = personas(m);
+    const n = personas(m), v = viabilidad(m);
     return [['Uso', USOS[m.uso].nombre], ['Forma', FORMAS[m.forma]], ['Medidas', medida(m)], ['Altura', m.H + ' cm'],
-      ['Piedra', piedra(m.piedra).nombre + (piedra(m.piedra).acabado ? ' · ' + piedra(m.piedra).acabado.toLowerCase() : '')], ['Base', BASES[m.base].nombre]].concat(n ? [['Personas', n + ' personas']] : []);
+      ['Piedra', piedra(m.piedra).nombre + (piedra(m.piedra).acabado ? ' · ' + piedra(m.piedra).acabado.toLowerCase() : '')], ['Base', BASES[m.base].nombre]].concat(n ? [['Personas', n + ' personas']] : [])
+      .concat([['Fabricación', v.t + (v.placas > 1 ? ' · ' + v.placas + ' piezas de placa' : '')]]);
   }
 
   // ---------- el cálculo del taller: MDF, base, cortes, piedra ----------
@@ -387,16 +429,16 @@
     if (m.base === 'ped') { c('Columna', 1, B.H - s - 1.3, 'Tubo ' + (B.columna > 10 ? '4 1/2"' : '3 1/2"') + ' cal. 12'); c('Plato al piso (Ø ' + B.plato + ')', 1, B.plato, 'Placa 1/2"'); c('Brazos de la cruz', 2, B.L); c('Placa de arriba', 1, 20, 'Placa 1/4" 20 × 20'); }
     const metros = r1(cortes.filter(x => /^PTR/.test(x.mat)).reduce((a, x) => a + x.cant * x.med, 0) / 100);
     // piedra
-    const area = forma === 'round' ? Math.PI * L * L / 4 : forma === 'oval' ? Math.PI * L * W / 4 : forma === 'ovcuad' ? L * W - (4 - Math.PI) * radio(m) ** 2 : L * W;
-    const m2 = Math.round(area / 1000) / 10, aprov = Math.round(m2 / PLACA.m2 * 100);
-    const peso = Math.round(m2 * 28.8); // 12 mm de piedra sinterizada ≈ 28.8 kg por m²
+    const v = viabilidad(m), m2 = v.m2, aprov = Math.round(m2 / (PLACA.m2 * v.placas) * 100);
+    const peso = v.peso; // 12 mm de piedra sinterizada ≈ 28.8 kg por m²
     // revisiones (las medidas ya vienen limitadas; esto explica lo que el taller debe cuidar)
     const libreLado = red ? null : (W - base.W) / 2, libreCab = red ? null : (L - base.L) / 2;
     if (uso === 'comedor' && libreLado !== null && libreLado < 20 && !['t', 'ped'].includes(m.base)) avisos.push('Quedan ' + r1(libreLado) + ' cm de la orilla a la base por los lados: las rodillas pueden pegar. Considera base T doble.');
     if (m.base === 'ped' && uso === 'comedor' && L >= 150) avisos.push('Pedestal con Ø ' + L + ': el plato de ' + base.plato + ' cm debe ir lastrado o atornillado para que no se ladee.');
-    if (L > PLACA.L || W > PLACA.W) avisos.push('No cabe en una placa de 320 × 160.');
-    return { m, volado: { L: vL, W: vW }, mdf, base, cortes, metros, piedra: { L, W, esp: PLACA.esp, m2, aprov, peso, placas: 1 },
-      personas: personas(m), libre: { lado: libreLado, cabecera: libreCab }, avisos, radio: radio(m) };
+    if (v.placas > 1) avisos.push('Lleva ' + v.placas + ' piezas de placa (' + v.nL + ' × ' + v.nW + '): planear dónde caen las uniones.');
+    if (base.L > 300 && m.base !== 'ped') avisos.push('Base de más de 3 m: agregar apoyo o patas intermedias.');
+    return { m, volado: { L: vL, W: vW }, mdf, base, cortes, metros, piedra: { L, W, esp: PLACA.esp, m2, aprov, peso, placas: v.placas },
+      personas: personas(m), libre: { lado: libreLado, cabecera: libreCab }, avisos, radio: radio(m), viab: v };
   }
 
   // la Y maestra: dónde va cada cosa (cm)
@@ -512,7 +554,7 @@
 
   const DKAS = { PLACA, POR_PERSONA, CUBIERTA, PIEDRAS, RUGOSIDAD, FORMAS, FORMA_DESC, BASES, USOS, USO_DESC, MODELOS, COSTOS, CFG,
     piedra, radio, formasDe, limites, anchoPara, personas, perimetro, tamanoPara, opcionesPersonas, basesPara, normalizar,
-    medida, titulo, resumen, calcular, piezas, costear, ganancia, sugerido, redonda, registrarBase, quitarBase, PERFILES, propias };
+    medida, titulo, resumen, calcular, viabilidad, espacio, area, NIVELES, ABS, piezas, costear, ganancia, sugerido, redonda, registrarBase, quitarBase, PERFILES, propias };
   if (typeof module !== 'undefined') module.exports = DKAS; else root.DKAS = DKAS;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -575,12 +617,13 @@
     }
     return sh;
   }
-  function placa(fm, L, W, r, esp, bisel) {
+  // uL, uW: lo que mide la imagen en metros (la placa de 320 × 160, o la mesa entera si se arma con varias piezas)
+  function placa(fm, L, W, r, esp, bisel, uL, uW) {
     const geo = new T.ExtrudeGeometry(forma(fm, L, W, r), { depth: esp, bevelEnabled: !!bisel, bevelThickness: bisel || 0, bevelSize: bisel || 0, bevelSegments: 3, curveSegments: 72 });
     geo.rotateX(-Math.PI / 2); geo.scale(0.01, 0.01, 0.01);
     // la foto de la placa completa (320 × 160) se acomoda a escala: la mesa se corta del centro de la placa
     const p = geo.attributes.position, uv = geo.attributes.uv;
-    for (let i = 0; i < p.count; i++) uv.setXY(i, 0.5 + p.getX(i) / 3.2, 0.5 - p.getZ(i) / 1.6);
+    for (let i = 0; i < p.count; i++) uv.setXY(i, 0.5 + p.getX(i) / (uL || 3.2), 0.5 - p.getZ(i) / (uW || 1.6));
     geo.computeVertexNormals(); return geo;
   }
 
@@ -662,22 +705,90 @@
       return (cache[id] = c);
     }
 
+    // mesa más grande que una placa: se arma la imagen con las piezas reales (cada una cortada del centro de la placa,
+    // en espejo alternado) y se marca la unión con una línea fina, como queda en el taller
+    let comp = null;
+    function compuesta(id, M, v) {
+      const key = [id, M.L, M.W, v.nL, v.nW].join('|');
+      if (comp && comp.key === key) return comp;
+      if (comp) comp.tex.dispose();
+      const base = textura(id), k = Math.min(6.4, 4096 / M.L, 4096 / M.W), cv = document.createElement('canvas');
+      cv.width = Math.round(M.L * k); cv.height = Math.round(M.W * k);
+      const c = { key, tex: new T.CanvasTexture(cv), color: base.color };
+      c.tex.encoding = T.sRGBEncoding; c.tex.anisotropy = R.capabilities.getMaxAnisotropy();
+      c.listo = base.listo.then(() => {
+        const im = base.tex.image; if (!im || !im.width) return;
+        const x = cv.getContext('2d'), pL = M.L / v.nL, pW = M.W / v.nW, sx = im.width / 320, sy = im.height / 160;
+        for (let i = 0; i < v.nL; i++) for (let j = 0; j < v.nW; j++) {
+          const sw = Math.min(im.width, pL * sx), sh = Math.min(im.height, pW * sy);
+          x.save(); x.translate((i + i % 2) * pL * k, (j + j % 2) * pW * k); x.scale(i % 2 ? -1 : 1, j % 2 ? -1 : 1);
+          x.drawImage(im, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, 0, 0, pL * k, pW * k); x.restore();
+        }
+        x.beginPath();
+        for (let i = 1; i < v.nL; i++) { x.moveTo(i * pL * k, 0); x.lineTo(i * pL * k, cv.height); }
+        for (let j = 1; j < v.nW; j++) { x.moveTo(0, j * pW * k); x.lineTo(cv.width, j * pW * k); }
+        // línea doble (clara y oscura) para que se vea en piedras claras y oscuras
+        x.strokeStyle = 'rgba(255,250,240,.45)'; x.lineWidth = Math.max(2.5, k * 0.45); x.stroke();
+        x.strokeStyle = 'rgba(50,45,40,.7)'; x.lineWidth = Math.max(1.2, k * 0.18); x.stroke(); c.tex.needsUpdate = true; pinta();
+      });
+      return (comp = c);
+    }
+
+    // ---------- cotas: las medidas dibujadas junto a la mesa, como en un plano ----------
+    const cotas = new T.Group(), rejilla = new T.GridHelper(30, 60, 0x9c8a70, 0xb9ad9b);
+    rejilla.material.transparent = true; rejilla.material.opacity = 0.22; rejilla.material.depthWrite = false; rejilla.position.y = 0.001;
+    scene.add(cotas, rejilla);
+    let conCotas = true;
+    const lineaMat = new T.LineBasicMaterial({ color: 0x8a6a3a, depthTest: false, transparent: true });
+    function etiqueta(txt, alto) {
+      const cv = document.createElement('canvas'), x = cv.getContext('2d'), f = '500 52px Jost, "Segoe UI", sans-serif';
+      x.font = f; const w = Math.ceil(x.measureText(txt).width) + 56; cv.width = w; cv.height = 84;
+      x.font = f; x.fillStyle = 'rgba(14,12,10,.88)'; x.beginPath(); x.moveTo(42, 0); x.arcTo(w, 0, w, 84, 42); x.arcTo(w, 84, 0, 84, 42); x.arcTo(0, 84, 0, 0, 42); x.arcTo(0, 0, w, 0, 42); x.fill();
+      x.fillStyle = '#f1e6d2'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, w / 2, 45);
+      const tex = new T.CanvasTexture(cv); tex.encoding = T.sRGBEncoding;
+      const sp = new T.Sprite(new T.SpriteMaterial({ map: tex, depthTest: false, transparent: true, toneMapped: false }));
+      sp.scale.set(alto * w / 84, alto, 1); sp.renderOrder = 20; return sp;
+    }
+    function linea(pts) { const l = new T.Line(new T.BufferGeometry().setFromPoints(pts.map(p => new T.Vector3(...p))), lineaMat); l.renderOrder = 19; return l; }
+    function hacerCotas(M) {
+      while (cotas.children.length) { const o = cotas.children.pop(); if (o.geometry) o.geometry.dispose(); if (o.isSprite) { o.material.map.dispose(); o.material.dispose(); } }
+      const L = cm(M.L), W = cm(M.W), H = cm(M.H), y = 0.004, off = conSillas && M.uso !== 'centro' ? 0.82 : 0.3, t = 0.06;
+      const recta = M.forma === 'rect' || M.forma === 'square';
+      const alto = Math.max(0.1, Math.min(0.26, Math.max(L, H * 1.5) * 0.05));
+      // largo (o diámetro) al frente, sobre el piso
+      const zf = W / 2 + off;
+      cotas.add(linea([[-L / 2, y, zf], [L / 2, y, zf]]), linea([[-L / 2, y, recta ? W / 2 : 0], [-L / 2, y, zf + t]]), linea([[L / 2, y, recta ? W / 2 : 0], [L / 2, y, zf + t]]));
+      const e1 = etiqueta((M.forma === 'round' ? 'Ø ' : '') + M.L + ' cm', alto); e1.position.set(0, y + alto * 0.7, zf); cotas.add(e1);
+      // ancho a la derecha
+      if (M.forma !== 'round') {
+        const xd = L / 2 + off;
+        cotas.add(linea([[xd, y, -W / 2], [xd, y, W / 2]]), linea([[recta ? L / 2 : 0, y, -W / 2], [xd + t, y, -W / 2]]), linea([[recta ? L / 2 : 0, y, W / 2], [xd + t, y, W / 2]]));
+        const e2 = etiqueta(M.W + ' cm', alto); e2.position.set(xd, y + alto * 0.7, 0); cotas.add(e2);
+      }
+      // altura en la esquina de enfrente
+      const xa = -L / 2 - 0.12, za = recta ? W / 2 : 0;
+      cotas.add(linea([[xa, 0, za], [xa, H, za]]), linea([[xa - t / 2, H, za], [-L / 2, H, za]]), linea([[xa - t / 2, 0, za], [xa + t / 2, 0, za]]));
+      const e3 = etiqueta('h ' + M.H + ' cm', alto); e3.position.set(xa - alto * 0.4, H / 2, za); cotas.add(e3);
+      cotas.visible = rejilla.visible = conCotas;
+    }
+
     let mesa = new T.Group(), sillas = new T.Group(), actual = null, conSillas = true;
     scene.add(mesa, sillas);
     function construir(m) {
       actual = m; const c = D.calcular(m), M = c.m;
       [mesa, sillas].forEach(g => { while (g.children.length) { const o = g.children.pop(); o.traverse(x => x.geometry && x.geometry.dispose()); } });
-      const tx = textura(M.piedra), rug = (D.RUGOSIDAD || {})[M.piedra] ?? 0.45, pul = rug < 0.3;
+      const v = c.viab || D.viabilidad(M), varias = v.placas > 1;
+      const tx = varias ? compuesta(M.piedra, M, v) : textura(M.piedra), rug = (D.RUGOSIDAD || {})[M.piedra] ?? 0.45, pul = rug < 0.3;
       // la piedra se ve con el color de su foto: sin el filtro de cine (tone mapping) que la deslava, y con poco reflejo
       const K = PIEDRA_LUZ.k, cara = new T.MeshPhysicalMaterial({ map: tx.tex, color: new T.Color(K, K, K), roughness: rug, clearcoat: pul ? PIEDRA_LUZ.cc : 0.04, clearcoatRoughness: 0.2, envMapIntensity: PIEDRA_LUZ.env, toneMapped: false });
       const canto = new T.MeshStandardMaterial({ color: tx.color.clone().multiplyScalar(K), roughness: 0.45, toneMapped: false });
-      const top = new T.Mesh(placa(M.forma, M.L, M.W, D.radio(M), 1.2 - 0.3, 0.15), [cara, canto]); top.position.y = cm(M.H - 1.2 + 0.15); top.castShadow = top.receiveShadow = true; top.name = 'piedra';
+      const top = new T.Mesh(placa(M.forma, M.L, M.W, D.radio(M), 1.2 - 0.3, 0.15, varias ? cm(M.L) : 0, varias ? cm(M.W) : 0), [cara, canto]); top.position.y = cm(M.H - 1.2 + 0.15); top.castShadow = top.receiveShadow = true; top.name = 'piedra';
       top.userData.canto = canto;
       const mdf = new T.Mesh(placa(c.mdf.forma, c.mdf.L, c.mdf.W, c.mdf.r, 1.2, 0), mdfMat); mdf.position.y = cm(M.H - 2.5 + 0.05); mdf.castShadow = true;
       mesa.add(top, mdf);
       const g = new T.Group(); base(g, c, acero, hule); mesa.add(g);
       if (M.uso !== 'centro') lugares(M).forEach(([x, z, a]) => { const s = silla(M.uso === 'periquera', tela, metalS); s.position.set(cm(x), 0, cm(z)); s.rotation.y = a; sillas.add(s); });
-      sillas.visible = conSillas;
+      sillas.visible = conSillas; hacerCotas(M);
       encuadre(); pinta();
       return tx.listo;
     }
@@ -686,7 +797,7 @@
     let az = 0.7, pol = 1.12, dist = 4, meta = null, ancho = 1, alto = 1;
     const VISTAS = { tres: [0.7, 1.12], frente: [0, 1.42], arriba: [0, 0.02], lado: [Math.PI / 2, 1.38] };
     function encuadre() {
-      if (!actual) return; const ext = Math.max(actual.L + (conSillas && actual.uso !== 'centro' ? 70 : 10), actual.H * 1.5) / 100;
+      if (!actual) return; const ext = Math.max(actual.L + (conSillas && actual.uso !== 'centro' ? 70 : 10) + (conCotas ? 50 : 0), actual.H * 1.5) / 100;
       dist = ext * (ancho / alto < 1 ? 2.6 : 1.85) + 0.6; sol.shadow.camera.left = -ext; sol.shadow.camera.right = ext; sol.shadow.camera.top = ext; sol.shadow.camera.bottom = -ext; sol.shadow.camera.updateProjectionMatrix();
     }
     function colocar() {
@@ -708,24 +819,27 @@
     R.domElement.addEventListener('pointerdown', e => { pt.set(e.pointerId, [e.clientX, e.clientY]); R.domElement.setPointerCapture(e.pointerId); meta = null; });
     R.domElement.addEventListener('pointermove', e => {
       if (!pt.has(e.pointerId)) return; const [x0, y0] = pt.get(e.pointerId); pt.set(e.pointerId, [e.clientX, e.clientY]);
-      if (pt.size === 2) { const [a, b] = [...pt.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (d0) dist = Math.max(1, Math.min(14, dist * d0 / d)); d0 = d; }
+      if (pt.size === 2) { const [a, b] = [...pt.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (d0) dist = Math.max(1, Math.min(30, dist * d0 / d)); d0 = d; }
       else { az -= (e.clientX - x0) * 0.008; pol = Math.max(0.02, Math.min(1.5, pol - (e.clientY - y0) * 0.006)); }
       pinta();
     });
     const suelta = e => { pt.delete(e.pointerId); d0 = 0; };
     R.domElement.addEventListener('pointerup', suelta); R.domElement.addEventListener('pointercancel', suelta);
-    R.domElement.addEventListener('wheel', e => { e.preventDefault(); dist = Math.max(1, Math.min(14, dist * (1 + Math.sign(e.deltaY) * 0.08))); pinta(); }, { passive: false });
+    R.domElement.addEventListener('wheel', e => { e.preventDefault(); dist = Math.max(1, Math.min(30, dist * (1 + Math.sign(e.deltaY) * 0.08))); pinta(); }, { passive: false });
 
     return {
       mostrar: construir, _mesa: () => mesa,
       vista(k) { meta = VISTAS[k] ? VISTAS[k].slice() : null; if (meta && k !== 'arriba') meta[0] += Math.round((az - meta[0]) / (2 * Math.PI)) * 2 * Math.PI; pinta(); },
-      sillas(v) { conSillas = !!v; sillas.visible = conSillas; encuadre(); pinta(); },
+      sillas(v) { conSillas = !!v; sillas.visible = conSillas; if (actual) hacerCotas(D.normalizar(actual)); encuadre(); pinta(); },
+      cotas(v) { conCotas = !!v; cotas.visible = rejilla.visible = conCotas; pinta(); },
       // foto de la mesa (JPEG) para el pedido, el panel y WhatsApp
-      foto(w, h) {
+      // conMedidas: la foto lleva las cotas (para la ficha técnica); la del pedido sale limpia
+      foto(w, h, conMedidas) {
         w = w || 1200; h = h || 800; const keep = [az, pol, dist, ancho, alto, R.getPixelRatio()];
+        const ver = conCotas; cotas.visible = rejilla.visible = !!conMedidas;
         az = 0.72; pol = 1.2; ancho = w; alto = h; R.setPixelRatio(1); R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); encuadre(); dist *= 0.92;
         colocar(); R.render(scene, cam); const url = R.domElement.toDataURL('image/jpeg', 0.86);
-        [az, pol, dist] = keep; R.setPixelRatio(keep[5]); medir(); return url;
+        cotas.visible = rejilla.visible = ver; [az, pol, dist] = keep; R.setPixelRatio(keep[5]); medir(); return url;
       },
       // la mesa sola (sin sillas) en GLB a escala real, para verla en tu espacio
       glb() {
@@ -736,7 +850,7 @@
           new T.GLTFExporter().parse(r, ok, { binary: true, embedImages: true, maxTextureSize: 2048 });
         });
       },
-      listo: () => actual && textura(actual.piedra).listo,
+      listo: () => actual && (comp && comp.key.startsWith(actual.piedra + '|' + actual.L + '|' + actual.W + '|') ? comp.listo : textura(actual.piedra).listo),
     };
   }
 

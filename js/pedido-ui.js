@@ -5,7 +5,7 @@
   const pesos = n => '$' + Math.round(+n || 0).toLocaleString('es-MX');
   const PASOS = [['nuevo', 'Recibido'], ['cotizado', 'Cotizado'], ['confirmado', 'Confirmado'], ['fabricacion', 'En taller'], ['listo', 'Lista'], ['entregado', 'Entregada']];
   const token = () => (location.hash.match(/t=([0-9a-f]{16,64})/) || [])[1];
-  const deCodigo = s => { const p = String(s || '').split('.'); return p.length === 6 ? D.normalizar({ uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5] }) : null; };
+  const deCodigo = s => { const p = String(s || '').split('.'); return p.length === 6 || p.length === 7 ? D.normalizar({ uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5], H: +p[6] || 0 }) : null; };
 
   async function pintar() {
     const t = token();

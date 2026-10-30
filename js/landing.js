@@ -116,10 +116,10 @@
 
   // ---------- pantallas: cada sección se abre sola (con el #) ----------
   const PANT = { inicio: ['.hero', '#accesos', '.sellos'], crea: ['#disena', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
-    bases: ['#bases'], proyectos: ['#proyectos'], como: ['#casa', '#como', '#preguntas'], contacto: ['#contacto'] };
+    bases: ['#bases'], proyectos: ['#proyectos'], arquitectos: ['#arquitectos'], como: ['#casa', '#como', '#preguntas'], contacto: ['#contacto'] };
   const ALIAS = { app: 'crea', disena: 'crea', casa: 'como', preguntas: 'como', porque: 'piedras', espacios: 'proyectos' };
-  const ORDEN = ['inicio', 'crea', 'coleccion', 'piedras', 'bases', 'proyectos', 'como', 'contacto'];
-  const NOMBRE = { inicio: 'Inicio', crea: 'Crea tu mesa', coleccion: 'Colección', piedras: 'Piedras', bases: 'Bases', proyectos: 'Proyectos', como: 'Nosotros', contacto: 'Contacto' };
+  const ORDEN = ['inicio', 'crea', 'coleccion', 'piedras', 'bases', 'proyectos', 'arquitectos', 'como', 'contacto'];
+  const NOMBRE = { inicio: 'Inicio', crea: 'Crea tu mesa', coleccion: 'Colección', piedras: 'Piedras', bases: 'Bases', proyectos: 'Proyectos', arquitectos: 'Arquitectos', como: 'Nosotros', contacto: 'Contacto' };
   const HREF = p => p === 'crea' ? '#app' : p === 'inicio' ? '#' : '#' + p;
   const todas = [...new Set(Object.values(PANT).flat())].map(s => $(s)).filter(Boolean);
   // al final de cada pantalla: ir a la siguiente o volver al inicio

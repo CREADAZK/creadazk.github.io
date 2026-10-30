@@ -170,29 +170,71 @@
     return ['patas', 'marco', 'trapecio', 't'];
   }
 
-  // deja la mesa dentro de lo que se puede hacer
+  // medidas libres: el cliente pone la que quiera; solo se descartan números imposibles (viabilidad() le dice qué tan difícil es)
+  const ABS = { L: [30, 1200], W: [30, 400], H: [30, 120] };
   function normalizar(m) {
     const uso = USOS[m.uso] ? m.uso : 'comedor';
     const forma = USOS[uso].formas[m.forma] ? m.forma : formasDe(uso)[0];
     const f = USOS[uso].formas[forma];
-    let L = clamp(Math.round(+m.L || f.L[0]), f.L[0], f.L[1]);
-    let W = redonda(forma) ? L : clamp(Math.round(+m.W || anchoPara(uso, forma, L)), ...limites(uso, forma, L).W);
-    const out = { uso, forma, L, W, H: USOS[uso].H, piedra: piedra(m.piedra).id };
+    let L = clamp(Math.round(+m.L || f.L[0]), ...ABS.L);
+    let W = redonda(forma) ? L : clamp(Math.round(+m.W || anchoPara(uso, forma, L)), ...ABS.W);
+    if (W > L) [L, W] = [clamp(W, ...ABS.L), L]; // 100 × 250 es la misma mesa que 250 × 100
+    const H = +m.H ? clamp(Math.round(+m.H), ...ABS.H) : USOS[uso].H;
+    const out = { uso, forma, L, W, H, piedra: piedra(m.piedra).id };
     const bs = basesPara(out);
     out.base = bs.includes(m.base) ? m.base : bs[0];
     if (m.modelo && MODELOS.some(x => x.id === m.modelo && x.uso === uso && x.forma === forma && x.L === L && x.W === W && x.base === out.base)) out.modelo = m.modelo;
     return out;
   }
 
-  const medida = m => redonda(m.forma) ? (m.forma === 'round' ? 'Ø ' + m.L + ' cm' : m.L + ' × ' + m.L + ' cm') : m.L + ' × ' + m.W + ' cm';
+  // ---------- qué tan difícil es de fabricar (nunca se bloquea: siempre se puede cotizar) ----------
+  const NIVELES = [
+    { id: 'estandar', t: 'Fabricación estándar', d: 'Sale de una sola placa y la hacemos sin complicaciones.' },
+    { id: 'especial', t: 'Proyecto especial', d: 'Se puede hacer. Tiene detalles que revisamos contigo al cotizar.' },
+    { id: 'reto', t: 'Alta complejidad', d: 'Es un reto de fabricación. Cotízala y la revisamos juntos antes de confirmar.' },
+  ];
+  function area(m) {
+    const { forma, L, W } = m;
+    return forma === 'round' ? Math.PI * L * L / 4 : forma === 'oval' ? Math.PI * L * W / 4 : forma === 'ovcuad' ? L * W - (4 - Math.PI) * radio(m) ** 2 : L * W;
+  }
+  function viabilidad(m0) {
+    const m = m0.H ? m0 : normalizar(m0), { uso, forma, L, W, H } = m, red = redonda(forma), U = USOS[uso], pts = [];
+    let nivel = 0;
+    const sube = (n, txt) => { pts.push({ n, txt }); nivel = Math.max(nivel, n); };
+    // la placa mide 320 × 160: lo que pase de ahí se arma con piezas
+    const nL = Math.ceil(L / PLACA.L), nW = Math.ceil(W / PLACA.W), placas = nL * nW, uniones = (nL - 1) + (nW - 1);
+    const m2 = Math.round(area(m) / 1000) / 10, peso = Math.round(m2 * 28.8);
+    if (placas > 1) {
+      sube(1, 'Pasa de una placa (320 × 160 cm): se arma con ' + placas + ' piezas y ' + (uniones === 1 ? 'una unión' : uniones + ' uniones') + '. La unión se pega y se pule a ras; se nota como una línea fina.');
+      if (forma !== 'rect' && forma !== 'square') sube(2, 'Forma curva en varias piezas: el corte y la unión de las curvas son más delicados.');
+    }
+    if (L > 480 || W > 200) sube(2, 'Medida fuera de lo común: lleva base reforzada con apoyos intermedios, maniobra y flete especiales.');
+    // una placa completa pesa ~147 kg: el peso solo complica cuando son varias piezas
+    if (peso > 200) sube(2, 'La piedra pesa cerca de ' + peso + ' kg: se sube por piezas entre varias personas; revisamos puertas, escaleras y elevador.');
+    const f = U.formas[forma], lim = limites(uso, forma, Math.min(L, f.L[1]));
+    if (L < f.L[0]) sube(1, (red ? 'Chica' : 'Corta') + ' para ' + (uso === 'periquera' ? 'periquera' : U.nombre.toLowerCase()) + ': lo usual empieza en ' + f.L[0] + ' cm.');
+    if (!red && W < lim.W[0]) sube(1, uso === 'comedor' ? 'Angosta: con menos de ' + lim.W[0] + ' cm los platos de enfrente quedan muy juntos.' : 'Angosta: lo usual empieza en ' + lim.W[0] + ' cm.');
+    if (!red && L <= f.L[1] && W > lim.W[1] && W <= PLACA.W) sube(1, 'El ancho está muy cerca del largo: una forma cuadrada o redonda puede verse mejor.');
+    if (forma === 'round' && L > 180 && uso === 'comedor') sube(1, 'Redonda de más de 180 cm: el centro queda lejos de todos los lugares.');
+    if (Math.abs(H - U.H) > 4) sube(1, 'Altura de ' + H + ' cm: lo usual para ' + (uso === 'periquera' ? 'periquera' : U.nombre.toLowerCase()) + ' es ' + U.H + ' cm. La base se hace a tu altura.');
+    return Object.assign({ nivel, pts, placas, nL, nW, uniones, m2, peso }, NIVELES[nivel]);
+  }
+  // espacio que conviene dejar libre alrededor (sillas y paso): 90 cm por lado en comedor, 75 en periquera, 45 en centro
+  function espacio(m) {
+    const k = m.uso === 'comedor' ? 90 : m.uso === 'periquera' ? 75 : 45;
+    return { L: m.L + 2 * k, W: m.W + 2 * k, k };
+  }
+
+  const medida = m =>redonda(m.forma) ? (m.forma === 'round' ? 'Ø ' + m.L + ' cm' : m.L + ' × ' + m.L + ' cm') : m.L + ' × ' + m.W + ' cm';
   function titulo(m) {
     const mod = m.modelo && MODELOS.find(x => x.id === m.modelo);
     return (mod ? mod.nombre + ' · ' : '') + 'Mesa ' + (m.uso === 'periquera' ? 'periquera' : 'de ' + USOS[m.uso].nombre.toLowerCase()) + ' ' + FORMAS[m.forma].toLowerCase() + ' ' + medida(m);
   }
   function resumen(m) {
-    const n = personas(m);
+    const n = personas(m), v = viabilidad(m);
     return [['Uso', USOS[m.uso].nombre], ['Forma', FORMAS[m.forma]], ['Medidas', medida(m)], ['Altura', m.H + ' cm'],
-      ['Piedra', piedra(m.piedra).nombre + (piedra(m.piedra).acabado ? ' · ' + piedra(m.piedra).acabado.toLowerCase() : '')], ['Base', BASES[m.base].nombre]].concat(n ? [['Personas', n + ' personas']] : []);
+      ['Piedra', piedra(m.piedra).nombre + (piedra(m.piedra).acabado ? ' · ' + piedra(m.piedra).acabado.toLowerCase() : '')], ['Base', BASES[m.base].nombre]].concat(n ? [['Personas', n + ' personas']] : [])
+      .concat([['Fabricación', v.t + (v.placas > 1 ? ' · ' + v.placas + ' piezas de placa' : '')]]);
   }
 
   // ---------- el cálculo del taller: MDF, base, cortes, piedra ----------
@@ -245,16 +287,16 @@
     if (m.base === 'ped') { c('Columna', 1, B.H - s - 1.3, 'Tubo ' + (B.columna > 10 ? '4 1/2"' : '3 1/2"') + ' cal. 12'); c('Plato al piso (Ø ' + B.plato + ')', 1, B.plato, 'Placa 1/2"'); c('Brazos de la cruz', 2, B.L); c('Placa de arriba', 1, 20, 'Placa 1/4" 20 × 20'); }
     const metros = r1(cortes.filter(x => /^PTR/.test(x.mat)).reduce((a, x) => a + x.cant * x.med, 0) / 100);
     // piedra
-    const area = forma === 'round' ? Math.PI * L * L / 4 : forma === 'oval' ? Math.PI * L * W / 4 : forma === 'ovcuad' ? L * W - (4 - Math.PI) * radio(m) ** 2 : L * W;
-    const m2 = Math.round(area / 1000) / 10, aprov = Math.round(m2 / PLACA.m2 * 100);
-    const peso = Math.round(m2 * 28.8); // 12 mm de piedra sinterizada ≈ 28.8 kg por m²
+    const v = viabilidad(m), m2 = v.m2, aprov = Math.round(m2 / (PLACA.m2 * v.placas) * 100);
+    const peso = v.peso; // 12 mm de piedra sinterizada ≈ 28.8 kg por m²
     // revisiones (las medidas ya vienen limitadas; esto explica lo que el taller debe cuidar)
     const libreLado = red ? null : (W - base.W) / 2, libreCab = red ? null : (L - base.L) / 2;
     if (uso === 'comedor' && libreLado !== null && libreLado < 20 && !['t', 'ped'].includes(m.base)) avisos.push('Quedan ' + r1(libreLado) + ' cm de la orilla a la base por los lados: las rodillas pueden pegar. Considera base T doble.');
     if (m.base === 'ped' && uso === 'comedor' && L >= 150) avisos.push('Pedestal con Ø ' + L + ': el plato de ' + base.plato + ' cm debe ir lastrado o atornillado para que no se ladee.');
-    if (L > PLACA.L || W > PLACA.W) avisos.push('No cabe en una placa de 320 × 160.');
-    return { m, volado: { L: vL, W: vW }, mdf, base, cortes, metros, piedra: { L, W, esp: PLACA.esp, m2, aprov, peso, placas: 1 },
-      personas: personas(m), libre: { lado: libreLado, cabecera: libreCab }, avisos, radio: radio(m) };
+    if (v.placas > 1) avisos.push('Lleva ' + v.placas + ' piezas de placa (' + v.nL + ' × ' + v.nW + '): planear dónde caen las uniones.');
+    if (base.L > 300 && m.base !== 'ped') avisos.push('Base de más de 3 m: agregar apoyo o patas intermedias.');
+    return { m, volado: { L: vL, W: vW }, mdf, base, cortes, metros, piedra: { L, W, esp: PLACA.esp, m2, aprov, peso, placas: v.placas },
+      personas: personas(m), libre: { lado: libreLado, cabecera: libreCab }, avisos, radio: radio(m), viab: v };
   }
 
   // la Y maestra: dónde va cada cosa (cm)
@@ -370,6 +412,6 @@
 
   const DKAS = { PLACA, POR_PERSONA, CUBIERTA, PIEDRAS, RUGOSIDAD, FORMAS, FORMA_DESC, BASES, USOS, USO_DESC, MODELOS, COSTOS, CFG,
     piedra, radio, formasDe, limites, anchoPara, personas, perimetro, tamanoPara, opcionesPersonas, basesPara, normalizar,
-    medida, titulo, resumen, calcular, piezas, costear, ganancia, sugerido, redonda, registrarBase, quitarBase, PERFILES, propias };
+    medida, titulo, resumen, calcular, viabilidad, espacio, area, NIVELES, ABS, piezas, costear, ganancia, sugerido, redonda, registrarBase, quitarBase, PERFILES, propias };
   if (typeof module !== 'undefined') module.exports = DKAS; else root.DKAS = DKAS;
 })(typeof window !== 'undefined' ? window : globalThis);

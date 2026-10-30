@@ -111,6 +111,55 @@
 ${parts.join('\n')}
 <text x="40" y="${H0 - 18}" class="k">Medidas en cm. La piedra se corta de una placa de 320 × 160 cm. Calculado por el sistema DKAS: revisa en taller antes de cortar.</text></svg>`;
   }
+  // plano para el cliente y el arquitecto: planta con el espacio libre recomendado, frente y lado, sin cortes ni costos del taller
+  function plano(m, info) {
+    info = info || {};
+    const c = D.calcular(m), M = c.m, P = D.piezas(c), v = c.viab, E = D.espacio(M), W0 = 1600, H0 = 900;
+    const red = M.forma === 'round', parts = [];
+    // ---- planta: la mesa dentro de su espacio libre ----
+    const kP = Math.min(860 / E.L, 440 / E.W), cxP = 480, cyP = 330;
+    parts.push(`<text x="40" y="70" class="h">PLANTA</text>`);
+    parts.push(`<rect class="esp" x="${cxP - E.L / 2 * kP}" y="${cyP - E.W / 2 * kP}" width="${E.L * kP}" height="${E.W * kP}" rx="6"/>`);
+    parts.push(contorno(M.forma, M.L, M.W, D.radio(M), cxP, cyP, kP, 'p'));
+    // uniones de placa
+    for (let i = 1; i < v.nL; i++) { const x = cxP - M.L / 2 * kP + i * M.L / v.nL * kP; parts.push(`<line class="junta" x1="${x}" y1="${cyP - M.W / 2 * kP}" x2="${x}" y2="${cyP + M.W / 2 * kP}"/>`); }
+    for (let j = 1; j < v.nW; j++) { const y = cyP - M.W / 2 * kP + j * M.W / v.nW * kP; parts.push(`<line class="junta" x1="${cxP - M.L / 2 * kP}" y1="${y}" x2="${cxP + M.L / 2 * kP}" y2="${y}"/>`); }
+    parts.push(`<g opacity=".28">${vista(c, P, [1, 0, 0], [0, 0, -1], cxP, cyP, kP)}</g>`);
+    const xl = cxP - M.L / 2 * kP, xr = cxP + M.L / 2 * kP, yt = cyP - M.W / 2 * kP, yb = cyP + M.W / 2 * kP;
+    parts.push(cota(xl, yt - 22, xr, yt - 22, (red ? 'Ø ' : '') + M.L));
+    if (!red) parts.push(cota(xr + 22, yt, xr + 22, yb, M.W, 1));
+    const ex1 = cxP - E.L / 2 * kP, ex2 = cxP + E.L / 2 * kP, ey2 = cyP + E.W / 2 * kP;
+    parts.push(cota(ex1, ey2 + 26, ex2, ey2 + 26, 'espacio libre ' + E.L + ' × ' + E.W));
+    parts.push(cota(ex1, cyP, xl, cyP, E.k));
+    // ---- frente y lado ----
+    const kF = Math.min(820 / M.L, 140 / M.H), pisoF = 830, cxF = 500;
+    parts.push(`<text x="40" y="${pisoF - 170}" class="h">FRENTE</text>`);
+    parts.push(`<line class="piso" x1="${cxF - M.L / 2 * kF - 20}" y1="${pisoF}" x2="${cxF + M.L / 2 * kF + 20}" y2="${pisoF}"/>`);
+    parts.push(vista(c, P, [1, 0, 0], [0, 1, 0], cxF, pisoF, kF));
+    parts.push(`<rect class="p" x="${cxF - M.L / 2 * kF}" y="${pisoF - M.H * kF}" width="${M.L * kF}" height="${Math.max(2.5, 2.4 * kF)}"/>`);
+    parts.push(cota(cxF - M.L / 2 * kF - 22, pisoF - M.H * kF, cxF - M.L / 2 * kF - 22, pisoF, M.H, -1));
+    const kL = Math.min(360 / M.W, 140 / M.H), cxL = 1330;
+    parts.push(`<text x="1080" y="${pisoF - 170}" class="h">LADO</text>`);
+    parts.push(`<line class="piso" x1="${cxL - M.W / 2 * kL - 20}" y1="${pisoF}" x2="${cxL + M.W / 2 * kL + 20}" y2="${pisoF}"/>`);
+    parts.push(vista(c, P, [0, 0, 1], [0, 1, 0], cxL, pisoF, kL));
+    parts.push(`<rect class="p" x="${cxL - M.W / 2 * kL}" y="${pisoF - M.H * kL}" width="${M.W * kL}" height="${Math.max(2.5, 2.4 * kL)}"/>`);
+    parts.push(cota(cxL - M.W / 2 * kL, pisoF + 26, cxL + M.W / 2 * kL, pisoF + 26, M.W));
+    // ---- datos ----
+    const filas = [['Cubierta', D.piedra(M.piedra).nombre + ' · 12 mm'], ['Superficie', v.m2 + ' m² · ' + (v.placas > 1 ? v.placas + ' piezas' : '1 placa')], ['Peso piedra', '≈ ' + v.peso + ' kg'],
+      ['Base', D.BASES[M.base].nombre + ' · acero'], ['Personas', c.personas || '—'], ['Fabricación', v.t]];
+    let y = 104; parts.push(`<text x="1000" y="70" class="h">DATOS</text>`);
+    filas.forEach(([k, val]) => { parts.push(`<text x="1000" y="${y}" class="k">${esc(k)}</text><text x="1150" y="${y}" class="v">${esc(val)}</text>`); y += 27; });
+    const cab = `<text x="${W0 - 40}" y="44" class="k" text-anchor="end">${esc([info.titulo || D.titulo(M), info.fecha || new Date().toLocaleDateString('es-MX')].join(' · '))}</text>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W0} ${H0}" width="${W0}" height="${H0}" font-family="Jost,'Segoe UI',Arial,sans-serif">
+<defs><marker id="f" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 2 L10 5 L0 8z" fill="#a8844f"/></marker></defs>
+<style>.p{fill:#f3efe8;stroke:#1a1917;stroke-width:2}.esp{fill:none;stroke:#b9ab94;stroke-width:1.4;stroke-dasharray:6 6}.junta{stroke:#a8844f;stroke-width:2;stroke-dasharray:10 5}
+.b{fill:#2b2b2b;fill-opacity:.88;stroke:#111;stroke-width:.6}.mdf{fill:none;stroke:#555;stroke-width:1.5;stroke-dasharray:8 6}
+.c{stroke:#a8844f;stroke-width:1.3}.t{font-size:17px;fill:#7a5f36;font-weight:600}.h{font-size:14px;letter-spacing:3px;fill:#6e6962;font-weight:600}.k{font-size:15px;fill:#6e6962}.v{font-size:16px;fill:#1a1917}
+.piso{stroke:#999;stroke-width:1.5;stroke-dasharray:3 4}</style>
+<rect width="${W0}" height="${H0}" fill="#fff"/>${cab}<line x1="40" y1="630" x2="${W0 - 40}" y2="630" stroke="#e7e3dc"/>
+${parts.join('\n')}
+<text x="40" y="${H0 - 22}" class="k">Medidas en cm. Línea punteada: espacio libre recomendado (${E.k} cm por lado para sillas y paso).${v.placas > 1 ? ' Línea dorada: unión de placas.' : ''}</text></svg>`;
+  }
   // el SVG pasado a JPEG (para descargar o mandar por WhatsApp)
   function png(m, info, q) {
     return new Promise((ok, bad) => {
@@ -119,5 +168,5 @@ ${parts.join('\n')}
       im.onerror = bad; im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
     });
   }
-  window.DKAS_CQ = { svg, png };
+  window.DKAS_CQ = { svg, png, plano };
 })();

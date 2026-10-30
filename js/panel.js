@@ -15,7 +15,7 @@
   let me = null, todos = [], cfg = {}, filtro = 'activos', busca = '';
 
   // ---------- la mesa de un pedido ----------
-  const deCodigo = s => { const p = String(s || '').split('.'); return p.length === 6 ? { uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5] } : null; };
+  const deCodigo = s => { const p = String(s || '').split('.'); return p.length === 6 || p.length === 7 ? { uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5], H: +p[6] || 0 } : null; };
   function mesaOriginal(p) {
     const it = (p.items || []).find(x => x.tipo === 'mesa') || {}, sp = Object.fromEntries((it.specs || []).map(x => [x[0], x[1]]));
     const c = deCodigo(sp['Código']); if (c) return c;
@@ -28,6 +28,8 @@
   }
   const ficha = p => (p.fichas && p.fichas.dkas) || {};
   const mesaDe = p => D.normalizar(Object.assign({}, mesaOriginal(p), ficha(p).m || {}));
+  // pedidos que el cliente mandó juntos (varias mesas distintas): cada diseño es su pedido, con esta marca
+  const conjunto = p => { const it = (p.items || []).find(x => x.tipo === 'mesa') || {}, x = (it.specs || []).find(y => y[0] === 'Pedido conjunto'); return x ? x[1] : ''; };
   const cantidad = p => ((p.items || []).find(x => x.tipo === 'mesa') || {}).cantidad || 1;
   const pagado = p => (p.pagos || []).reduce((a, x) => a + (+x.monto || 0), 0);
   // modelo (de catálogo o personalizado) y color de la base
@@ -205,6 +207,9 @@
   }
 
   // ---------- un pedido: dos vistas del mismo pedido ----------
+  // la piedra que eligió el cliente: foto de la placa, nombre y acabado (toca la foto para verla grande)
+  const piedraCard = m => { const q = D.piedra(m.piedra);
+    return '<a class="pied" href="tex/piedras/' + q.id + '.jpg" target="_blank" rel="noopener"><img src="img/piedras/' + q.id + '.jpg" alt="Piedra ' + esc(q.nombre) + '"><span><small>Piedra que eligió</small><b>' + esc(q.nombre) + '</b><i>' + esc(q.desc) + (q.acabado ? ' · ' + esc(q.acabado.toLowerCase()) : '') + ' · 12 mm</i></span></a>'; };
   const sec = (n, t, html, cls) => '<section class="sec ' + (cls || '') + '"><h2><span>' + n + '</span>' + t + '</h2>' + html + '</section>';
   const opts = (o, v) => Object.entries(o).map(([k, t]) => '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + esc(t) + '</option>').join('');
   function pedido(p, modo) {
@@ -223,7 +228,7 @@
     const hdl = '<datalist id="hlist">' + herreros().map(h => '<option value="' + esc(h) + '">').join('') + '</datalist>';
     if (!tall) {
       main.innerHTML = cab
-        + sec(1, 'La mesa', '<div class="mesa"><img id="foto"' + (f.m ? '' : ' data-foto="' + p.token + '"') + ' alt="La mesa del cliente"><div><p class="tit">' + esc(D.titulo(m)) + '</p>' + resumen
+        + sec(1, 'La mesa', '<div class="mesa"><img id="foto"' + (f.m ? '' : ' data-foto="' + p.token + '"') + ' alt="La mesa del cliente"><div><p class="tit">' + esc(D.titulo(m)) + '</p>' + piedraCard(m) + resumen
           + '<a class="lnk" href="#t=' + p.id + '">Medidas, costos y orden de compra →</a></div></div>')
         + sec(2, 'Entrega y herrero', '<div class="grid2">'
           + '<label>Fecha de entrega<input type="date" data-ent="entrega" value="' + esc(f.entrega || '') + '"></label>'
@@ -239,8 +244,8 @@
       const c = D.calcular(m), lim = D.limites(m.uso, m.forma, m.L), red = D.redonda(m.forma);
       main.innerHTML = cab
         // 1 · la mesa: piedra, base, medidas y herrero
-        + sec(1, 'La mesa', '<div class="mesa"><img id="foto"' + (f.m ? '' : ' data-foto="' + p.token + '"') + ' alt="La mesa del cliente"><div><p class="tit">' + esc(D.titulo(m)) + '</p>'
-          + '<p class="modelo-l"><i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i> · ' + esc(conBase(p, 'base')) + ' ' + esc(colorDe(p).toLowerCase()) + '</p>'
+        + sec(1, 'La mesa', '<div class="mesa"><img id="foto"' + (f.m ? '' : ' data-foto="' + p.token + '"') + ' alt="La mesa del cliente"><div><p class="tit">' + esc(D.titulo(m)) + '</p>' + piedraCard(m)
+          + '<p class="modelo-l"><i class="mod' + (modeloDe(p).nuestro ? ' cat' : '') + '">' + esc(modeloDe(p).txt) + '</i> · ' + esc(conBase(p, 'base')) + ' ' + esc(colorDe(p).toLowerCase()) + '</p>' + (conjunto(p) ? '<p class="nota">Pedido conjunto: ' + esc(conjunto(p)) + '. Búscalo por nombre para ver los demás.</p>' : '')
           + '<div class="grid2">'
           + '<label>Piedra<select data-m="piedra">' + opts(Object.fromEntries(D.PIEDRAS.map(q => [q.id, q.nombre])), m.piedra) + '</select></label>'
           + '<label>Base<select data-m="base">' + opcBases(m, f.baseOtra) + '</select></label>'
@@ -254,14 +259,16 @@
           + '<details class="cambiar"' + (f.m ? ' open' : '') + '><summary>Cambiar forma o medidas</summary><div class="grid2">'
           + '<label>Uso<select data-m="uso">' + opts(Object.fromEntries(Object.entries(D.USOS).map(([k, u]) => [k, u.nombre])), m.uso) + '</select></label>'
           + '<label>Forma<select data-m="forma">' + opts(Object.fromEntries(D.formasDe(m.uso).map(k => [k, D.FORMAS[k]])), m.forma) + '</select></label>'
-          + '<label>' + (red ? (m.forma === 'round' ? 'Diámetro' : 'Lado') : 'Largo') + ' (' + lim.L.join('–') + ')<input type="number" step="5" data-m="L" value="' + m.L + '"></label>'
-          + (red ? '' : '<label>Ancho (' + lim.W.join('–') + ')<input type="number" step="5" data-m="W" value="' + m.W + '"></label>')
-          + '</div><p class="nota">El sistema no deja poner medidas que no se pueden hacer. Toca Guardar abajo para que se quede.</p></details></div></div>')
+          + '<label>' + (red ? (m.forma === 'round' ? 'Diámetro' : 'Lado') : 'Largo') + ' (usual ' + lim.L.join('–') + ')<input type="number" step="1" data-m="L" value="' + m.L + '"></label>'
+          + (red ? '' : '<label>Ancho (usual ' + lim.W.join('–') + ')<input type="number" step="1" data-m="W" value="' + m.W + '"></label>')
+          + '<label>Altura (estándar ' + D.USOS[m.uso].H + ')<input type="number" step="1" data-m="H" value="' + m.H + '"></label>'
+          + '<p class="nota" style="grid-column:1/-1">Factibilidad: <b>' + c.viab.t + '</b>' + (c.viab.pts.length ? ' · ' + c.viab.pts.map(x => esc(x.txt)).join(' · ') : '') + '</p>'
+          + '</div><p class="nota">Las medidas son libres; el sistema marca qué tan difícil es. Toca Guardar abajo para que se quede.</p></details></div></div>')
         // 2 · lo que cuesta y lo que ganamos
         + sec(2, 'Costos y ganancia', '<div class="precio"><div class="costos"><p class="nota">Lo que nos cuesta hacer <b>una</b> mesa. Si no sabes un costo, déjalo vacío: se usa el aproximado.</p>'
           + '<label class="lin"><span>Costo aproximado <small>(piedra + base + flete)</small></span><input data-lin="aprox" inputmode="decimal" placeholder="' + (cfg.aprox || D.CFG.aprox) + '" value="' + esc(f.lin && f.lin.aprox != null ? f.lin.aprox : '') + '"></label>'
           + '<p class="o">o captura los costos reales:</p>'
-          + D.COSTOS.map(([k, t]) => '<label class="lin"><span>' + t + (k === 'base' && f.herrero ? ' <small>· ' + esc(f.herrero) + '</small>' : k === 'piedra' ? ' <small>· ' + esc(D.piedra(m.piedra).nombre) + '</small>' : '') + '</span><input data-lin="' + k + '" inputmode="decimal" placeholder="' + esc(cfg.costos && cfg.costos[k] ? cfg.costos[k] : '—') + '" value="' + esc(f.lin && f.lin[k] != null ? f.lin[k] : '') + '"></label>').join('')
+          + D.COSTOS.map(([k, t]) => '<label class="lin"><span>' + t + (k === 'base' && f.herrero ? ' <small>· ' + esc(f.herrero) + '</small>' : k === 'piedra' ? ' <small><i class="mu" style="background-image:url(img/piedras/' + m.piedra + '.jpg)"></i>' + esc(D.piedra(m.piedra).nombre) + '</small>' : '') + '</span><input data-lin="' + k + '" inputmode="decimal" placeholder="' + esc(cfg.costos && cfg.costos[k] ? cfg.costos[k] : '—') + '" value="' + esc(f.lin && f.lin[k] != null ? f.lin[k] : '') + '"></label>').join('')
           + '</div><div class="calc" id="calc"></div></div>')
         // 3 · medidas para el taller
         + sec(3, 'Medidas y cortes', '<div class="kpis">'
@@ -394,7 +401,7 @@
   // ---------- cotización: se guarda en el pedido (el cliente la ve en su link) y se manda por WhatsApp con la foto ----------
   function pintarCoti(p) {
     const x = numeros(p), m = mesaDe(p), c = p.cotizacion, el = $('#coti'), anticipo = Math.ceil(x.pactado / 2);
-    el.innerHTML = (c ? '<p class="ok-c">Enviada el ' + A.fecha(c.enviada) + ' por ' + pesos(c.total) + (c.aceptada ? ' · <b>el cliente la aceptó</b>' : ' · esperando respuesta') + '</p>' : '')
+    el.innerHTML = piedraCard(m) + (c ? '<p class="ok-c">Enviada el ' + A.fecha(c.enviada) + ' por ' + pesos(c.total) + (c.aceptada ? ' · <b>el cliente la aceptó</b>' : ' · esperando respuesta') + '</p>' : '')
       + (x.pactado ? '<div class="cifras"><div><span>Total</span><b>' + pesos(x.pactado) + '</b></div><div><span>Anticipo 50%</span><b>' + pesos(anticipo) + '</b><small>para empezar a fabricar</small></div><div><span>Saldo al entregar</span><b>' + pesos(x.pactado - anticipo) + '</b></div></div>'
         + (x.g.ok ? '' : '<p class="aviso-rojo">Ojo: la ganancia es de ' + x.g.pct + '%, menos del ' + x.minimo + '%. Puedes mandarla igual.</p>')
         + '<div class="botones"><button class="btn negro" id="mandar">' + (c ? 'Mandar de nuevo' : 'Mandar cotización') + ' por WhatsApp</button><button class="btn" id="cimg">Descargar imagen</button></div>'
@@ -460,6 +467,9 @@
     txt(D.titulo(m), 660, y0 + 30, '500 30px "Cormorant Garamond",Georgia,serif', '#1a1917');
     const filas = resumenP(p).filter(r => r[0] !== 'Uso').concat([['Color base', colorDe(p)], ['Modelo', modeloDe(p).nuestro ? modeloDe(p).nombre + ' (catálogo)' : (f.modelo === 'otro' ? (f.modeloOtro || 'Personalizado') : 'Personalizado')], ['MDF', m.forma === 'round' ? 'Ø ' + c.mdf.L + ' cm' : c.mdf.L + ' × ' + c.mdf.W + ' cm'], ['Base (medida)', c.base.L + ' × ' + c.base.W + ' × ' + c.base.H + ' cm']]).concat(x.n > 1 ? [['Cantidad', x.n + ' mesas']] : []);
     filas.forEach(([k, v], i) => { const y = y0 + 74 + i * 30; txt(k, 660, y, '400 21px Inter,Arial', '#8a8378'); txt(String(v), 840, y, '500 21px Inter,Arial', '#1a1917'); });
+    // muestra de la piedra que eligió, junto a su renglón
+    { const ip = filas.findIndex(r => r[0] === 'Piedra'), mp = await cargarImg('img/piedras/' + m.piedra + '.jpg');
+      if (ip >= 0 && mp) { const y = y0 + 74 + ip * 30; g.font = '500 21px Inter,Arial'; const xp = Math.min(W - 110, 840 + g.measureText(String(filas[ip][1])).width + 18); g.save(); g.beginPath(); g.rect(xp, y - 24, 70, 32); g.clip(); g.drawImage(mp, xp, y - 24, 70, 32); g.restore(); g.strokeStyle = '#d9d3c8'; g.strokeRect(xp, y - 24, 70, 32); } }
     // croquis
     const cq = await cargarImg(URL.createObjectURL(await CQ.png(m, { folio: p.folio, cliente: p.nombre })));
     if (cq) { const h = 670, w = h * cq.width / cq.height, x0 = (W - w) / 2; g.strokeStyle = '#e7e3dc'; g.lineWidth = 2; g.strokeRect(x0, 825, w, h); g.drawImage(cq, x0, 825, w, h); }
@@ -507,8 +517,9 @@
         + '<label>Nombre del cliente<input id="nnom" value="' + esc(nuevo.nom || '') + '"></label><label>WhatsApp<input id="ntel" inputmode="tel" value="' + esc(nuevo.tel || '') + '"></label>'
         + '<label>Uso<select data-n="uso">' + opts(Object.fromEntries(Object.entries(D.USOS).map(([k, u]) => [k, u.nombre])), m.uso) + '</select></label>'
         + '<label>Forma<select data-n="forma">' + opts(Object.fromEntries(D.formasDe(m.uso).map(k => [k, D.FORMAS[k]])), m.forma) + '</select></label>'
-        + '<label>' + (red ? 'Medida' : 'Largo') + ' (' + lim.L.join('–') + ')<input type="number" step="5" data-n="L" value="' + m.L + '"></label>'
-        + (red ? '' : '<label>Ancho (' + lim.W.join('–') + ')<input type="number" step="5" data-n="W" value="' + m.W + '"></label>')
+        + '<label>' + (red ? 'Medida' : 'Largo') + ' (usual ' + lim.L.join('–') + ')<input type="number" step="1" data-n="L" value="' + m.L + '"></label>'
+        + (red ? '' : '<label>Ancho (usual ' + lim.W.join('–') + ')<input type="number" step="1" data-n="W" value="' + m.W + '"></label>')
+        + '<label>Altura<input type="number" step="1" data-n="H" value="' + m.H + '"></label>'
         + '<label>Base<select data-n="base">' + opcBases(m, nuevo.otra != null) + '</select></label>'
         + (nuevo.otra != null ? '<label>¿Qué base es?<input id="notra" placeholder="Ej. base de madera" value="' + esc(nuevo.otra) + '"></label>' : '')
         + '<label>Piedra<select data-n="piedra">' + opts(Object.fromEntries(D.PIEDRAS.map(q => [q.id, q.nombre])), m.piedra) + '</select></label>'

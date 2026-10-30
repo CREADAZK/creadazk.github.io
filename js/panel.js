@@ -353,15 +353,23 @@
     const h = new Date().getHours(), saludo = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
     const n = String(p.nombre || '').trim().split(/\s+/)[0] || '', nombre = n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
     const hola = '¡Hola' + (nombre ? ', ' + nombre : '') + '!';
-    // tres versiones; cada cliente recibe una según su folio, para que no todos lean el mismo mensaje
+    // tres versiones; al mandar, el dueño escoge cuál
     return [
-      hola + ' Soy Zury, de DKAS 👋\n\nMe llegó la mesa que diseñaste. Me encantaría platicarla contigo para afinar los detalles y que quede exactamente como la imaginas.\n\n¿Cuándo te queda bien? Quedo pendiente.',
-      saludo + (nombre ? ', ' + nombre : '') + '. Soy Zury, de DKAS · Piedra Sinterizada.\n\nGracias por diseñar tu mesa con nosotros. Antes de prepararte la propuesta, me gustaría conocer un poco más tu espacio y lo que tienes en mente.\n\n¿Cuándo lo platicamos? Cuando tú puedas, aquí estoy.',
-      hola + ' Soy Zury, de DKAS. Ya vi tu diseño 🙌\n\n¿Cuándo lo platicamos para dejarla perfecta? Quedo pendiente.',
-    ][(+p.folio || 0) % 3];
+      { t: 'Cálida', txt: hola + ' Soy Zury, de DKAS 👋\n\nMe llegó la mesa que diseñaste. Me encantaría platicarla contigo para afinar los detalles y que quede exactamente como la imaginas.\n\n¿Cuándo te queda bien? Quedo pendiente.' },
+      { t: 'Profesional', txt: saludo + (nombre ? ', ' + nombre : '') + '. Soy Zury, de DKAS · Piedra Sinterizada.\n\nGracias por diseñar tu mesa con nosotros. Antes de prepararte la propuesta, me gustaría conocer un poco más tu espacio y lo que tienes en mente.\n\n¿Cuándo lo platicamos? Cuando tú puedas, aquí estoy.' },
+      { t: 'Corta', txt: hola + ' Soy Zury, de DKAS. Ya vi tu diseño 🙌\n\n¿Cuándo lo platicamos para dejarla perfecta? Quedo pendiente.' },
+    ];
   }
-  async function bienvenida(p, modo) {
-    const txt = textoBienvenida(p);
+  function bienvenida(p, modo) {
+    const ops = textoBienvenida(p), v = document.createElement('div');
+    v.className = 'bv-fondo';
+    v.innerHTML = '<div class="bv" role="dialog" aria-modal="true"><h3>¿Cuál le mandas a ' + esc(String(p.nombre || '').split(' ')[0]) + '?</h3>'
+      + ops.map((o, i) => '<button class="bv-op" data-i="' + i + '"><b>' + o.t + '</b><span>' + esc(o.txt).replace(/\n/g, '<br>') + '</span></button>').join('')
+      + '<button class="lnk gris" data-x>Cancelar</button></div>';
+    document.body.appendChild(v);
+    v.onclick = e => { const b = e.target.closest('[data-i]'); if (b) { v.remove(); mandarBienvenida(p, modo, ops[+b.dataset.i].txt); } else if (e.target === v || e.target.closest('[data-x]')) v.remove(); };
+  }
+  async function mandarBienvenida(p, modo, txt) {
     window.open('https://wa.me/' + A.waNum(p.tel) + '?text=' + encodeURIComponent(txt), '_blank'); // antes de cualquier await, para que no lo bloquee el navegador
     try { await navigator.clipboard.writeText(txt); } catch (e) {}
     const f = Object.assign({}, ficha(p), { bienvenida: Date.now() });

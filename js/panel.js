@@ -352,11 +352,10 @@
   function textoBienvenida(p) {
     const h = new Date().getHours(), saludo = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
     const n = String(p.nombre || '').trim().split(/\s+/)[0] || '', nombre = n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : '';
-    return saludo + (nombre ? ', ' + nombre : '') + '. 👋\n\n'
-      + 'Te escribimos de *DKAS · Piedra Sinterizada*. Recibimos la solicitud de tu mesa (folio #' + p.folio + '). Muchas gracias por tomarnos en cuenta.\n\n'
-      + 'Ya estamos revisando tu diseño y en breve te enviamos tu cotización formal por este medio.\n\n'
-      + 'Si tienes alguna duda, las medidas de tu espacio o una fecha ideal de entrega, compártela aquí y con gusto la tomamos en cuenta.\n\n'
-      + 'Quedamos a tus órdenes.\n*DKAS*';
+    return saludo + (nombre ? ', ' + nombre : '') + '. 👋 Soy Zury, de *DKAS · Piedra Sinterizada*.\n\n'
+      + 'Vi la mesa que diseñaste (folio #' + p.folio + '). ¡Muchas gracias por escribirnos!\n\n'
+      + 'Me gustaría platicar contigo unos minutos para entender bien lo que buscas y prepararte la mejor propuesta. ¿Te puedo marcar? Dime qué día y hora te acomodan.\n\n'
+      + 'Quedo atento.\nZury · DKAS';
   }
   async function bienvenida(p, modo) {
     const txt = textoBienvenida(p);

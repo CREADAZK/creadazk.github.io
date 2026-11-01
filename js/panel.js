@@ -717,11 +717,11 @@
     lista.forEach(c => {
       c.p = c.d && c.d.enviado ? todos.find(p => p.token === c.d.enviado.token) || { folio: c.d.enviado.folio, estado: 'nuevo' } : null;
       if (!c.p && c.tel && c.estado === 'aprobada') c.p = todos.filter(p => p.tel === c.tel && p.creado >= c.creado).sort((a, b) => b.creado - a.creado)[0] || null;
-      c.etapa = c.estado === 'pendiente' ? 'aprobar' : c.estado === 'rechazada' ? 'rech' : c.p ? 'envio' : c.d ? 'disena' : 'espera';
+      c.etapa = c.estado === 'pendiente' ? 'aprobar' : c.estado === 'rechazada' ? 'rech' : c.p ? (c.p.estado === 'nuevo' ? 'oculto' : 'envio') : c.d ? 'disena' : 'espera';
       c.ult = Math.max(c.creado || 0, c.decidido || 0, (c.d && c.d.actualizado) || 0);
     });
     const ETAPAS = [['aprobar', 'Por aprobar', 'Pidieron diseñar su mesa. Revisa y aprueba.'], ['disena', 'Diseñaron y no han enviado', 'Su mesa está guardada. Escríbeles para que la envíen.'],
-      ['espera', 'Aprobados, todavía no diseñan', 'Ya tienen acceso. Un mensaje les ayuda a empezar.'], ['envio', 'Enviaron su mesa', 'Ya son pedido: cotízalos en Pedidos.']];
+      ['espera', 'Aprobados, todavía no diseñan', 'Ya tienen acceso. Un mensaje les ayuda a empezar.'], ['envio', 'Ya cotizados', 'Su pedido ya avanzó. Dale seguimiento en Pedidos.']];
     const cuando = t => { if (!t) return ''; const d = new Date(t); return d.toDateString() === new Date().toDateString() ? 'hoy ' + d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }) : A.fecha(t); };
     const sinPref = t => String(t || '').replace(/^Quiero una así: /, '');
     // varias formas de escribirle, según en qué paso va (nunca con precios): cálido, directo, para ayudarle/agendar y formal
@@ -775,9 +775,16 @@
       + (c.p ? '<a class="c-ped" href="#p=' + (c.p.id || '') + '">Pedido #' + c.p.folio + ' · ' + esc(A.estado(c.p.estado)) + ' →</a>' : '')
       + '<div class="l-bot">' + (c.etapa === 'aprobar' ? '<button class="btn verde chico" data-dec="' + c.k + '|aprobada">Aprobar</button><button class="btn chico" data-dec="' + c.k + '|rechazada">Rechazar</button>' : '')
       + (c.etapa !== 'rech' ? wa(c) : '') + (c.etapa !== 'rech' && c.etapa !== 'aprobar' && /^[0-9a-f]{32}$/.test(c.k) ? '<a class="btn chico oro" href="#prop=' + c.k + '">' + (c.d && c.d.prop ? 'Cambiar su mesa' : 'Armarle su mesa') + '</a>' : '') + (c.etapa !== 'aprobar' && c.etapa !== 'rech' && c.tel ? '<button class="btn chico" data-marca="' + c.k + '">' + (seg[c.k] ? 'Deshacer' : 'Ya le escribí') + '</button>' : '') + '</div></div>';
+    function porCotizar() {
+      const l = todos.filter(p => p.estado === 'nuevo').sort((a, b) => b.creado - a.creado); if (!l.length) return '';
+      const pid = p => ((p.items[0] || {}).specs || []).find(z => z[0] === 'Pidió');
+      return '<h3 class="l-tit" id="c-cotizar">Por cotizar <i>' + l.length + '</i></h3><p class="sub l-sub">Ya escogieron su mesa y dejaron su WhatsApp. Ábrelos, ponles precio y mándales la cotización.</p><div class="leads">'
+        + l.map(p => '<a class="lead cli e-aprobar c-cot" href="#p=' + p.id + '"><div class="l-cab"><div><b>' + esc(p.nombre) + ' · #' + p.folio + '</b><small>' + esc(p.tel || '') + ' · ' + cuando(p.creado) + (pid(p) ? ' · ' + esc(pid(p)[1]) : '') + '</small></div></div><p class="c-cot-t">' + esc((p.items[0] || {}).titulo || '') + '</p><span class="c-ped">Cotizar →</span></a>').join('') + '</div>';
+    }
     const de = e => lista.filter(c => c.etapa === e).sort((a, b) => (seg[a.k] ? 1 : 0) - (seg[b.k] ? 1 : 0) || b.ult - a.ult);
     main.innerHTML = '<div class="cab"><div><h1>Clientes</h1><p class="sub">Cada cliente pide acceso con su WhatsApp, tú lo apruebas, diseña su mesa (se guarda sola) y la envía. Aquí ves en qué paso va cada uno.</p></div></div>'
-      + '<details class="c-nuevo"><summary>+ Cliente que me escribió por WhatsApp</summary><p class="sub">Lo registras aquí y le armas su mesa tú, sin que entre a la página.</p><div class="acc-nuevo"><input id="cn-nom" placeholder="Nombre" maxlength="60"><input id="cn-tel" inputmode="tel" placeholder="WhatsApp (10 dígitos)" maxlength="16"><button class="btn negro" id="cn-ok">Armarle su mesa</button></div></details>'
+      + '<details class="c-nuevo"><summary>+ Me escribió alguien por WhatsApp</summary><p class="sub">Mándale el cotizador de 1 minuto, o ármale tú la mesa.</p><div class="acc-nuevo"><input id="cn-nom" placeholder="Nombre" maxlength="60"><input id="cn-tel" inputmode="tel" placeholder="WhatsApp (10 dígitos)" maxlength="16"><button class="btn verde" id="cn-link">Mandarle el cotizador</button><button class="btn negro" id="cn-ok">Armarle su mesa yo</button></div><p class="nota">El cotizador le abre con su nombre y WhatsApp ya puestos: escoge tamaño, piedra y base y te llega como pedido.</p></details>'
+      + porCotizar()
       + '<div class="resumen-g">' + ETAPAS.map(([e, t], i) => '<a class="rg ' + ['mal', 'ambar', '', 'gris'][i] + '" href="#c-' + e + '"><b>' + de(e).length + '</b><span>' + t + '</span></a>').join('') + '</div>'
       + ETAPAS.map(([e, t, sub]) => '<h3 class="l-tit" id="c-' + e + '">' + t + ' <i>' + de(e).length + '</i></h3>' + (de(e).length ? '<p class="sub l-sub">' + sub + '</p><div class="leads">' + de(e).map(ficha).join('') + '</div>' : '<p class="sub l-sub">Nadie por ahora.</p>')).join('')
       + (de('rech').length ? '<details class="c-rech"><summary>Rechazados (' + de('rech').length + ')</summary><div class="leads">' + de('rech').map(ficha).join('') + '</div></details>' : '')
@@ -785,6 +792,9 @@
     main.onclick = async e => {
       const d = e.target.closest('[data-dec]'), w = e.target.closest('[data-escrito]'), mk = e.target.closest('[data-marca]'), ms = e.target.closest('[data-mesa]');
       if (ms) { const c = lista.find(z => z.k === ms.dataset.mesa); if (c) verMesa(c, msj(c)); return; }
+      if (e.target.closest('#cn-link')) { const n = $('#cn-nom').value.trim(), t = $('#cn-tel').value.replace(/\D/g, ''); if (t.length < 10) return alerta('Escribe su WhatsApp a 10 dígitos.');
+        const url = 'https://dkas.mx/cotiza.html?' + new URLSearchParams(Object.assign({ c: 'whatsapp' }, n ? { n } : {}, { w: t }));
+        window.open('https://wa.me/' + A.waNum(t) + '?text=' + encodeURIComponent('Hola' + (n ? ' ' + n.split(' ')[0] : '') + ', soy ' + yoN + ' de DKAS 👋 Aquí cotizas tu mesa en 1 minuto: escoges tamaño, piedra y base, y te mando tu cotización por aquí.\n' + url), '_blank'); return; }
       if (e.target.closest('#cn-ok')) { const [n0, ...ap] = $('#cn-nom').value.trim().split(/\s+/), id = A.rnd(), b0 = e.target.closest('#cn-ok'); b0.disabled = true;
         try { await A.solicitarAcceso(id, { nombre: n0 || '', apellido: ap.join(' ') || '(web)', tel: $('#cn-tel').value, quiere: 'Escribió por WhatsApp' }); await A.decidirSolicitud(id, 'aprobada'); location.hash = '#prop=' + id; } catch (x) { b0.disabled = false; alerta(x.message); } return; }
       const wo = e.target.closest('[data-wa-op]'); if (wo) { const c = lista.find(z => z.k === wo.dataset.waOp); if (c) elegirMensaje(c); return; }

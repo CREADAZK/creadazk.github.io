@@ -6,8 +6,11 @@
   // manda al configurador con algo ya elegido
   // sin acceso al diseñador, lleva directo al formulario para pedirlo (con el nombre ya escrito si lo tenemos)
   // lo último que le interesó (el panel lo muestra en Visitas y lo usa en el WhatsApp de seguimiento)
+  const paso2D = false; // el 3D queda como "Diseño avanzado" (sección #app); lo demás cotiza en 1 minuto
   function interesa(t) { if (!t) return; window.DKAS_INT = t; if (window.DKAS_VISITA) try { DKAS_VISITA(0); } catch (e) {} }
   function disenar(cambios, paso) {
+    if (cambios && cambios.modelo && !paso2D) { location.href = 'cotiza.html?m=' + encodeURIComponent(cambios.modelo); return; }
+    if (cambios && cambios.piedra && !cambios.uso && !paso2D) { location.href = 'cotiza.html?u=comedor&f=rect&p=' + encodeURIComponent(cambios.piedra); return; }
     if (cambios && (cambios.modelo || cambios.piedra)) interesa(cambios.modelo ? 'Modelo ' + ((D.MODELOS.find(m => m.id === cambios.modelo) || {}).nombre || cambios.modelo) : 'Piedra ' + D.piedra(cambios.piedra).nombre);
     try { if (window.DKAS_PONER) window.DKAS_PONER(cambios, paso); } catch (e) {}
     cerrarVisor();
@@ -18,6 +21,8 @@
 
   // "Crear mi mesa": abre el diseñador con esa piedra, base y forma; sin acceso, ahí mismo pide acceso y el admin lo aprueba
   function crearMia(x) {
+    const qs = new URLSearchParams(Object.assign({}, x.u ? { u: x.u } : {}, x.f ? { f: x.f } : {}, x.p ? { p: x.p } : {}, x.b ? { b: x.b } : {}, x.t ? { t: x.t } : {}));
+    if (x.u) { location.href = 'cotiza.html?' + qs; return; }
     const cambios = Object.assign({}, x.u ? { uso: x.u } : {}, x.f ? { forma: x.f } : {}, x.u && x.f ? D.tamanoPara(x.u, x.f, x.u === 'comedor' ? 8 : 4) : {}, x.p ? { piedra: x.p } : {}, x.b ? { base: x.b } : {});
     window.DKAS_QUIERE = 'Quiero una así: ' + (x.t || (x.p ? 'mesa en ' + D.piedra(x.p).nombre : 'mesa de la página')); interesa(DKAS_QUIERE);
     disenar(cambios, 1); repintaAcceso();

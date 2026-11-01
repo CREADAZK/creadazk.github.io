@@ -5,7 +5,10 @@
 
   // manda al configurador con algo ya elegido
   // sin acceso al diseñador, lleva directo al formulario para pedirlo (con el nombre ya escrito si lo tenemos)
+  // lo último que le interesó (el panel lo muestra en Visitas y lo usa en el WhatsApp de seguimiento)
+  function interesa(t) { if (!t) return; window.DKAS_INT = t; if (window.DKAS_VISITA) try { DKAS_VISITA(0); } catch (e) {} }
   function disenar(cambios, paso) {
+    if (cambios && (cambios.modelo || cambios.piedra)) interesa(cambios.modelo ? 'Modelo ' + ((D.MODELOS.find(m => m.id === cambios.modelo) || {}).nombre || cambios.modelo) : 'Piedra ' + D.piedra(cambios.piedra).nombre);
     try { if (window.DKAS_PONER) window.DKAS_PONER(cambios, paso); } catch (e) {}
     cerrarVisor(); cerrarCoti();
     if (location.hash !== '#app') location.hash = '#app'; else scrollTo({ top: 0, behavior: 'smooth' });
@@ -17,7 +20,8 @@
   const coti = $('#coti');
   let cotX = null, cotP = 6;
   function cotizar(x) {
-    cotX = x; cotP = x.u === 'centro' || x.u === 'periquera' ? 4 : x.f === 'square' || x.f === 'round' ? 4 : 6;
+    interesa('Quiero una así: ' + (x.t || 'mesa de la página'));
+    cotX = x; cotP =x.u === 'centro' || x.u === 'periquera' ? 4 : x.f === 'square' || x.f === 'round' ? 4 : 6;
     $('#coti-img').src = x.img || ''; $('#coti-img').alt = x.t || 'Mesa DKAS'; $('#coti-img').hidden = !x.img;
     $('#coti-t').textContent = x.t || 'Una mesa así';
     $('#coti-d').textContent = [x.p && D.piedra(x.p).nombre, x.b && D.BASES[x.b] && 'Base ' + D.BASES[x.b].nombre, x.f && D.FORMAS[x.f]].filter(Boolean).join(' · ');
@@ -57,7 +61,7 @@
   // "Crear mi mesa": abre el diseñador con esa piedra, base y forma; sin acceso, ahí mismo pide acceso y el admin lo aprueba
   function crearMia(x) {
     const cambios = Object.assign({}, x.u ? { uso: x.u } : {}, x.f ? { forma: x.f } : {}, x.u && x.f ? D.tamanoPara(x.u, x.f, x.u === 'comedor' ? 8 : 4) : {}, x.p ? { piedra: x.p } : {}, x.b ? { base: x.b } : {});
-    disenar(cambios, 1);
+    disenar(cambios, 1); if (x.p) interesa('Crear mi mesa en ' + D.piedra(x.p).nombre);
   }
   // todos los "Quiero una así" de la página (revista, proyectos y galería) abren la mini cotización; "Crear mi mesa" lleva al diseñador
   document.addEventListener('click', e => {
@@ -216,10 +220,10 @@
     let primera = true, enviado = '', paso = 0, folio = 0;
     function registra() {
       if (staff) return; // el taller viendo su propia página no cuenta
-      const n = (A.load('dazk-yo', {}).nombre || '').slice(0, 80);
+      const yo = A.load('dazk-yo', {}), n = (yo.nombre || '').slice(0, 80), tel = String(yo.tel || '').replace(/\D/g, ''), interes = String(window.DKAS_INT || '').slice(0, 80);
       if (document.body.dataset.p === 'crea') paso = Math.max(paso, 1);
       if (window.DKAS_ST && DKAS_ST().modelo) paso = Math.max(paso, 1);
-      const d = Object.assign({ v, disp: w < 600 ? 'celular' : w < 1000 ? 'tablet' : 'computadora', origen, paso }, n ? { nombre: n } : {}, folio ? { folio } : {});
+      const d = Object.assign({ v, disp: w < 600 ? 'celular' : w < 1000 ? 'tablet' : 'computadora', origen, paso }, n ? { nombre: n } : {}, folio ? { folio } : {}, /^[0-9]{10,13}$/.test(tel) ? { tel } : {}, interes ? { interes } : {});
       const s = JSON.stringify(d); if (s === enviado) return; enviado = s;
       A.visita(id, d, primera).catch(() => {}); primera = false;
     }

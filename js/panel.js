@@ -108,7 +108,7 @@
     if (!me.nombre) return nombre();
     $('#top-nav').hidden = false;
     main.innerHTML = '<p class="cargando">Cargando…</p>';
-    await recargar(); ruta();
+    await recargar(); ruta(); barraAvisos(); vigilar();
   }
   function login(err) {
     $('#top-nav').hidden = true;
@@ -590,15 +590,25 @@
     let l; try { l = await A.visitas(); } catch (e) { main.innerHTML = '<h1>Visitas</h1><p class="err">' + esc(e.message) + '</p>'; return; }
     // una fila por persona (mismo navegador = misma persona)
     const per = {};
-    l.forEach(x => { const k = x.v || x.t; const a = per[k] = per[k] || { nombre: '', veces: 0, primera: x.t, ult: 0, disp: x.disp, origen: x.origen, max: 0, folio: 0 };
-      a.veces++; a.primera = Math.min(a.primera, x.t); a.ult = Math.max(a.ult, x.ult || x.t); if (x.nombre) a.nombre = x.nombre; a.max = Math.max(a.max, x.paso || 0); if (x.folio) a.folio = x.folio; });
+    l.slice().sort((a, b) => (a.ult || a.t) - (b.ult || b.t)).forEach(x => { const k = x.v || x.t; const a = per[k] = per[k] || { nombre: '', veces: 0, primera: x.t, ult: 0, disp: x.disp, origen: x.origen, max: 0, folio: 0, tel: '', interes: '' };
+      a.veces++; a.primera = Math.min(a.primera, x.t); a.ult = Math.max(a.ult, x.ult || x.t); if (x.nombre) a.nombre = x.nombre; a.max = Math.max(a.max, x.paso || 0); if (x.folio) a.folio = x.folio; if (x.tel) a.tel = x.tel; if (x.interes) a.interes = x.interes; });
+    // su WhatsApp: el que dejó en la página o, si no, el de su pedido o su solicitud de acceso con el mismo nombre
+    const sols = await A.solicitudes().catch(() => []), llave = s => String(s || '').trim().toLowerCase();
+    const telDe = {}; todos.forEach(p => { if (p.tel) telDe[llave(p.nombre)] = p.tel; }); sols.forEach(s => { if (s.tel) { telDe[llave(s.nombre)] = telDe[llave(s.nombre)] || s.tel; telDe[llave(s.nombre + ' ' + (s.apellido === '(web)' ? '' : s.apellido || ''))] = s.tel; } });
+    Object.values(per).forEach(g => { if (!g.tel && g.nombre) g.tel = telDe[llave(g.nombre)] || ''; });
     const gente = Object.values(per).sort((a, b) => b.ult - a.ult), hoy = new Date().toDateString();
+    const yoN = String((me && me.nombre) || 'DKAS').split(' ')[0];
+    const msjWA = g => { const n = (g.nombre || '').split(' ')[0];
+      const que = g.folio ? 'Vi que nos mandaste tu pedido #' + g.folio + '. ¿Tienes alguna duda?' : g.max >= 2 ? 'Vi que armaste tu mesa en nuestro diseñador 3D' + (g.interes ? ' (' + g.interes + ')' : '') + '. ¿Te ayudo a terminarla o te paso la cotización?'
+        : 'Vi que estuviste viendo ' + (g.interes ? g.interes.replace(/^Quiero una así: /, 'la mesa «') + (/^Quiero una así: /.test(g.interes) ? '»' : '') : 'nuestras mesas de piedra') + ' en dkas.mx. ¿Qué te interesó? ¿En qué te puedo ayudar?';
+      return 'Hola' + (n ? ' ' + n : '') + ', soy ' + yoN + ' de DKAS 👋\n' + que; };
+    const botonWA = g => g.tel ? '<a class="btn chico wa-v" target="_blank" rel="noopener" href="https://wa.me/' + A.waNum(g.tel) + '?text=' + encodeURIComponent(msjWA(g)) + '">WhatsApp</a>' : '<small class="sin-tel">sin WhatsApp</small>';
     const PASO = ['Vio la página', 'Abrió el 3D', 'Armó su mesa', 'Mandó su diseño'];
     const cuando = t => { const d = new Date(t); return d.toDateString() === hoy ? 'hoy ' + d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }) : A.fecha(t); };
     main.innerHTML = '<h1>Visitas</h1><p class="sub">Quién ha entrado a dkas.mx. Al entrar se les pide su nombre y la página los recuerda.</p>'
       + '<div class="resumen-g"><div><b>' + gente.length + '</b><span>personas</span></div><div><b>' + gente.filter(g => new Date(g.ult).toDateString() === hoy).length + '</b><span>hoy</span></div><div><b>' + gente.filter(g => g.folio).length + '</b><span>mandaron pedido</span></div></div>'
-      + '<div class="sec">' + (gente.length ? gente.map(g => '<div class="fila vis"><div><b>' + esc(g.nombre || 'Sin nombre') + '</b><small>' + esc([g.disp, g.origen].filter(Boolean).join(' · ')) + '</small></div>'
-        + '<div><span>' + (g.folio ? 'Mandó pedido #' + g.folio : PASO[Math.min(2, g.max)]) + '</span><small>' + g.veces + (g.veces === 1 ? ' visita' : ' visitas') + ' · última ' + cuando(g.ult) + '</small></div></div>').join('') : '<p class="sub">Todavía nadie.</p>') + '</div>';
+      + '<div class="sec">' + (gente.length ? gente.map(g => '<div class="fila vis"><div><b>' + esc(g.nombre || 'Sin nombre') + '</b><small>' + esc([g.disp, g.origen].filter(Boolean).join(' · ')) + '</small>' + (g.interes ? '<small class="int">Le interesó: ' + esc(g.interes) + '</small>' : '') + '</div>'
+        + '<div><span>' + (g.folio ? 'Mandó pedido #' + g.folio : PASO[Math.min(2, g.max)]) + '</span><small>' + g.veces + (g.veces === 1 ? ' visita' : ' visitas') + ' · última ' + cuando(g.ult) + '</small>' + (g.nombre ? botonWA(g) : '') + '</div></div>').join('') : '<p class="sub">Todavía nadie.</p>') + '</div>';
   }
 
   // ---------- accesos al diseñador 3D: solicitudes por aprobar y links de acceso directo ----------
@@ -608,6 +618,64 @@
     A.solicitudes().then(l => { const n = l.filter(s => s.estado === 'pendiente').length, b = $('#nb-acc'); if (b) { b.textContent = n; b.hidden = !n; } }).catch(() => {});
   }
   setInterval(() => { if (me && me.nombre) contarSolicitudes(true); }, 60000);
+
+  // ---------- avisos: pedido nuevo, mensaje de un cliente o solicitud de acceso al 3D ----------
+  // el panel revisa cada 30 s y avisa con sonido y notificación del sistema (si se dio permiso).
+  // No hay servidor que mande "push": avisa mientras el panel está abierto (en el iPhone, instalado en la pantalla de inicio).
+  const AV_K = 'dkas-avisos';
+  let swReg = null, sinVer = 0, ctxAudio = null, vigilando = false;
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('panel-sw.js').then(r => { swReg = r; }).catch(() => {});
+    navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.ir) location.hash = e.data.ir; });
+  }
+  const hayNotif = () => 'Notification' in window;
+  function barraAvisos() {
+    const b = $('#avisos'); if (!b) return;
+    const ios = /iP(hone|ad|od)/.test(navigator.userAgent), app = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    let h = '';
+    if (hayNotif() && Notification.permission === 'default') h = '<span>Activa los avisos y te sonará cada pedido nuevo, mensaje de cliente o solicitud de acceso.</span><button class="btn oro chico" id="av-on">Activar notificaciones</button>';
+    else if (!hayNotif() && ios && !app) h = '<span>Para que el iPhone te avise: toca <b>Compartir</b> → <b>Agregar a inicio</b>, abre el panel desde ese ícono y activa las notificaciones.</span>';
+    else if (hayNotif() && Notification.permission === 'denied') h = '<span>Las notificaciones están bloqueadas para este sitio. Actívalas en los ajustes del navegador.</span>';
+    b.innerHTML = h; b.hidden = !h;
+    const on = $('#av-on'); if (on) on.onclick = async () => { try { await Notification.requestPermission(); } catch (e) {} barraAvisos(); if (Notification.permission === 'granted') { sonido(); avisar('Avisos activados', 'Te aviso de pedidos nuevos, mensajes y solicitudes.', ''); } };
+  }
+  // el sonido necesita que antes hayan tocado la pantalla una vez
+  document.addEventListener('pointerdown', () => { try { ctxAudio = ctxAudio || new (window.AudioContext || window.webkitAudioContext)(); ctxAudio.resume(); } catch (e) {} }, { once: true });
+  function sonido() {
+    try { ctxAudio = ctxAudio || new (window.AudioContext || window.webkitAudioContext)(); const t = ctxAudio.currentTime;
+      [880, 1320].forEach((f, i) => { const o = ctxAudio.createOscillator(), g = ctxAudio.createGain(), s = t + i * .18; o.frequency.value = f; g.gain.setValueAtTime(.0001, s); g.gain.exponentialRampToValueAtTime(.25, s + .02); g.gain.exponentialRampToValueAtTime(.0001, s + .35); o.connect(g); g.connect(ctxAudio.destination); o.start(s); o.stop(s + .4); });
+    } catch (e) {}
+  }
+  function avisar(titulo, cuerpo, ir, callado) {
+    if (!callado) toast(titulo + (cuerpo ? ' · ' + cuerpo : ''));
+    if (document.hidden) { sinVer++; document.title = '(' + sinVer + ') DKAS · Panel'; }
+    if (!hayNotif() || Notification.permission !== 'granted') return;
+    const op = { body: cuerpo, icon: 'img/panel-icono.png', badge: 'img/panel-icono.png', tag: 'dkas-' + titulo + '-' + cuerpo, data: { url: 'taller.html' + (ir || '') } };
+    if (swReg && swReg.showNotification) return swReg.showNotification(titulo, op).catch(() => {});
+    try { const n = new Notification(titulo, op); n.onclick = () => { focus(); if (ir) location.hash = ir; n.close(); }; } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { sinVer = 0; document.title = 'DKAS · Panel'; vigilar(); } });
+  async function vigilar() {
+    if (!me || !me.nombre || vigilando) return; vigilando = true;
+    try {
+      const [l, s] = await Promise.all([A.listar(), A.solicitudes()]);
+      const ahora = { ped: {}, msg: {}, sol: {} }, pend = s.filter(x => x.estado === 'pendiente');
+      l.forEach(p => { ahora.ped[p.id] = 1; ahora.msg[p.id] = p.eventos.filter(e => e.autor === 'cliente' && e.tipo !== 'creado').length; });
+      pend.forEach(x => { ahora.sol[x.id] = 1; });
+      const antes = A.load(AV_K, null);
+      if (antes) {
+        const hay = [];
+        l.filter(p => !antes.ped[p.id]).forEach(p => hay.push(['Pedido nuevo #' + p.folio, p.nombre + ' · ' + ((p.items[0] || {}).titulo || 'Mesa'), '#p=' + p.id]));
+        l.filter(p => antes.ped[p.id] && ahora.msg[p.id] > (antes.msg[p.id] || 0)).forEach(p => hay.push(['Mensaje de ' + p.nombre, 'Pedido #' + p.folio, '#p=' + p.id]));
+        pend.filter(x => !antes.sol[x.id]).forEach(x => hay.push(['Pide acceso al 3D', (x.nombre + ' ' + (x.apellido === '(web)' ? '' : x.apellido || '')).trim(), '#accesos']));
+        hay.slice(0, 5).forEach(a => avisar(a[0], a[1], a[2], true)); if (hay.length) toast(hay.length === 1 ? hay[0][0] + ' · ' + hay[0][1] : hay.length + ' avisos: ' + hay.map(a => a[0]).join(' · ')); if (hay.length > 5) avisar('Y ' + (hay.length - 5) + ' avisos más', 'Abre el panel', '');
+        if (hay.length) { sonido(); todos = l; if (['', '#', '#taller', '#accesos'].includes(location.hash)) ruta(); }
+      }
+      A.save(AV_K, ahora);
+      const b = $('#nb-acc'); if (b) { b.textContent = pend.length; b.hidden = !pend.length; }
+    } catch (e) {} finally { vigilando = false; }
+  }
+  setInterval(vigilar, 30000);
   const LINK_ACC = t => 'https://dkas.mx/?acceso=' + t;
   async function accesos() {
     main.innerHTML = '<h1>Accesos al 3D</h1><p class="sub">Cargando…</p>';

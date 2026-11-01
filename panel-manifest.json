@@ -1,0 +1,17 @@
+{
+ "name": "DKAS Panel",
+ "short_name": "DKAS Panel",
+ "start_url": "taller.html",
+ "scope": "./",
+ "display": "standalone",
+ "background_color": "#14110e",
+ "theme_color": "#14110e",
+ "icons": [
+  {
+   "src": "img/panel-icono.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  }
+ ]
+}

@@ -45,6 +45,7 @@
         await A.solicitarAcceso(id, s);
         mio = { tipo: 'sol', id, nombre: (s.nombre + ' ' + (s.apellido === '(web)' ? '' : s.apellido)).trim() }; A.save('dkas-acceso', mio);
         A.save('dazk-yo', Object.assign(A.load('dazk-yo', {}), { nombre: mio.nombre }, s.tel.trim() ? { tel: s.tel.trim() } : {}, s.despacho.trim() ? { despacho: s.despacho.trim() } : {}));
+        if (window.DKAS_VISITA) try { DKAS_VISITA(1); } catch (y) {} // la visita guarda su WhatsApp para que el panel le pueda escribir
         pintar('pendiente', { nombre: s.nombre.trim(), apellido: s.apellido === '(web)' ? '' : s.apellido }); revisar();
       } catch (x) { err.textContent = x.message; err.hidden = false; b.disabled = false; b.textContent = 'Solicitar acceso'; }
     };

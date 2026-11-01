@@ -631,12 +631,10 @@
   const hayNotif = () => 'Notification' in window;
   function barraAvisos() {
     const b = $('#avisos'); if (!b) return;
-    const ios = /iP(hone|ad|od)/.test(navigator.userAgent), app = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-    let h = '';
-    if (hayNotif() && Notification.permission === 'default') h = '<span>Activa los avisos y te sonará cada pedido nuevo, mensaje de cliente o solicitud de acceso.</span><button class="btn oro chico" id="av-on">Activar notificaciones</button>';
-    else if (!hayNotif() && ios && !app) h = '<span>Para que el iPhone te avise: toca <b>Compartir</b> → <b>Agregar a inicio</b>, abre el panel desde ese ícono y activa las notificaciones.</span>';
-    else if (hayNotif() && Notification.permission === 'denied') h = '<span>Las notificaciones están bloqueadas para este sitio. Actívalas en los ajustes del navegador.</span>';
+    // solo aparece si este aparato puede activar avisos y todavía no lo ha hecho; con la × no vuelve a salir
+    const h = hayNotif() && Notification.permission === 'default' && !A.load('dkas-av-x', false) ? '<span>Activa los avisos y te sonará cada pedido nuevo, mensaje de cliente o solicitud de acceso.</span><button class="btn oro chico" id="av-on">Activar notificaciones</button><button class="btn chico" id="av-x" aria-label="Cerrar">×</button>' : '';
     b.innerHTML = h; b.hidden = !h;
+    const x = $('#av-x'); if (x) x.onclick = () => { A.save('dkas-av-x', true); barraAvisos(); };
     const on = $('#av-on'); if (on) on.onclick = async () => { try { await Notification.requestPermission(); } catch (e) {} barraAvisos(); if (Notification.permission === 'granted') { sonido(); avisar('Avisos activados', 'Te aviso de pedidos nuevos, mensajes y solicitudes.', ''); } };
   }
   // el sonido necesita que antes hayan tocado la pantalla una vez

@@ -285,6 +285,18 @@ a,button,label,.btn{-webkit-tap-highlight-color:transparent}
 .aviso-env.ok{background:#eaf6ee;border-color:#bfe3cb;color:#163d24}.aviso-env.ok a{background:#1f8a4c;color:#fff}
 .aviso-env button,.aviso-env a{display:block;width:fit-content}
 
+/* paso 5: pedir la cotización es lo principal */
+.cot-sub{margin-bottom:12px}
+.cot-mesa{display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:start;margin-bottom:16px}
+.cot-mesa .foto{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:10px;margin:0}
+.cot-mesa .res{margin:0;font-size:12.5px;display:grid;gap:2px}.cot-mesa .res li{padding:2px 0;border:0}
+.cot-mesa .res li:nth-child(n+6){display:none}
+.cot-btn{width:100%;min-height:58px;font-size:17px;margin-top:6px}
+.mas-datos{margin-top:14px}.mas-datos summary{cursor:pointer;color:#a8844f;font-size:14px;padding:8px 0}
+.cot-extra{margin-top:26px;padding-top:18px;border-top:1px solid rgba(255,255,255,.1)}
+#sig.cot-sig{background:#c2a273;color:#16120d;font-weight:700}
+#sig.cot-sig{font-size:12.5px;letter-spacing:.06em;white-space:nowrap;padding:0 16px}#cuenta{white-space:nowrap}
+
 /* ---------- DKAS · página del negocio (secciones alrededor del configurador) ---------- */
 .top{padding:14px 20px}
 .top nav{gap:22px}
@@ -738,17 +750,19 @@ footer .pie-nav{gap:4px 10px}footer .pie-nav a{display:inline-block;padding:12px
     <div class="aviso-env" id="aviso-env" hidden></div>
     <div class="pasos" id="pasos"></div>
     <div class="paso" id="p0"></div><div class="paso" id="p1" hidden></div><div class="paso" id="p2" hidden></div><div class="paso" id="p3" hidden></div>
-    <div class="paso" id="p4" hidden><div class="tt"><span class="num">05</span><p class="et">Enviar</p><h2>Tu <em>mesa.</em></h2></div><p class="sub">Revisa tu mesa y envíala. Un asesor de DKAS la revisa y te manda tu cotización por WhatsApp.</p>
-      <img class="foto" id="p5img" alt="Tu mesa"><div id="p5viab"></div><ul class="res" id="p5res"></ul>
-      <button type="button" class="btn ficha-btn" data-ficha>Descargar ficha técnica y plano</button><div id="p5arch"></div>
-      <div class="lista" id="lista"></div>
+    <div class="paso" id="p4" hidden><div class="tt"><span class="num">05</span><p class="et">Cotizar</p><h2>Pide tu <em>cotización.</em></h2></div>
+      <p class="sub cot-sub">Un asesor de DKAS revisa tu mesa y te manda la cotización por WhatsApp. Sin compromiso.</p>
+      <div class="cot-mesa"><img class="foto" id="p5img" alt="Tu mesa"><ul class="res" id="p5res"></ul></div>
       <form id="form"><div class="f2"><label>Tu nombre<input id="nombre" required minlength="2" maxlength="80" autocomplete="name"></label>
-        <label>Tu WhatsApp<input id="tel" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="10 dígitos"></label>
-        <label>Correo <small>(opcional)</small><input id="correo" type="email" maxlength="120" autocomplete="email"></label>
-        <label>Despacho o empresa <small>(opcional)</small><input id="despacho" maxlength="120" autocomplete="organization"></label>
-        <label>Proyecto u obra <small>(opcional)</small><input id="proyecto" maxlength="120" placeholder="Ej. Restaurante Polanco"></label></div>
-        <label>¿Algo más? <small>(opcional)</small><textarea id="notas" rows="2" maxlength="1000" placeholder="Fecha de obra, acabado de la base, accesos…"></textarea></label>
-        <p class="err" id="err" hidden></p><button class="btn oro form-btn" id="enviar">Enviar mi mesa</button></form>
+        <label>Tu WhatsApp<input id="tel" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="10 dígitos"></label></div>
+        <p class="err" id="err" hidden></p><button class="btn oro form-btn cot-btn" id="enviar">Pedir mi cotización</button>
+        <details class="mas-datos"><summary>Agregar más datos (opcional)</summary><div class="f2">
+        <label>Correo<input id="correo" type="email" maxlength="120" autocomplete="email"></label>
+        <label>Despacho o empresa<input id="despacho" maxlength="120" autocomplete="organization"></label>
+        <label>Proyecto u obra<input id="proyecto" maxlength="120" placeholder="Ej. Restaurante Polanco"></label></div>
+        <label>¿Algo más?<textarea id="notas" rows="2" maxlength="1000" placeholder="Fecha de obra, acabado de la base, accesos…"></textarea></label></details></form>
+      <div class="cot-extra"><div class="lista" id="lista"></div><div id="p5viab"></div>
+      <button type="button" class="btn ficha-btn" data-ficha>Descargar ficha técnica y plano</button><div id="p5arch"></div></div>
       <div class="listo" id="listo" hidden><h2>¡Recibimos <em>tu pedido!</em></h2><p class="folio" id="folio"></p><p class="sub">Mándanos tu pedido por WhatsApp para cotizarlo hoy mismo.</p>
         <button class="btn verde" id="mandar"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>Mandar mi pedido por WhatsApp</button><a class="btn" id="seguir">Ver mi pedido</a></div></div>
   </section>
@@ -772,4 +786,4 @@ footer .pie-nav{gap:4px 10px}footer .pie-nav a{display:inline-block;padding:12px
   <div class="img"><img id="vi-img" alt=""></div><div class="pie"><div><b id="vi-t"></b><span id="vi-p"></span></div><div class="dos-b"><button class="btn oro chico" id="vi-btn">Quiero una así</button></div></div></div>
 <footer><img src="img/dkas-claro.png" alt="DKAS"><p class="et">Piedra sinterizada · Muebles · Diseño</p><div class="pie-nav"><a href="#coleccion">Colección</a><a href="#piedras">Piedras</a><a href="#bases">Bases</a><a href="#proyectos">Proyectos</a><a href="#arquitectos">Arquitectos</a><a href="#preguntas">Preguntas</a><a href="pedido.html">Mi pedido</a></div><div class="bot"><a class="btn chico" data-wa="0" href="https://wa.me/525535977670" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>55 3597 7670</a><a class="btn chico" data-wa="1" href="https://wa.me/525551090027" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z"/></svg>55 5109 0027</a></div><small>© 2026 DKAS · Mesas de piedra sinterizada hechas en México</small></footer>
 <div class="modal" id="arm" hidden><div class="caja"><header><b id="ar-tit"></b><button class="btn chico" id="ar-x">Cerrar</button></header><div id="ar-box"><p id="ar-msg"></p></div></div></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=7b4997caaf"></script><script src="js/dkas-api.js?v=3079b292ee"></script><script src="js/dkas-croquis.js?v=e72aa8050e"></script><script src="js/crea-ui.js?v=8b65ce6c36"></script><script src="js/landing.js?v=86e07a0679"></script><script src="js/acceso.js?v=9b8d298853"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=7b4997caaf"></script><script src="js/dkas-api.js?v=3079b292ee"></script><script src="js/dkas-croquis.js?v=e72aa8050e"></script><script src="js/crea-ui.js?v=0cc38852d2"></script><script src="js/landing.js?v=86e07a0679"></script><script src="js/acceso.js?v=9b8d298853"></script></body></html>

@@ -3,7 +3,7 @@
   const D = window.DKAS, A = window.DAZK_API, WA = window.DKAS_WA, SITE = 'https://dkas.mx/';
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
   const esc = A.esc;
-  const PASOS = ['Mesa', 'Tamaño', 'Piedra', 'Base', 'Enviar'];
+  const PASOS = ['Mesa', 'Tamaño', 'Piedra', 'Base', 'Cotizar'];
   // título de cada paso al estilo del catálogo: número, etiqueta y la palabra clave en dorado
   const tit = (i, et, h) => '<div class="tt"><span class="num">0' + (i + 1) + '</span><p class="et">' + et + '</p><h2>' + h + '</h2></div>';
 
@@ -79,8 +79,9 @@
       + '<p class="nota">Pintura electrostática. Así se ve en el 3D.</p>';
     // 5 · enviar
     if (!enviado) { $('#p5res').innerHTML = D.resumen(st).filter(r => r[0] !== 'Fabricación').map(([k, v]) => '<li><span>' + k + '</span><b>' + esc(v) + '</b></li>').join(''); vivo(); pintarLista(); }
-    $('#atras').disabled = paso === 0; $('#sig').hidden = paso === PASOS.length - 1; $('#cuenta').textContent = (paso + 1) + ' / ' + PASOS.length;
-    $('#sig').textContent = paso === 3 ? 'Ver mi mesa' : 'Siguiente';
+    const ult = paso === PASOS.length - 1;
+    $('#atras').disabled = paso === 0; $('#sig').hidden = ult && !!enviado; $('#cuenta').textContent = (paso + 1) + ' / ' + PASOS.length;
+    $('#sig').textContent = ult ? 'Pedir cotización' : paso === 3 ? 'Cotizar mi mesa' : 'Siguiente'; $('#sig').classList.toggle('cot-sig', ult);
   }
   function campo(k, label, v, nota) {
     return '<div class="dim"><label for="d-' + k + '">' + label + '</label><div class="ctl"><button type="button" data-paso="' + k + '" data-d="-5" aria-label="Menos">−</button>'
@@ -152,7 +153,10 @@
   document.addEventListener('change', e => { if (!e.target.dataset.dim) return; clearTimeout(medidaEscrita.t); medidaEscrita(e.target, true); });
   document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.dim) e.target.blur(); });
   $('#atras').addEventListener('click', () => ir(paso - 1));
-  $('#sig').addEventListener('click', () => ir(paso + 1));
+  $('#sig').addEventListener('click', () => {
+    if (paso < PASOS.length - 1) return ir(paso + 1);
+    const f = $('#form'); if (f.reportValidity()) f.requestSubmit(); else { const x = f.querySelector(':invalid'); if (x) { x.scrollIntoView({ block: 'center', behavior: 'smooth' }); x.focus({ preventScroll: true }); } }
+  });
   $('#sillas').addEventListener('change', e => V.sillas(e.target.checked));
   $('#cotas').addEventListener('change', e => V.cotas(e.target.checked));
 
@@ -165,6 +169,7 @@
   const altura = m => m.H !== D.USOS[m.uso].H ? ' · altura ' + m.H + ' cm' : '';
   function pintarLista() {
     const t = todas(), n = piezas(t), box = $('#lista'); if (!box) return;
+    if (t.length === 1) { box.innerHTML = '<button type="button" class="btn agregar" id="agregar">+ Agregar otra mesa a la cotización</button>'; return; }
     box.innerHTML = '<div class="lista-cab"><p class="et">Tu pedido</p><b>' + n + (n === 1 ? ' mesa' : ' mesas') + (t.length > 1 ? ' · ' + t.length + ' diseños' : '') + '</b></div>'
       + t.map((x, i) => { const v = D.viabilidad(x.m);
         return '<div class="it' + (x.actual ? ' act' : '') + '">' + (x.img ? '<img src="' + x.img + '" alt="">' : '<span class="ph"></span>')
@@ -245,7 +250,7 @@
       err.textContent = x.message + (hechos.length ? ' Ya se enviaron ' + hechos.length + ' de ' + t.length + ' (folio ' + hechos.map(h => '#' + h.folio).join(', ') + '); toca Enviar otra vez para mandar las que faltan.' : '');
       err.hidden = false; pintarLista();
     }
-    b.disabled = false; b.textContent = 'Enviar mi mesa';
+    b.disabled = false; b.textContent = 'Pedir mi cotización'; pintar();
   });
   // compartir las fotos de las mesas por WhatsApp (en celular manda las imágenes; en compu abre el chat con el texto)
   $('#mandar').addEventListener('click', async () => {
@@ -330,8 +335,8 @@
   function accId() { return !window.DKAS_STAFF && window.DKAS_ACC_ID; }
   function aviso() {
     const el = $('#aviso-env'); if (!el) return;
-    if (enviado || miEnvio) { const f = enviado || miEnvio; el.className = 'aviso-env ok'; el.innerHTML = '<b>✓ Tu mesa ya está enviada' + (f.folio ? ' · #' + f.folio : '') + '.</b> Un asesor la revisa y te escribe por WhatsApp. <a href="' + A.seguimiento(f.token) + '">Ver mi pedido</a>'; el.hidden = !accId(); return; }
-    el.className = 'aviso-env'; el.innerHTML = '<b>Tu mesa se guarda sola, pero todavía no la envías.</b> Envíala para que un asesor la revise y te cotice como debe ser. <button type="button" data-ir="4">Enviar mi mesa →</button>';
+    if (enviado || miEnvio) { const f = enviado || miEnvio; el.className = 'aviso-env ok'; el.innerHTML = '<b>✓ Ya pediste tu cotización' + (f.folio ? ' · #' + f.folio : '') + '.</b> Un asesor revisa tu mesa y te escribe por WhatsApp. <a href="' + A.seguimiento(f.token) + '">Ver mi pedido</a>'; el.hidden = !accId(); return; }
+    el.className = 'aviso-env'; el.innerHTML = '<b>Tu mesa se guarda sola, pero todavía no pides tu cotización.</b> Pídela para que un asesor la revise y te cotice como debe ser. <button type="button" data-ir="4">Pedir mi cotización →</button>';
     el.hidden = !accId();
   }
   function guardaSola() {

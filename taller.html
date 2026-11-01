@@ -376,7 +376,22 @@ a.rg{text-decoration:none;color:inherit}
 
 .c-cot{display:block;text-decoration:none;color:inherit}.c-cot-t{margin:8px 0 0;font-size:14px}.c-cot .c-ped{margin-top:10px}
 .c-nuevo .acc-nuevo{flex-wrap:wrap}.c-nuevo .acc-nuevo input{min-width:140px}
+
+/* clientes por pestañas */
+.c-tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:4px -14px 12px;padding:0 14px}.c-tabs::-webkit-scrollbar{display:none}
+.c-tabs button{flex:none;padding:10px 14px;border-radius:22px;border:1.5px solid var(--linea);background:var(--card);font-weight:600;font-size:14px;white-space:nowrap}
+.c-tabs button.on{background:var(--tinta);border-color:var(--tinta);color:#fff}.c-tabs i{font-style:normal;background:#c2453a;color:#fff;border-radius:10px;padding:1px 7px;font-size:11.5px;margin-left:4px}
+.c-tabs button.on i{background:var(--oro2);color:#16120d}
+/* cotizar rápido */
+.cr-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.cr-t{display:flex;gap:10px;align-items:center;padding:8px;border:1px solid var(--linea);border-radius:12px;background:var(--card)}
+.cr-t img{width:56px;height:56px;object-fit:cover;border-radius:8px;flex:none}.cr-t small{display:block;font-size:11px;color:var(--oro);text-transform:uppercase;letter-spacing:.06em}.cr-t b{display:block;font-size:14px;line-height:1.25}.cr-t span{font-size:12.5px;color:var(--gris)}
+.cr-m{grid-column:1/-1}.cr-ed{margin:0 0 12px}
+.cr-precio{display:block;margin:6px 0 4px;font-weight:600;color:var(--tinta)}.cr-precio small{font-weight:400;color:var(--gris)}.cr-precio div{display:flex;gap:8px;margin-top:6px}.cr-precio input{flex:1;min-width:0;font-size:20px;font-weight:700}
+.vm-tx h3{margin:16px 0 6px}
+.m-op b{margin:0}
+/* más */
+.mas{display:grid;gap:10px;margin-top:14px}.mas a{display:block;padding:16px;border:1px solid var(--linea);border-radius:var(--r);background:var(--card);text-decoration:none;color:inherit;box-shadow:var(--sombra)}.mas b{display:block;font-size:16px}.mas small{color:var(--gris)}
 </style></head><body>
-<header class="top"><a href="#"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#clientes" data-sec="clientes">Clientes<i class="badge" id="nb-acc" hidden></i></a><a href="#" data-sec="log">Pedidos<span class="lg"> y logística</span></a><a href="#taller" data-sec="taller">Taller<span class="lg"> y creación</span></a><a href="#bases" data-sec="bases">Diseñar<span class="lg"> bases</span></a><a href="#agenda" data-sec="agenda">Agenda<i class="badge" id="nb-age" hidden></i></a><a href="#visitas" data-sec="visitas">Visitas</a><a href="#precios" data-sec="precios">Precios</a><a href="#" id="salir">Salir</a></nav></header>
+<header class="top"><a href="#"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#clientes" data-sec="clientes">Clientes<i class="badge" id="nb-acc" hidden></i></a><a href="#" data-sec="log">Pedidos<span class="lg"> y logística</span></a><a href="#taller" data-sec="taller">Taller<span class="lg"> y creación</span></a><a href="#agenda" data-sec="agenda">Agenda<i class="badge" id="nb-age" hidden></i></a><a href="#mas" data-sec="mas">Más</a><a href="#" id="salir" hidden>Salir</a></nav></header>
 <div id="avisos" class="avisos" hidden></div><main id="m"></main><div id="toast" hidden></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=7b4997caaf"></script><script src="js/dkas-api.js?v=3079b292ee"></script><script src="js/dkas-croquis.js?v=e72aa8050e"></script><script src="js/disena.js?v=cbae2a2d2d"></script><script src="js/panel-interes.js?v=544f3e0416"></script><script src="js/panel.js?v=b19609ace4"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=7b4997caaf"></script><script src="js/dkas-api.js?v=3079b292ee"></script><script src="js/dkas-croquis.js?v=e72aa8050e"></script><script src="js/disena.js?v=cbae2a2d2d"></script><script src="js/panel-interes.js?v=544f3e0416"></script><script src="js/panel.js?v=2828485f8f"></script></body></html>

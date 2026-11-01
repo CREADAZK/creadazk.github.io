@@ -129,12 +129,13 @@
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : h === '#agenda' ? 'agenda' : h === '#clientes' || h === '#accesos' || /^#prop=/.test(h) ? 'clientes' : h === '#accesos' ? 'accesos' : 'log';
+    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : h === '#agenda' ? 'agenda' : h === '#mas' || h === '#visitas' || h === '#bases' || h === '#precios' ? 'mas' : h === '#clientes' || h === '#accesos' || /^#prop=/.test(h) ? 'clientes' : h === '#accesos' ? 'accesos' : 'log';
     if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
     $$('#top-nav a[data-sec]').forEach(a => { a.classList.toggle('on', a.dataset.sec === sec); if (a.dataset.sec === sec && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'center' }); });
     if (h === '#precios') return precios();
     main.onclick = null; contarSolicitudes(); if (h !== '#agenda') { editando = null; contarAgenda(); }
     if (h === '#clientes') return clientes();
+    if (h === '#mas') return mas();
     if (/^#prop=[0-9a-f]{32}$/.test(h)) return propuesta(h.slice(6));
     if (h === '#agenda') return agenda();
     if (h === '#visitas') return visitas();
@@ -703,6 +704,11 @@
       }
     };
   }
+  function mas() {
+    main.innerHTML = '<h1>Más</h1><div class="mas">' + [['#visitas', 'Visitas', 'Quién entra a dkas.mx'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#precios', 'Precios', 'Costos y margen'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza'], ['https://dkas.mx/cotiza.html', 'Cotizador express', 'Lo que ven los clientes']]
+      .map(([h, t, d]) => '<a href="' + h + '"' + (/^http/.test(h) ? ' target="_blank" rel="noopener"' : '') + '><b>' + t + '</b><small>' + d + '</small></a>').join('') + '<a href="#" id="salir2"><b>Salir</b><small>Cerrar sesión en este aparato</small></a></div>';
+    $('#salir2').onclick = e => { e.preventDefault(); $('#salir').click(); };
+  }
   // ---------- Clientes: todo el camino de cada cliente en un solo lugar ----------
   // solicitud (nombre + WhatsApp) → apruebas → diseña (su mesa se guarda sola) → la envía (pedido). El sistema nunca le pone precio.
   async function clientes() {
@@ -733,11 +739,11 @@
         ['Cálido', 'Hola ' + n + ', ¿cómo estás? 😊 Soy ' + yoN + ' de DKAS. Vi que armaste tu mesa' + deMesa + ' en nuestra página, ¡quedó muy bonita! ¿Te ayudo a terminarla para prepararte tu cotización?'],
         ['Directo', n + ', esta es la mesa que armaste' + (mesa ? ': ' + mesa : '') + '. ¿Quieres que te ayude con la cotización? Dime cómo prefieres darle seguimiento o cuándo podemos hablar.'],
         ['Ayudarle / llamada', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Vi tu diseño' + deMesa + '. Si quieres te ayudo a armarla: medidas, piedra o base. ¿Cuándo te queda bien que hablemos, hoy o mañana?'],
-        ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Notamos que diseñó una mesa en nuestro configurador' + deMesa + '. Con gusto le preparamos una cotización formal. ¿Podría indicarnos un buen momento para comentarla?']];
+        ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Notamos que diseñó una mesa en nuestro configurador' + deMesa + '. Con gusto le preparamos una cotización formal. ¿Podría indicarnos un buen momento para comentarla?'], ['Cita con muestras', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Si quieres, te visitamos con muestras reales de las piedras y medimos tu espacio para recomendarte la mesa que más te conviene. Estamos disponibles cuando gustes, ¿qué día te acomoda?']];
       if (c.etapa === 'aprobar') return [
         ['Cálido', 'Hola ' + n + ', ¿cómo estás? 😊 Soy ' + yoN + ' de DKAS. Recibí tu solicitud para diseñar tu mesa' + laQue + '. En un momento te doy acceso y me dices si te ayudo con algo.'],
         ['Directo', n + ', recibí tu solicitud' + (q ? ' (te gustó la «' + q + '»)' : '') + '. ¿Para cuántas personas la buscas y qué medida tiene tu espacio? Así te ayudo a armarla.'],
-        ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Recibimos su solicitud para el diseñador de mesas. En breve le damos acceso; quedamos a sus órdenes.']];
+        ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Recibimos su solicitud para el diseñador de mesas. En breve le damos acceso; quedamos a sus órdenes.'], ['Cita con muestras', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Si quieres, te visitamos con muestras reales de las piedras y medimos tu espacio para recomendarte la mesa que más te conviene. Estamos disponibles cuando gustes, ¿qué día te acomoda?']];
       if (c.etapa === 'envio') return [
         ['Cálido', 'Hola ' + n + ', ¿cómo estás? 😊 Soy ' + yoN + ' de DKAS. Ya recibí tu mesa' + (f ? ' (pedido #' + f + ')' : '') + deMesa + '. Te preparo tu cotización y te la mando por aquí.'],
         ['Directo', n + ', recibí tu pedido' + (f ? ' #' + f : '') + (mesa ? ': ' + mesa : '') + '. ¿Quieres que revisemos juntos algún detalle antes de la cotización? ¿Cuándo podemos hablar?'],
@@ -746,7 +752,7 @@
         ['Cálido', 'Hola ' + n + ', ¿cómo estás? 😊 Soy ' + yoN + ' de DKAS. Ya tienes acceso para diseñar tu mesa' + laQue + ' en dkas.mx. Entra desde este mismo celular y ármala a tu medida. ¡Aquí estoy para lo que necesites!'],
         ['Directo', n + ', ya está tu acceso a dkas.mx. Entra desde este celular y arma tu mesa' + laQue + '. ¿Te ayudo a empezar?'],
         ['Ayudarle / llamada', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Si prefieres, armamos tu mesa juntos por aquí: dime para cuántas personas, la medida de tu espacio y la piedra que te gustó. ¿Cuándo podemos hablar?'],
-        ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Su acceso al diseñador de mesas en dkas.mx ya está activo. Quedamos a sus órdenes para acompañarle en el diseño y la cotización.']];
+        ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Su acceso al diseñador de mesas en dkas.mx ya está activo. Quedamos a sus órdenes para acompañarle en el diseño y la cotización.'], ['Cita con muestras', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Si quieres, te visitamos con muestras reales de las piedras y medimos tu espacio para recomendarte la mesa que más te conviene. Estamos disponibles cuando gustes, ¿qué día te acomoda?']];
     };
     const msj = c => opciones(c)[0][1];
     const wa = c => c.tel ? '<button class="btn chico wa-v" data-wa-op="' + c.k + '">WhatsApp</button>' : '';
@@ -781,17 +787,36 @@
       return '<h3 class="l-tit" id="c-cotizar">Por cotizar <i>' + l.length + '</i></h3><p class="sub l-sub">Ya escogieron su mesa y dejaron su WhatsApp. Ábrelos, ponles precio y mándales la cotización.</p><div class="leads">'
         + l.map(p => '<a class="lead cli e-aprobar c-cot" href="#p=' + p.id + '"><div class="l-cab"><div><b>' + esc(p.nombre) + ' · #' + p.folio + '</b><small>' + esc(p.tel || '') + ' · ' + cuando(p.creado) + (pid(p) ? ' · ' + esc(pid(p)[1]) : '') + '</small></div></div><p class="c-cot-t">' + esc((p.items[0] || {}).titulo || '') + '</p><span class="c-ped">Cotizar →</span></a>').join('') + '</div>';
     }
+    const resumenCorto = p => { try { const m = mesaDe(p); return [D.piedra(m.piedra).nombre, baseDe(p) + ' ' + colorDe(p).toLowerCase(), D.personas(m) ? D.personas(m) + ' personas' : D.medida(m)].join(' · '); } catch (e) { return ''; } };
     const de = e => lista.filter(c => c.etapa === e).sort((a, b) => (seg[a.k] ? 1 : 0) - (seg[b.k] ? 1 : 0) || b.ult - a.ult);
-    main.innerHTML = '<div class="cab"><div><h1>Clientes</h1><p class="sub">Cada cliente pide acceso con su WhatsApp, tú lo apruebas, diseña su mesa (se guarda sola) y la envía. Aquí ves en qué paso va cada uno.</p></div></div>'
+    // pedidos: por cotizar (nuevo) y esperando respuesta (cotizado)
+    const porCot = todos.filter(p => p.estado === 'nuevo').sort((a, b) => b.creado - a.creado), espRes = todos.filter(p => p.estado === 'cotizado').sort((a, b) => (b.cotizacion ? b.cotizacion.enviada : 0) - (a.cotizacion ? a.cotizacion.enviada : 0));
+    const sinTerminar = de('disena').concat(de('espera')), TABS = [['cotizar', 'Por cotizar', porCot.length], ['respuesta', 'Esperan respuesta', espRes.length], ['aprobar', 'Por aprobar', de('aprobar').length], ['pend', 'Sin terminar', sinTerminar.length]];
+    if (!clientes.tab || (!TABS.find(t => t[0] === clientes.tab)[2] && TABS.some(t => t[2]))) clientes.tab = (TABS.find(t => t[2]) || TABS[0])[0];
+    const pidio = p => ((p.items[0] || {}).specs || []).find(z => z[0] === 'Pidió');
+    const tarjPed = (p, modo) => { const c2 = p.cotizacion;
+      return '<div class="lead cli ' + (modo === 'cotizar' ? 'e-aprobar' : 'e-disena') + '"><div class="l-cab"><div><b>' + esc(p.nombre) + ' · #' + p.folio + '</b><small>' + esc(p.tel || 'sin WhatsApp') + ' · ' + cuando(p.creado) + (pidio(p) ? ' · ' + esc(pidio(p)[1]) : '') + '</small></div></div>'
+        + '<button class="c-mesa" data-cotp="' + p.id + '"><img data-foto="' + p.token + '" alt=""><div><small>' + (modo === 'cotizar' ? 'Lo que escogió' : 'Cotizada ' + (c2 ? cuando(c2.enviada) + ' · ' + pesos(c2.total) : '')) + '</small><b>' + esc((p.items[0] || {}).titulo || 'Mesa') + '</b><span>' + esc(resumenCorto(p)) + '</span></div></button>'
+        + '<div class="l-bot">' + (modo === 'cotizar' ? '<button class="btn oro chico" data-cotp="' + p.id + '">Cotizar</button>' : '<button class="btn chico" data-segp="' + p.id + '">Darle seguimiento</button><a class="btn chico" href="#p=' + p.id + '">Aceptó → anticipo</a>')
+        + (p.tel ? '<button class="btn chico" data-cita="' + p.id + '">Agendar cita</button>' : '') + '</div></div>'; };
+    const cuerpo = { cotizar: () => porCot.length ? '<p class="sub l-sub">Ya escogieron su mesa y dejaron su WhatsApp. Toca <b>Cotizar</b>: ves lo que eligieron, pones precio y se lo mandas.</p><div class="leads">' + porCot.map(p => tarjPed(p, 'cotizar')).join('') + '</div>' : '<p class="sub l-sub">Nada por cotizar. 🎉</p>',
+      respuesta: () => espRes.length ? '<p class="sub l-sub">Ya tienen su cotización. Escríbeles para cerrar o agenda una cita con muestras.</p><div class="leads">' + espRes.map(p => tarjPed(p, 'respuesta')).join('') + '</div>' : '<p class="sub l-sub">Nadie esperando respuesta.</p>',
+      aprobar: () => de('aprobar').length ? '<p class="sub l-sub">Pidieron el diseñador 3D. Aprueba o escríbeles.</p><div class="leads">' + de('aprobar').map(ficha).join('') + '</div>' : '<p class="sub l-sub">Nadie por aprobar.</p>',
+      pend: () => (sinTerminar.length ? '<p class="sub l-sub">Tienen acceso o armaron su mesa pero no la enviaron. Ármasela tú o escríbeles.</p><div class="leads">' + sinTerminar.map(ficha).join('') + '</div>' : '<p class="sub l-sub">Nadie pendiente.</p>')
+        + (de('rech').length ? '<details class="c-rech"><summary>Rechazados (' + de('rech').length + ')</summary><div class="leads">' + de('rech').map(ficha).join('') + '</div></details>' : '') };
+    main.innerHTML = '<div class="cab"><div><h1>Clientes</h1></div></div>'
       + '<details class="c-nuevo"><summary>+ Me escribió alguien por WhatsApp</summary><p class="sub">Mándale el cotizador de 1 minuto, o ármale tú la mesa.</p><div class="acc-nuevo"><input id="cn-nom" placeholder="Nombre" maxlength="60"><input id="cn-tel" inputmode="tel" placeholder="WhatsApp (10 dígitos)" maxlength="16"><button class="btn verde" id="cn-link">Mandarle el cotizador</button><button class="btn negro" id="cn-ok">Armarle su mesa yo</button></div><p class="nota">El cotizador le abre con su nombre y WhatsApp ya puestos: escoge tamaño, piedra y base y te llega como pedido.</p></details>'
-      + porCotizar()
-      + '<div class="resumen-g">' + ETAPAS.map(([e, t], i) => '<a class="rg ' + ['mal', 'ambar', '', 'gris'][i] + '" href="#c-' + e + '"><b>' + de(e).length + '</b><span>' + t + '</span></a>').join('') + '</div>'
-      + ETAPAS.map(([e, t, sub]) => '<h3 class="l-tit" id="c-' + e + '">' + t + ' <i>' + de(e).length + '</i></h3>' + (de(e).length ? '<p class="sub l-sub">' + sub + '</p><div class="leads">' + de(e).map(ficha).join('') + '</div>' : '<p class="sub l-sub">Nadie por ahora.</p>')).join('')
-      + (de('rech').length ? '<details class="c-rech"><summary>Rechazados (' + de('rech').length + ')</summary><div class="leads">' + de('rech').map(ficha).join('') + '</div></details>' : '')
-      + '<p class="c-pie"><a class="lnk" href="#accesos">Links de acceso directo (para arquitectos o clientes de confianza) →</a></p>';
+      + '<div class="c-tabs">' + TABS.map(([k2, t, n]) => '<button class="' + (clientes.tab === k2 ? 'on' : '') + '" data-tab="' + k2 + '">' + t + (n ? ' <i>' + n + '</i>' : '') + '</button>').join('') + '</div>'
+      + '<div id="c-cuerpo">' + cuerpo[clientes.tab]() + '</div>'
+      + '<p class="c-pie"><a class="lnk" href="#accesos">Links de acceso directo al 3D →</a></p>';
+    cargarFotos();
     main.onclick = async e => {
       const d = e.target.closest('[data-dec]'), w = e.target.closest('[data-escrito]'), mk = e.target.closest('[data-marca]'), ms = e.target.closest('[data-mesa]');
       if (ms) { const c = lista.find(z => z.k === ms.dataset.mesa); if (c) verMesa(c, msj(c)); return; }
+      const tb = e.target.closest('[data-tab]'); if (tb) { clientes.tab = tb.dataset.tab; return clientes(); }
+      const cp = e.target.closest('[data-cotp]'); if (cp) { const p = todos.find(z => z.id === cp.dataset.cotp); if (p) cotizarRapido(p); return; }
+      const sp = e.target.closest('[data-segp]'); if (sp) { const p = todos.find(z => z.id === sp.dataset.segp); if (p) cotizarRapido(p, true); return; }
+      const ct = e.target.closest('[data-cita]'); if (ct) { const p = todos.find(z => z.id === ct.dataset.cita); if (p) agendarCita({ nombre: p.nombre, tel: p.tel, folio: p.folio }); return; }
       if (e.target.closest('#cn-link')) { const n = $('#cn-nom').value.trim(), t = $('#cn-tel').value.replace(/\D/g, ''); if (t.length < 10) return alerta('Escribe su WhatsApp a 10 dígitos.');
         const url = 'https://dkas.mx/cotiza.html?' + new URLSearchParams(Object.assign({ c: 'whatsapp' }, n ? { n } : {}, { w: t }));
         window.open('https://wa.me/' + A.waNum(t) + '?text=' + encodeURIComponent('Hola' + (n ? ' ' + n.split(' ')[0] : '') + ', soy ' + yoN + ' de DKAS 👋 Aquí cotizas tu mesa en 1 minuto: escoges tamaño, piedra y base, y te mando tu cotización por aquí.\n' + url), '_blank'); return; }
@@ -805,6 +830,127 @@
       try { await A.marcarEscrito(k, si); if (si) seg[k] = { escrito: Date.now(), por: me.nombre }; else delete seg[k]; setTimeout(clientes, w ? 600 : 0); } catch (x) { alerta(x.message); }
     };
   }
+  function cargarFotos() { $$('img[data-foto]').forEach(async im => { const p = todos.find(z => z.token === im.dataset.foto); if (!p) return; try { const u = await fotoMesa(p); if (u) im.src = u; } catch (e) {} }); }
+
+  // ---------- Cotizar en una sola pantalla: lo que escogió, precio (opcional), mensaje y WhatsApp ----------
+  async function cotizarRapido(p, seguimiento) {
+    const m = mesaDe(p), x = numeros(p), n = p.nombre.split(' ')[0], yoN = String(me.nombre || 'Zury').split(' ')[0], col = D.color(m.color || 'negro');
+    const v = document.createElement('div'); v.className = 'vm';
+    const lin = () => ['Mesa de ' + D.USOS[m.uso].nombre.toLowerCase() + ' ' + D.FORMAS[m.forma].toLowerCase() + ' · ' + D.medida(m) + (D.personas(m) ? ' (' + D.personas(m) + ' personas)' : ''), 'Piedra ' + D.piedra(m.piedra).nombre, 'Base ' + baseDe(p) + ', color ' + colorDe(p).toLowerCase(), 'Altura ' + m.H + ' cm'];
+    const ligaPed = SITE + 'pedido.html#t=' + p.token, citaTxt = '¿Te gustaría que te visitemos con muestras de las piedras y midamos tu espacio? Estamos disponibles cuando gustes.';
+    const mensajes = precio => { const ant = precio ? Math.ceil(precio / 2) : 0, lista = lin().map(z => '• ' + z).join('\n');
+      if (seguimiento) return [
+        ['Seguimiento', 'Hola ' + n + ', ¿cómo estás? 😊 Soy ' + yoN + ' de DKAS. ¿Pudiste ver la cotización de tu mesa (#' + p.folio + ')? Si quieres ajustamos medidas, piedra o base. Aquí la ves: ' + ligaPed],
+        ['Cita con muestras', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Para que elijas con calma, te visitamos con muestras reales de las piedras y medimos tu espacio. Estamos disponibles cuando gustes, ¿qué día te acomoda?'],
+        ['Directo', n + ', ¿avanzamos con tu mesa? Con el anticipo empezamos a fabricarla. ¿Te paso los datos para el depósito?'],
+        ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Damos seguimiento a la cotización de su mesa (#' + p.folio + '). Quedamos a sus órdenes para cualquier ajuste o para agendar una visita con muestras.']];
+      if (precio) return [
+        ['Cotización', 'Hola ' + n + ' 👋 soy ' + yoN + ' de DKAS. Te mando la cotización de tu mesa:\n' + lista + '\n\nTotal: ' + pesos(precio) + '\nAnticipo para empezar (50%): ' + pesos(ant) + '\nAquí la ves y la aceptas: ' + ligaPed + '\n\n' + citaTxt],
+        ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Le compartimos la cotización de su mesa:\n' + lista + '\n\nTotal: ' + pesos(precio) + ' · anticipo del 50%: ' + pesos(ant) + '.\nPuede verla y aceptarla aquí: ' + ligaPed + '\nCon gusto le visitamos con muestras de las piedras para medir su espacio.']];
+      return [
+        ['Esto es lo que escogiste', 'Hola ' + n + ', ¿cómo estás? 😊 Soy ' + yoN + ' de DKAS. Esta es la mesa que escogiste:\n' + lista + '\n\n¿Es correcto? Si quieres ajustamos algo y te preparo tu cotización.'],
+        ['Cita con muestras', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Recibí tu mesa (' + D.piedra(m.piedra).nombre + ', base ' + baseDe(p) + '). Para recomendarte la medida ideal, te visitamos con muestras reales de las piedras y medimos tu espacio. Estamos disponibles cuando gustes, ¿qué día te acomoda?'],
+        ['Directo', n + ', esta es tu mesa:\n' + lista + '\n¿Te la cotizo así o le cambiamos algo?'],
+        ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Recibimos su solicitud:\n' + lista + '\n\nEn breve le compartimos la cotización formal. Si lo prefiere, le visitamos con muestras de las piedras para medir su espacio.']]; };
+    const tile = (img, t, sub) => '<div class="cr-t"><img src="' + img + '" alt=""><div><small>' + t + '</small><b>' + esc(sub) + '</b></div></div>';
+    v.innerHTML = '<div class="vm-caja"><button class="vm-x" aria-label="Cerrar">×</button><div class="vm-foto"><img id="cr-foto" alt=""></div><div class="vm-tx">'
+      + '<p class="vm-et">' + (seguimiento ? 'Seguimiento' : 'Cotizar') + ' · ' + esc(p.nombre) + ' · #' + p.folio + '</p><h2>' + esc(D.titulo(m)) + '</h2>'
+      + '<div class="cr-tiles">' + tile('img/piedras/' + m.piedra + '.jpg', 'Piedra', D.piedra(m.piedra).nombre) + tile(D.BASES[m.base].foto || 'img/bases/' + m.base + '.jpg', 'Base', baseDe(p) + ' · ' + colorDe(p).toLowerCase())
+      + '<div class="cr-t cr-m"><div><small>Medidas</small><b>' + esc(D.medida(m)) + ' · h ' + m.H + '</b>' + (D.personas(m) ? '<span>' + D.personas(m) + ' personas</span>' : '') + '</div></div></div>'
+      + '<p class="cr-ed"><a class="lnk" href="#t=' + p.id + '">Cambiar la mesa o ver costos →</a></p>'
+      + (seguimiento ? '' : '<label class="cr-precio">Precio total <small>(opcional: si lo dejas vacío le mandas lo que escogió, sin precio)</small><div><input id="cr-p" inputmode="decimal" placeholder="$" value="' + (x.pactado || '') + '">' + (x.sugerido ? '<button class="btn chico" id="cr-sug">Sugerido ' + pesos(x.sugerido) + '</button>' : '') + '</div></label>')
+      + '<h3>Mensaje</h3><div class="m-ops" id="cr-ops"></div><label class="m-ed">Puedes cambiarlo<textarea id="cr-tx" rows="7"></textarea></label>'
+      + '<div class="vm-bot"><button class="btn verde" id="cr-wa">Mandar por WhatsApp</button><button class="btn" id="cr-cita">Agendar cita con muestras</button></div></div></div>';
+    document.body.appendChild(v); document.body.style.overflow = 'hidden';
+    fotoMesa(p).then(u => { if (u) v.querySelector('#cr-foto').src = u; }).catch(() => {});
+    let elegido = 0, editado = false;
+    const precio = () => seguimiento ? 0 : num((v.querySelector('#cr-p') || {}).value) || 0;
+    const pintaOps = () => { const ops = mensajes(precio()); if (elegido >= ops.length) elegido = 0;
+      v.querySelector('#cr-ops').innerHTML = ops.map(([t], i) => '<button class="m-op' + (i === elegido ? ' on' : '') + '" data-op="' + i + '"><b>' + t + '</b></button>').join('');
+      if (!editado) v.querySelector('#cr-tx').value = ops[elegido][1];
+      v.querySelector('#cr-wa').textContent = seguimiento ? 'Mandar por WhatsApp' : precio() ? 'Mandar cotización por WhatsApp' : 'Mandar lo que escogió (sin precio)'; };
+    pintaOps();
+    v.querySelector('#cr-tx').oninput = () => { editado = true; };
+    if (v.querySelector('#cr-p')) v.querySelector('#cr-p').oninput = () => { editado = false; pintaOps(); };
+    const cerrar = () => { v.remove(); document.body.style.overflow = ''; };
+    v.onclick = async e => {
+      if (e.target === v || e.target.closest('.vm-x')) return cerrar();
+      if (e.target.closest('.cr-ed a')) return cerrar();
+      const o = e.target.closest('[data-op]'); if (o) { elegido = +o.dataset.op; editado = false; return pintaOps(); }
+      if (e.target.closest('#cr-sug')) { v.querySelector('#cr-p').value = x.sugerido; editado = false; return pintaOps(); }
+      if (e.target.closest('#cr-cita')) { cerrar(); return agendarCita({ nombre: p.nombre, tel: p.tel, folio: p.folio }); }
+      const b = e.target.closest('#cr-wa'); if (!b) return;
+      if (!p.tel) return alerta('Este pedido no tiene WhatsApp.');
+      b.disabled = true; const pr = precio(), tx = v.querySelector('#cr-tx').value;
+      try {
+        let files = [];
+        if (pr) {
+          const f = Object.assign({}, ficha(p), { pactado: pr }); await A.guardarFicha(p.id, 'dkas', f, 'Precio pactado: ' + pesos(pr)); p.fichas = Object.assign({}, p.fichas, { dkas: f });
+          const x2 = numeros(p), cot = { total: pr, anticipo: Math.ceil(pr / 2), mesa: [m.uso, m.forma, m.L, m.W, m.base, m.piedra].join('.'), items: [{ titulo: D.titulo(m), cantidad: x2.n, precio: Math.round(pr / x2.n) }],
+            detalle: resumenP(p).map(([k, w]) => k + ': ' + w).join(' · '), condiciones: 'Anticipo del 50% para empezar a fabricar; el saldo se paga al entregar.' };
+          await A.enviarCotizacion(p.id, cot); p.cotizacion = Object.assign({}, cot, { enviada: Date.now() }); p.estado = 'cotizado';
+          files.push(new File([await imagenCoti(p)], 'cotizacion-' + p.folio + '.jpg', { type: 'image/jpeg' }));
+        } else if (!seguimiento) files.push(new File([await imagenEleccion(p)], 'tu-mesa-' + p.folio + '.jpg', { type: 'image/jpeg' }));
+        if (!seguimiento) files.push(new File([await CQ.png(m, { cliente: p.nombre, plano: true })], 'plano-' + p.folio + '.jpg', { type: 'image/jpeg' }));
+        await compartir(files, tx, A.waNum(p.tel));
+        if (pr) toast('Cotización enviada: pasa a «Esperan respuesta»');
+        cerrar(); await recargar(); if (location.hash === '#clientes') clientes();
+      } catch (x3) { b.disabled = false; alerta(x3.message); }
+    };
+  }
+  // la imagen de lo que escogió (sin precio): foto, piedra, base y plano
+  async function imagenEleccion(p) {
+    const m = mesaDe(p), ld = s2 => cargarImg(s2);
+    const [f, pi, ba, logo] = await Promise.all([fotoMesa(p).then(ld), ld('img/piedras/' + m.piedra + '.jpg'), ld(D.BASES[m.base].foto || 'img/bases/' + m.base + '.jpg'), ld('img/dkas-claro.png')]);
+    const Wd = 1080, cv = document.createElement('canvas'); cv.width = Wd; cv.height = 1500; const g = cv.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, Wd, 1500); g.fillStyle = '#14110e'; g.fillRect(0, 0, Wd, 110);
+    if (logo) g.drawImage(logo, 50, 28, 54 * logo.width / logo.height, 54);
+    g.fillStyle = '#c2a273'; g.font = '600 28px Inter,Arial'; g.textAlign = 'right'; g.fillText('Tu mesa, ' + p.nombre.split(' ')[0], Wd - 50, 66); g.textAlign = 'left';
+    if (f) g.drawImage(f, 0, 110, Wd, 720);
+    const tile = (im, x0, t, sub) => { if (im) { g.save(); g.beginPath(); g.rect(x0, 870, 200, 200); g.clip(); const r = Math.max(200 / im.width, 200 / im.height); g.drawImage(im, x0 + (200 - im.width * r) / 2, 870 + (200 - im.height * r) / 2, im.width * r, im.height * r); g.restore(); }
+      g.fillStyle = '#8f7043'; g.font = '600 22px Inter,Arial'; g.fillText(t, x0 + 220, 910); g.fillStyle = '#14110e'; g.font = '600 30px Inter,Arial'; g.fillText(sub, x0 + 220, 952); };
+    tile(pi, 50, 'PIEDRA', D.piedra(m.piedra).nombre);
+    const tile2 = (im, y0, t, sub) => { if (im) { g.save(); g.beginPath(); g.rect(50, y0, 200, 200); g.clip(); const r = Math.max(200 / im.width, 200 / im.height); g.drawImage(im, 50 + (200 - im.width * r) / 2, y0 + (200 - im.height * r) / 2, im.width * r, im.height * r); g.restore(); }
+      g.fillStyle = '#8f7043'; g.font = '600 22px Inter,Arial'; g.fillText(t, 270, y0 + 40); g.fillStyle = '#14110e'; g.font = '600 30px Inter,Arial'; g.fillText(sub, 270, y0 + 82); };
+    tile2(ba, 1090, 'BASE', baseDe(p) + ' · ' + colorDe(p).toLowerCase());
+    g.fillStyle = '#14110e'; g.font = '700 34px Inter,Arial'; g.fillText(D.medida(m) + (D.personas(m) ? ' · ' + D.personas(m) + ' personas' : '') + ' · altura ' + m.H + ' cm', 50, 1360);
+    g.fillStyle = '#6e6962'; g.font = '400 24px Inter,Arial'; g.fillText('DKAS · mesas de piedra sinterizada · dkas.mx', 50, 1450);
+    return new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.88));
+  }
+  // ---------- agendar cita: muestras de piedras y medir su espacio; queda en la Agenda y se le confirma por WhatsApp ----------
+  function agendarCita(c) {
+    const v = document.createElement('div'), n = c.nombre.split(' ')[0], yoN = String(me.nombre || 'Zury').split(' ')[0]; v.className = 'vm';
+    const TIPOS = [['visita', 'Visita con muestras y medir su espacio'], ['taller', 'Viene al taller a ver las piedras'], ['llamada', 'Llamada o videollamada']];
+    v.innerHTML = '<div class="vm-caja"><button class="vm-x" aria-label="Cerrar">×</button><div class="vm-tx"><p class="vm-et">Cita · ' + esc(c.nombre) + (c.folio ? ' · #' + c.folio : '') + '</p><h2>Agendar cita</h2>'
+      + '<div class="m-ops">' + TIPOS.map(([k2, t], i) => '<button class="m-op' + (i ? '' : ' on') + '" data-tipo="' + k2 + '"><b>' + t + '</b></button>').join('') + '</div>'
+      + '<div class="ag-campos"><label>Día<input type="date" id="ci-f" value="' + hoy(1) + '"></label><label>Hora<input type="time" id="ci-h" value="11:00"></label></div>'
+      + '<label class="m-ed">Mensaje de confirmación<textarea id="ci-tx" rows="5"></textarea></label>'
+      + '<div class="vm-bot"><button class="btn verde" id="ci-ok">Guardar en la Agenda y confirmarle por WhatsApp</button><button class="btn" id="ci-solo">Solo guardar en la Agenda</button></div></div></div>';
+    document.body.appendChild(v); document.body.style.overflow = 'hidden';
+    let tipo = 'visita', editado = false;
+    const fechaTxt = () => { const f = v.querySelector('#ci-f').value, h = v.querySelector('#ci-h').value; return (f ? new Date(f + 'T12:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }) : '') + (h ? ' a las ' + new Date('2000-01-01T' + h).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }).replace(/.$/, '') : ''); };
+    const texto = () => ({ visita: 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Te confirmo la visita el ' + fechaTxt() + '. Te llevamos muestras reales de las piedras y medimos tu espacio para recomendarte la mesa ideal. ¿Me compartes tu dirección?',
+      taller: 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Te esperamos en el taller el ' + fechaTxt() + ' para que veas las piedras en persona. Te mando la ubicación.',
+      llamada: 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Te llamo el ' + fechaTxt() + ' para platicar de tu mesa. Si prefieres otra hora, dime.' })[tipo];
+    const pinta = () => { if (!editado) v.querySelector('#ci-tx').value = texto(); };
+    pinta(); v.querySelector('#ci-tx').oninput = () => { editado = true; }; v.querySelector('#ci-f').onchange = v.querySelector('#ci-h').onchange = () => { editado = false; pinta(); };
+    const cerrar = () => { v.remove(); document.body.style.overflow = ''; };
+    v.onclick = async e => {
+      if (e.target === v || e.target.closest('.vm-x')) return cerrar();
+      const t = e.target.closest('[data-tipo]'); if (t) { tipo = t.dataset.tipo; v.querySelectorAll('[data-tipo]').forEach(z => z.classList.toggle('on', z === t)); editado = false; return pinta(); }
+      const ok = e.target.closest('#ci-ok, #ci-solo'); if (!ok) return;
+      const f = v.querySelector('#ci-f').value, h = v.querySelector('#ci-h').value; if (!f) return alerta('Escoge el día.');
+      ok.disabled = true;
+      try {
+        const id = Date.now().toString(36) + A.rnd().slice(0, 6), tt = TIPOS.find(z => z[0] === tipo)[1];
+        await A.guardarTarea(id, Object.assign({ texto: ('Cita con ' + c.nombre + (c.tel ? ' (' + c.tel + ')' : '') + ': ' + tt.toLowerCase() + (c.folio ? ' · pedido #' + c.folio : '')).slice(0, 400), fecha: f, hecho: false, creado: Date.now(), urgente: true, por: String(me.nombre || '').slice(0, 60) }, h ? { hora: h } : {}));
+        toast('Cita guardada en la Agenda'); contarAgenda();
+        if (ok.id === 'ci-ok' && c.tel) window.open('https://wa.me/' + A.waNum(c.tel) + '?text=' + encodeURIComponent(v.querySelector('#ci-tx').value), '_blank');
+        cerrar();
+      } catch (x) { ok.disabled = false; alerta(x.message); }
+    };
+  }
+
   // la mesa del cliente: su foto, el plano con medidas exactas y mandarla por WhatsApp (sin precios)
   function verMesa(c, texto) {
     const p = String(c.d.cod).split('.'), m = D.normalizar({ uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5], H: +p[6] || undefined, color: p[7] || 'negro' });

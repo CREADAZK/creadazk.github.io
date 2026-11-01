@@ -34,6 +34,15 @@
     return Object.assign({ nombre, notas: String(p.notas || '').trim().slice(0, 1000) }, tel ? { tel } : {}, canal ? { canal } : {});
   }
 
+  // a request for access to the 3D designer: first and last name are required
+  function solicitud(s) {
+    const t = x => String(x || '').trim().replace(/\s+/g, ' '), nombre = t(s.nombre).slice(0, 60), apellido = t(s.apellido).slice(0, 60), tel = digits(s.tel), despacho = t(s.despacho).slice(0, 120);
+    if (nombre.length < 2) throw new Error('Escribe tu nombre.');
+    if (apellido.length < 2) throw new Error('Escribe tu apellido.');
+    if (tel && (tel.length < 10 || tel.length > 13)) throw new Error('Revisa tu WhatsApp (10 dígitos) o déjalo vacío.');
+    return Object.assign({ nombre, apellido }, tel ? { tel } : {}, despacho ? { despacho } : {});
+  }
+
   // ---------- Firebase ----------
   const TS = { '.sv': 'timestamp' };
   let ses = load('dazk-ses', null), yoCache = null;
@@ -205,6 +214,15 @@
     async verFoto(t) { return db('fotos/' + t); },
     // bases diseñadas en el panel: todos las leen (la página de clientes también), solo el taller las escribe
     async basesPublicas() { return (await db('catalogo/bases')) || {}; },
+    // access to the 3D designer: requests (solicitudes/<id>, readable by whoever holds the id) and staff-made links (accesos/<token>)
+    async solicitarAcceso(id, s) { await db('solicitudes/' + id, 'PUT', Object.assign(solicitud(s), { creado: TS, estado: 'pendiente' })); },
+    async verSolicitud(id) { return db('solicitudes/' + id); },
+    async verAcceso(t) { return db('accesos/' + t); },
+    async solicitudes() { return Object.entries((await db('solicitudes', 'GET', undefined, true)) || {}).map(([id, s]) => Object.assign({ id }, s)).sort((a, b) => b.creado - a.creado); },
+    async decidirSolicitud(id, estado) { const me = await this.yo(); await db('solicitudes/' + id, 'PATCH', { estado, por: (me && me.nombre) || 'DKAS', decidido: TS }, true); },
+    async crearAcceso(nombre) { const me = await this.yo(), t = rnd(); await db('accesos/' + t, 'PUT', { nombre: String(nombre || '').trim().slice(0, 80) || 'Sin nombre', creado: TS, activo: true, por: (me && me.nombre) || 'DKAS' }, true); return t; },
+    async accesos() { return Object.entries((await db('accesos', 'GET', undefined, true)) || {}).map(([t, a]) => Object.assign({ token: t }, a)).sort((a, b) => b.creado - a.creado); },
+    async cambiarAcceso(t, activo) { await db('accesos/' + t + '/activo', 'PUT', !!activo, true); },
     async guardarBase(id, b) { await db('catalogo/bases/' + id, 'PUT', b, true); },
     async borrarBase(id) { await db('catalogo/bases/' + id, 'DELETE', undefined, true); },
     async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=1000&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
@@ -271,6 +289,14 @@
     async guardarFoto(t, url) { const d = load('dazk-demo-fotos', {}); d[t] = url; save('dazk-demo-fotos', d); },
     async verFoto(t) { return load('dazk-demo-fotos', {})[t] || null; },
     async basesPublicas() { return load('dazk-demo-bases', {}); },
+    async solicitarAcceso(id, s) { const d = load('dazk-demo-sol', {}); d[id] = Object.assign(solicitud(s), { creado: Date.now(), estado: 'pendiente' }); save('dazk-demo-sol', d); },
+    async verSolicitud(id) { return load('dazk-demo-sol', {})[id] || null; },
+    async verAcceso(t) { return load('dazk-demo-acc', {})[t] || null; },
+    async solicitudes() { return Object.entries(load('dazk-demo-sol', {})).map(([id, s]) => Object.assign({ id }, s)).sort((a, b) => b.creado - a.creado); },
+    async decidirSolicitud(id, estado) { const d = load('dazk-demo-sol', {}); if (d[id]) Object.assign(d[id], { estado, por: (who() || {}).nombre || 'DKAS', decidido: Date.now() }); save('dazk-demo-sol', d); },
+    async crearAcceso(nombre) { const d = load('dazk-demo-acc', {}), t = rnd(); d[t] = { nombre: String(nombre || '').trim().slice(0, 80) || 'Sin nombre', creado: Date.now(), activo: true, por: (who() || {}).nombre || 'DKAS' }; save('dazk-demo-acc', d); return t; },
+    async accesos() { return Object.entries(load('dazk-demo-acc', {})).map(([t, a]) => Object.assign({ token: t }, a)).sort((a, b) => b.creado - a.creado); },
+    async cambiarAcceso(t, activo) { const d = load('dazk-demo-acc', {}); if (d[t]) d[t].activo = !!activo; save('dazk-demo-acc', d); },
     async guardarBase(id, b) { const d = load('dazk-demo-bases', {}); d[id] = b; save('dazk-demo-bases', d); },
     async borrarBase(id) { const d = load('dazk-demo-bases', {}); delete d[id]; save('dazk-demo-bases', d); },
     async staffEstado(id, est) { edit(x => x.id === id, (p, ev) => { p.estado = est; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: estado(est) }); }); },

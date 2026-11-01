@@ -129,11 +129,13 @@
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : 'log';
+    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : h === '#accesos' ? 'accesos' : 'log';
     if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
     $$('#top-nav a[data-sec]').forEach(a => a.classList.toggle('on', a.dataset.sec === sec));
     if (h === '#precios') return precios();
+    main.onclick = null; contarSolicitudes();
     if (h === '#visitas') return visitas();
+    if (h === '#accesos') return accesos();
     if (h === '#bases') return DKAS_DISENA.pantalla(main, { toast, alerta });
     if (h === '#nuevo') return nuevo();
     if (h === '#taller') return lista('taller');
@@ -598,6 +600,48 @@
       + '<div class="sec">' + (gente.length ? gente.map(g => '<div class="fila vis"><div><b>' + esc(g.nombre || 'Sin nombre') + '</b><small>' + esc([g.disp, g.origen].filter(Boolean).join(' · ')) + '</small></div>'
         + '<div><span>' + PASO[Math.min(3, g.max)] + (g.folio ? ' · pedido #' + g.folio : '') + '</span><small>' + g.veces + (g.veces === 1 ? ' visita' : ' visitas') + ' · última ' + cuando(g.ult) + '</small></div></div>').join('') : '<p class="sub">Todavía nadie.</p>') + '</div>';
   }
+
+  // ---------- accesos al diseñador 3D: solicitudes por aprobar y links de acceso directo ----------
+  let ultCuenta = 0;
+  function contarSolicitudes(forzar) {
+    if (!forzar && Date.now() - ultCuenta < 30000) return; ultCuenta = Date.now();
+    A.solicitudes().then(l => { const n = l.filter(s => s.estado === 'pendiente').length, b = $('#nb-acc'); if (b) { b.textContent = n; b.hidden = !n; } }).catch(() => {});
+  }
+  setInterval(() => { if (me && me.nombre) contarSolicitudes(true); }, 60000);
+  const LINK_ACC = t => 'https://dkas.mx/?acceso=' + t;
+  async function accesos() {
+    main.innerHTML = '<h1>Accesos al 3D</h1><p class="sub">Cargando…</p>';
+    let sol, acc; try { [sol, acc] = await Promise.all([A.solicitudes(), A.accesos()]); } catch (e) { main.innerHTML = '<h1>Accesos al 3D</h1><p class="err">' + esc(e.message) + '</p>'; return; }
+    const pend = sol.filter(s => s.estado === 'pendiente'), resto = sol.filter(s => s.estado !== 'pendiente'), hoy = new Date().toDateString();
+    const cuando = t => { const d = new Date(t); return d.toDateString() === hoy ? 'hoy ' + d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }) : A.fecha(t); };
+    const quien = s => esc(s.nombre + ' ' + s.apellido);
+    const avisar = s => s.tel ? '<a class="btn chico" target="_blank" rel="noopener" href="https://wa.me/' + A.waNum(s.tel) + '?text=' + encodeURIComponent('Hola ' + s.nombre + ', ya tienes acceso al diseñador 3D de DKAS. Entra aquí desde el mismo teléfono o computadora: https://dkas.mx/#app') + '">Avisarle por WhatsApp</a>' : '';
+    const datos = s => '<div><b>' + quien(s) + '</b><small>' + esc([s.despacho, s.tel, 'pidió ' + cuando(s.creado)].filter(Boolean).join(' · ')) + '</small></div>';
+    main.innerHTML = '<h1>Accesos al 3D</h1><p class="sub">El diseñador 3D de dkas.mx es privado. Solo entra quien apruebes aquí o quien abra un link que generes.</p>'
+      + '<div class="resumen-g"><div><b>' + pend.length + '</b><span>por aprobar</span></div><div><b>' + resto.filter(s => s.estado === 'aprobada').length + '</b><span>aprobadas</span></div><div><b>' + acc.filter(a => a.activo).length + '</b><span>links activos</span></div></div>'
+      + sec(1, 'Solicitudes por aprobar', pend.length ? pend.map(s => '<div class="fila vis acc-fila">' + datos(s) + '<div class="acc-bot"><button class="btn negro chico" data-dec="' + s.id + '|aprobada">Aprobar</button><button class="btn chico" data-dec="' + s.id + '|rechazada">Rechazar</button></div></div>').join('') : '<p class="sub">No hay solicitudes nuevas.</p>')
+      + sec(2, 'Link de acceso directo', '<p class="nota">Para alguien en especial (un arquitecto, un cliente). Con abrir el link entra directo al 3D, sin pedir acceso. Lo puedes desactivar cuando quieras.</p>'
+        + '<div class="acc-nuevo"><input id="acc-n" maxlength="80" placeholder="Para quién · Ej. Arq. Laura Méndez"><button class="btn negro" id="acc-crear">Generar link</button></div><div id="acc-res"></div>'
+        + (acc.length ? acc.map(a => '<div class="fila vis acc-fila' + (a.activo ? '' : ' apagado') + '"><div><b>' + esc(a.nombre) + '</b><small>' + esc((a.activo ? 'Activo' : 'Desactivado') + ' · creado ' + cuando(a.creado) + (a.por ? ' por ' + a.por : '')) + '</small></div>'
+          + '<div class="acc-bot"><button class="btn chico" data-copiar="' + a.token + '">Copiar link</button><a class="btn chico" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent('Hola, este es tu acceso al diseñador 3D de DKAS: ' + LINK_ACC(a.token)) + '">Mandar por WhatsApp</a>'
+          + '<button class="btn chico" data-acc="' + a.token + '|' + (a.activo ? 0 : 1) + '">' + (a.activo ? 'Desactivar' : 'Activar') + '</button></div></div>').join('') : ''))
+      + sec(3, 'Historial', resto.length ? resto.map(s => '<div class="fila vis acc-fila"><div><b>' + quien(s) + ' <i class="est-acc ' + s.estado + '">' + (s.estado === 'aprobada' ? 'Aprobada' : 'Rechazada') + '</i></b><small>' + esc([s.despacho, s.tel, (s.estado === 'aprobada' ? 'aprobó ' : 'rechazó ') + (s.por || '') + ' ' + (s.decidido ? cuando(s.decidido) : '')].filter(Boolean).join(' · ')) + '</small></div>'
+        + '<div class="acc-bot">' + (s.estado === 'aprobada' ? avisar(s) + '<button class="btn chico" data-dec="' + s.id + '|rechazada">Quitar acceso</button>' : '<button class="btn chico" data-dec="' + s.id + '|aprobada">Aprobar</button>') + '</div></div>').join('') : '<p class="sub">Todavía nada.</p>');
+    main.onclick = async e => {
+      const b = e.target.closest('button'); if (!b) return;
+      try {
+        if (b.dataset.dec) { const [id, est] = b.dataset.dec.split('|'); b.disabled = true; await A.decidirSolicitud(id, est); toast(est === 'aprobada' ? 'Aprobada: ya puede entrar al 3D' : 'Listo: sin acceso'); contarSolicitudes(true); return accesos(); }
+        if (b.dataset.acc) { const [t, v] = b.dataset.acc.split('|'); b.disabled = true; await A.cambiarAcceso(t, v === '1'); toast(v === '1' ? 'Link activado' : 'Link desactivado'); return accesos(); }
+        if (b.dataset.copiar) { await copiar(LINK_ACC(b.dataset.copiar)); return toast('Link copiado'); }
+        if (b.id === 'acc-crear') {
+          b.disabled = true; const nombre = $('#acc-n').value.trim() || 'Sin nombre', t = await A.crearAcceso(nombre), url = LINK_ACC(t);
+          await accesos(); await copiar(url).catch(() => {});
+          $('#acc-res').innerHTML = '<p class="ok-c">Link para <b>' + esc(nombre) + '</b> (ya está copiado):<br><a href="' + url + '" target="_blank" rel="noopener">' + url + '</a></p>';
+        }
+      } catch (x) { alerta(x.message); b.disabled = false; }
+    };
+  }
+  async function copiar(t) { try { await navigator.clipboard.writeText(t); } catch (e) { const i = document.createElement('textarea'); i.value = t; document.body.appendChild(i); i.select(); document.execCommand('copy'); i.remove(); } }
 
   // ---------- precios, herreros y días de fabricación ----------
   function precios() {

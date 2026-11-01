@@ -115,7 +115,7 @@
   }, 'image/png');
 
   // ---------- pantallas: cada sección se abre sola (con el #) ----------
-  const PANT = { inicio: ['.hero', '#accesos', '.sellos'], crea: ['#disena', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
+  const PANT = { inicio: ['.hero', '#accesos', '.sellos'], crea: ['#disena', '#acceso', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
     bases: ['#bases'], proyectos: ['#proyectos'], arquitectos: ['#arquitectos'], como: ['#casa', '#como', '#preguntas'], contacto: ['#contacto'] };
   const ALIAS = { app: 'crea', disena: 'crea', casa: 'como', preguntas: 'como', porque: 'piedras', espacios: 'proyectos' };
   const ORDEN = ['inicio', 'crea', 'coleccion', 'piedras', 'bases', 'proyectos', 'arquitectos', 'como', 'contacto'];

@@ -235,7 +235,21 @@ img.sin{min-height:52px}
 .bv-op:hover,.bv-op:focus-visible{border-color:#B08D57;background:#fff}
 .bv-op b{display:block;margin-bottom:6px}
 .bv-op span{display:block;font-size:14px;line-height:1.45;color:#333}
+
+/* accesos al diseñador 3D */
+#top-nav .badge{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:5px;padding:0 5px;border-radius:9px;background:#c2453a;color:#fff;font:700 11px/1 Inter,Arial;font-style:normal;vertical-align:2px}
+.acc-fila{align-items:center}
+.acc-bot{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.acc-fila.apagado{opacity:.55}
+.acc-nuevo{display:flex;gap:10px;margin:12px 0 6px}.acc-nuevo input{flex:1;min-width:0}
+.est-acc{font-style:normal;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:2px}
+.est-acc.aprobada{background:#e3f4e8;color:#1f7a3f}.est-acc.rechazada{background:#f7e4e1;color:#a5342a}
+#acc-res a{word-break:break-all}
+@media (max-width:700px){.acc-bot{justify-content:flex-start}.acc-nuevo{flex-direction:column}}
+/* tarjetas de resumen sin clase (Visitas, Accesos) */
+.resumen-g>div{background:var(--card);border:1px solid var(--linea);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sombra)}
+.resumen-g>div>b{display:block;font-size:28px;line-height:1.1;font-weight:700}.resumen-g>div>span{font-size:13px;color:var(--gris)}
 </style></head><body>
-<header class="top"><a href="#"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#" data-sec="log">Pedidos<span class="lg"> y logística</span></a><a href="#taller" data-sec="taller">Taller<span class="lg"> y creación</span></a><a href="#bases" data-sec="bases">Diseñar<span class="lg"> bases</span></a><a href="#visitas" data-sec="visitas">Visitas</a><a href="#precios" data-sec="precios">Precios</a><a href="#" id="salir">Salir</a></nav></header>
+<header class="top"><a href="#"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#" data-sec="log">Pedidos<span class="lg"> y logística</span></a><a href="#taller" data-sec="taller">Taller<span class="lg"> y creación</span></a><a href="#bases" data-sec="bases">Diseñar<span class="lg"> bases</span></a><a href="#visitas" data-sec="visitas">Visitas</a><a href="#accesos" data-sec="accesos">Accesos<i class="badge" id="nb-acc" hidden></i></a><a href="#precios" data-sec="precios">Precios</a><a href="#" id="salir">Salir</a></nav></header>
 <main id="m"></main><div id="toast" hidden></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=18f9bb0086"></script><script src="js/dkas-api.js?v=07422344b9"></script><script src="js/dkas-croquis.js?v=ab948a527e"></script><script src="js/disena.js?v=cbae2a2d2d"></script><script src="js/panel.js?v=21a98736cd"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=18f9bb0086"></script><script src="js/dkas-api.js?v=2d8522b39d"></script><script src="js/dkas-croquis.js?v=ab948a527e"></script><script src="js/disena.js?v=cbae2a2d2d"></script><script src="js/panel.js?v=f68e49f0a7"></script></body></html>

@@ -157,7 +157,12 @@
   // ---------- botón flotante: se esconde en el configurador ----------
   const flota = $('#flota');
   // en Inicio aparece en cuanto pasas la portada; en Crea tu mesa no hace falta
-  const verFlota = () => flota.classList.toggle('fuera', document.body.dataset.p === 'crea' || (document.body.dataset.p === 'inicio' && scrollY < innerHeight * 0.55));
+  // también se esconde cuando en pantalla ya hay otro botón principal (así nunca tapa títulos ni botones) y al llegar al final
+  const ctas = new Set();
+  const ioCta = 'IntersectionObserver' in window ? new IntersectionObserver(es => { es.forEach(e => e.isIntersecting ? ctas.add(e.target) : ctas.delete(e.target)); verFlota(); }, { rootMargin: '0px 0px -40px 0px' }) : null;
+  if (ioCta) $$('.dos-b, [data-modelo], [data-piedra], .hero .btn, .sig-pant, .rev .lnk-g').forEach(el => ioCta.observe(el));
+  const verFlota = () => flota.classList.toggle('fuera', document.body.dataset.p === 'crea' || (document.body.dataset.p === 'inicio' && scrollY < innerHeight * 0.55)
+    || [...ctas].some(el => el.offsetParent !== null) || innerHeight + scrollY > document.documentElement.scrollHeight - 160);
   addEventListener('scroll', verFlota, { passive: true }); verFlota();
 
   // ---------- dibuja tu idea: un lienzo que se manda por WhatsApp ----------

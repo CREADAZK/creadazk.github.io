@@ -674,7 +674,9 @@
     const R = new T.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: false });
     R.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); R.outputEncoding = T.sRGBEncoding; R.toneMapping = T.ACESFilmicToneMapping; R.toneMappingExposure = 0.82;
     R.shadowMap.enabled = true; R.shadowMap.type = T.PCFSoftShadowMap;
-    el.appendChild(R.domElement); R.domElement.style.display = 'block'; R.domElement.style.touchAction = 'none';
+    el.appendChild(R.domElement); R.domElement.style.display = 'block';
+    // en celular, deslizar hacia arriba o abajo mueve la página (el dedo no se queda atorado en el 3D); de lado gira la mesa y con dos dedos se acerca
+    R.domElement.style.touchAction = matchMedia('(pointer:coarse)').matches ? 'pan-y' : 'none';
     const scene = new T.Scene(); scene.background = new T.Color(op.fondo);
     const cam = new T.PerspectiveCamera(32, 1, 0.05, 60);
 
@@ -803,6 +805,7 @@
 
     // cámara orbital sencilla
     let az = 0.7, pol = 1.12, dist = 4, meta = null, ancho = 1, alto = 1;
+    const pt = new Map(); let d0 = 0, vel = 0, tMov = 0; // dedos en pantalla, pellizco e impulso del giro
     const VISTAS = { tres: [0.7, 1.12], frente: [0, 1.42], arriba: [0, 0.02], lado: [Math.PI / 2, 1.38] };
     function encuadre() {
       if (!actual) return; const ext = Math.max(actual.L + (conSillas && actual.uso !== 'centro' ? 70 : 10) + (conCotas ? 50 : 0), actual.H * 1.5) / 100;
@@ -815,6 +818,8 @@
     let pend = false;
     function pinta() { if (pend) return; pend = true; requestAnimationFrame(() => { pend = false; anim(); }); }
     function anim() {
+      // al soltar, la mesa sigue girando un poco y frena suave
+      if (vel && !pt.size && !meta) { az -= vel; vel *= 0.92; if (Math.abs(vel) < 0.0004) vel = 0; else pinta(); }
       if (meta) { az += (meta[0] - az) * 0.18; pol += (meta[1] - pol) * 0.18; if (Math.abs(meta[0] - az) + Math.abs(meta[1] - pol) < 0.002) meta = null; else pinta(); }
       colocar(); R.render(scene, cam);
     }
@@ -823,15 +828,15 @@
     medir();
 
     // arrastrar para girar, rueda o pellizco para acercar
-    const pt = new Map(); let d0 = 0;
-    R.domElement.addEventListener('pointerdown', e => { pt.set(e.pointerId, [e.clientX, e.clientY]); R.domElement.setPointerCapture(e.pointerId); meta = null; });
+    R.domElement.addEventListener('pointerdown', e => { pt.set(e.pointerId, [e.clientX, e.clientY]); R.domElement.setPointerCapture(e.pointerId); meta = null; vel = 0; });
     R.domElement.addEventListener('pointermove', e => {
       if (!pt.has(e.pointerId)) return; const [x0, y0] = pt.get(e.pointerId); pt.set(e.pointerId, [e.clientX, e.clientY]);
       if (pt.size === 2) { const [a, b] = [...pt.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (d0) dist = Math.max(1, Math.min(30, dist * d0 / d)); d0 = d; }
-      else { az -= (e.clientX - x0) * 0.008; pol = Math.max(0.02, Math.min(1.5, pol - (e.clientY - y0) * 0.006)); }
+      else { const dx = (e.clientX - x0) * 0.008; az -= dx; vel = vel * 0.5 + dx * 0.5; tMov = performance.now(); pol = Math.max(0.02, Math.min(1.5, pol - (e.clientY - y0) * 0.006)); }
       pinta();
     });
-    const suelta = e => { pt.delete(e.pointerId); d0 = 0; };
+    // si el dedo se quedó quieto antes de soltar, no hay impulso; con dos dedos (pellizco) tampoco
+    const suelta = e => { const dos = pt.size > 1; pt.delete(e.pointerId); d0 = 0; if (dos || performance.now() - tMov > 80) vel = 0; vel = Math.max(-0.12, Math.min(0.12, vel)); pinta(); };
     R.domElement.addEventListener('pointerup', suelta); R.domElement.addEventListener('pointercancel', suelta);
     R.domElement.addEventListener('wheel', e => { e.preventDefault(); dist = Math.max(1, Math.min(30, dist * (1 + Math.sign(e.deltaY) * 0.08))); pinta(); }, { passive: false });
 

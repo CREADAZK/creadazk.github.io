@@ -270,6 +270,12 @@ body.con-acceso #acceso{display:none!important}
 .pulso{flex:none;width:12px;height:12px;margin-top:8px;border-radius:50%;background:var(--g);box-shadow:0 0 0 0 rgba(194,162,115,.6);animation:pulso 1.8s infinite}
 @keyframes pulso{70%{box-shadow:0 0 0 12px rgba(194,162,115,0)}100%{box-shadow:0 0 0 0 rgba(194,162,115,0)}}
 @media (min-width:980px){.acceso{padding:90px 6vw 140px}}
+/* táctil (nov 2026): respuesta al tocar, sin el recuadro gris de iOS, y botones del 3D del tamaño de un dedo */
+a,button,label,.btn{-webkit-tap-highlight-color:transparent}
+.btn{transition:transform .12s ease,background-color .2s,color .2s,border-color .2s}
+.btn:active{transform:scale(.97)}
+.vistas button{min-height:40px;padding:0 14px}
+@media (pointer:coarse){#v3d{cursor:auto}}
 .pm{max-width:680px;margin:0 auto;padding:96px 18px 80px}
 .linea{list-style:none;padding:0;display:flex;justify-content:space-between;margin:6px 0 26px;position:relative}
 .linea::before{content:'';position:absolute;left:8px;right:8px;top:7px;height:1px;background:var(--line2)}

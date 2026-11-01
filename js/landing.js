@@ -9,7 +9,8 @@
     try { if (window.DKAS_PONER) window.DKAS_PONER(cambios, paso); } catch (e) {}
     cerrarVisor(); cerrarCoti();
     if (location.hash !== '#app') location.hash = '#app'; else scrollTo({ top: 0, behavior: 'smooth' });
-    if (!document.body.classList.contains('con-acceso')) setTimeout(() => { const n = $('#acc-nom'), t = $('#acc-tel'); const f = n && !n.value ? n : t && !t.value ? t : null; if (f) f.focus({ preventScroll: true }); }, 400);
+    if (!document.body.classList.contains('con-acceso')) setTimeout(() => { const n = $('#acc-nom'), t = $('#acc-tel'), yo = A.load('dazk-yo', {});
+      if (n && yo.nombre && (!n.value || yo.nombre.startsWith(n.value))) n.value = yo.nombre; if (t && yo.tel && !t.value) t.value = yo.tel; const f = n && !n.value ? n : t && !t.value ? t : null; if (f) f.focus({ preventScroll: true }); }, 400);
   }
 
   // ---------- mini cotización por WhatsApp ("Quiero una así") ----------
@@ -21,7 +22,8 @@
     $('#coti-t').textContent = x.t || 'Una mesa así';
     $('#coti-d').textContent = [x.p && D.piedra(x.p).nombre, x.b && D.BASES[x.b] && 'Base ' + D.BASES[x.b].nombre, x.f && D.FORMAS[x.f]].filter(Boolean).join(' · ');
     $$('#coti-p button').forEach(b => b.classList.toggle('on', +b.dataset.n === cotP));
-    const yo = A.load('dazk-yo', {}); if (yo.nombre && !$('#coti-n').value) $('#coti-n').value = yo.nombre;
+    $('#coti-pide').hidden = false; $('#coti-ok').hidden = true; $('#coti-e').hidden = true;
+    const yo = A.load('dazk-yo', {}); if (yo.nombre && !$('#coti-n').value) $('#coti-n').value = yo.nombre; if (yo.tel && !$('#coti-w').value) $('#coti-w').value = yo.tel;
     cerrarVisor(); coti.hidden = false; document.body.style.overflow = 'hidden';
     setTimeout(() => { const n = $('#coti-n'); if (!n.value) n.focus(); }, 60);
   }
@@ -31,18 +33,36 @@
     coti.addEventListener('mousedown', e => { if (e.target === coti) cerrarCoti(); });
     addEventListener('keydown', e => { if (e.key === 'Escape') cerrarCoti(); });
     $('#coti-p').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; cotP = +b.dataset.n; $$('#coti-p button').forEach(z => z.classList.toggle('on', z === b)); });
-    $('#coti-f').onsubmit = e => {
-      e.preventDefault(); const x = cotX || {}, nombre = $('#coti-n').value.trim();
-      const lin = ['Hola DKAS, soy ' + nombre + '.', 'Me gustó la mesa "' + (x.t || 'de su página') + '" y quiero una así:'];
-      if (x.p) lin.push('• Piedra: ' + D.piedra(x.p).nombre); if (x.b && D.BASES[x.b]) lin.push('• Base: ' + D.BASES[x.b].nombre); if (x.f) lin.push('• Forma: ' + D.FORMAS[x.f]);
-      lin.push('• Para ' + (cotP >= 10 ? '10 o más' : cotP) + ' personas', '¿Me pueden cotizar?');
-      A.save('dazk-yo', Object.assign(A.load('dazk-yo', {}), { nombre }));
-      open('https://wa.me/' + window.DKAS_WA[0].num + '?text=' + encodeURIComponent(lin.join('\n')), '_blank');
-      cerrarCoti();
+    // la solicitud llega al panel como pedido nuevo (con folio), igual que los que salen del diseñador
+    $('#coti-f').onsubmit = async e => {
+      e.preventDefault(); const x = cotX || {}, nombre = $('#coti-n').value.trim(), tel = $('#coti-w').value.trim(), b = $('#coti-b'), err = $('#coti-e');
+      const specs = [['Pidió', 'Quiero una así: ' + (x.t || 'mesa de la página')]];
+      if (x.p) specs.push(['Piedra', D.piedra(x.p).nombre]); if (x.b && D.BASES[x.b]) specs.push(['Base', D.BASES[x.b].nombre]); if (x.f && D.FORMAS[x.f]) specs.push(['Forma', D.FORMAS[x.f]]);
+      specs.push(['Personas', cotP >= 10 ? '10 o más' : String(cotP)]);
+      const foto = /^https:\/\/(dkas\.mx|creadazk\.github\.io)\//.test(x.img || '') ? x.img.replace(/-m\.jpg$/, '.jpg') : '';
+      const it = Object.assign({ tipo: 'mesa', titulo: 'Quiero una así · ' + (x.t || 'Mesa DKAS'), cantidad: 1, specs }, x.u ? { uso: x.u } : {}, foto ? { link: foto } : {});
+      err.hidden = true; b.disabled = true; b.textContent = 'Enviando…';
+      try {
+        const r = await A.crearPedido({ nombre, tel, notas: 'Solicitud de cotización desde la página (botón «Quiero una así»).', items: [it], canal: A.load('dazk-canal', '') });
+        A.save('dazk-pedidos', [{ folio: r.folio, token: r.token, fecha: new Date().toISOString() }].concat(A.load('dazk-pedidos', [])));
+        A.save('dazk-yo', Object.assign(A.load('dazk-yo', {}), { nombre, tel }));
+        $('#coti-fol').textContent = '#' + r.folio; $('#coti-seg').href = A.seguimiento(r.token);
+        $('#coti-pide').hidden = true; $('#coti-ok').hidden = false;
+        if (window.DKAS_VISITA) try { DKAS_VISITA(3, r.folio); } catch (y) {}
+      } catch (y) { err.textContent = y.message || 'No se pudo enviar. Intenta de nuevo.'; err.hidden = false; }
+      b.disabled = false; b.textContent = 'Solicitar cotización';
     };
+    $('#coti-crea').onclick = () => crearMia(cotX || {});
   }
-  // todos los "Quiero una así" de la página (revista, proyectos y galería) abren la mini cotización
+  // "Crear mi mesa": abre el diseñador con esa piedra, base y forma; sin acceso, ahí mismo pide acceso y el admin lo aprueba
+  function crearMia(x) {
+    const cambios = Object.assign({}, x.u ? { uso: x.u } : {}, x.f ? { forma: x.f } : {}, x.u && x.f ? D.tamanoPara(x.u, x.f, x.u === 'comedor' ? 8 : 4) : {}, x.p ? { piedra: x.p } : {}, x.b ? { base: x.b } : {});
+    disenar(cambios, 1);
+  }
+  // todos los "Quiero una así" de la página (revista, proyectos y galería) abren la mini cotización; "Crear mi mesa" lleva al diseñador
   document.addEventListener('click', e => {
+    const c = e.target.closest('[data-crea]');
+    if (c) { e.preventDefault(); e.stopPropagation(); return crearMia(JSON.parse(c.dataset.crea)); }
     const b = e.target.closest('[data-v]'); if (!b) return;
     e.preventDefault(); e.stopPropagation();
     const x = JSON.parse(b.dataset.v), caja = b.closest('article, figure, .sl'), im = caja && caja.querySelector('img'), h = caja && caja.querySelector('h3');
@@ -112,7 +132,7 @@
     img.src = 'img/l/' + x.k + (innerWidth < 800 ? '-m' : '') + '.jpg'; img.alt = x.t || 'Mesa DKAS';
     $('#vi-t').textContent = x.t || 'Mesa DKAS';
     $('#vi-p').textContent = x.p ? 'Piedra ' + D.piedra(x.p).nombre : 'Hecha a la medida';
-    $('#vi-btn').textContent = x.p ? 'Quiero una así' : 'Diseñar la mía';
+    $('#vi-btn').textContent = x.p ? 'Quiero una así' : 'Diseñar la mía'; $('#vi-crea').hidden = !x.p;
   }
   function abrirVisor(l, i) { lista = l; vi = i; pintarVisor(); visor.classList.add('ver'); visor.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; }
   function cerrarVisor() { if (!visor.classList.contains('ver')) return; visor.classList.remove('ver'); visor.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
@@ -122,6 +142,7 @@
   let x0 = null;
   visor.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
   visor.addEventListener('touchend', e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) mover(dx < 0 ? 1 : -1); x0 = null; });
+  $('#vi-crea').onclick = () => { const x = lista[vi]; crearMia({ p: x.p, u: x.u, f: x.f, b: x.b }); };
   $('#vi-btn').onclick = () => {
     const x = lista[vi];
     if (x.p) return cotizar({ p: x.p, u: x.u, f: x.f, b: x.b, t: x.t, img: $('#vi-img').src });

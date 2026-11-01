@@ -160,6 +160,51 @@ ${parts.join('\n')}
 ${parts.join('\n')}
 <text x="40" y="${H0 - 22}" class="k">Medidas en cm. Línea punteada: espacio libre recomendado (${E.k} cm por lado para sillas y paso).${v.placas > 1 ? ' Línea dorada: unión de placas.' : ''}</text></svg>`;
   }
+  // plano en DXF (R12, milímetros): planta con cubierta, base, uniones y espacio libre; frente abajo. Capas por elemento
+  function dxf(m) {
+    const c = D.calcular(m), M = c.m, P = D.piezas(c), v = c.viab, E = D.espacio(M), out = [], mm = x => Math.round(x * 100) / 10;
+    const ent = (...kv) => { for (let i = 0; i < kv.length; i += 2) out.push(kv[i], kv[i + 1]); };
+    const pol = (capa, pts, cerrada) => { ent(0, 'POLYLINE', 8, capa, 66, 1, 70, cerrada ? 1 : 0); pts.forEach(([x, y]) => ent(0, 'VERTEX', 8, capa, 10, mm(x), 20, mm(y))); ent(0, 'SEQEND', 8, capa); };
+    const lin = (capa, x1, y1, x2, y2) => ent(0, 'LINE', 8, capa, 10, mm(x1), 20, mm(y1), 11, mm(x2), 21, mm(y2));
+    // DXF R12 no lee UTF-8: el texto va sin acentos ni símbolos
+    const txt = (capa, x, y, h, t) => ent(0, 'TEXT', 8, capa, 10, mm(x), 20, mm(y), 40, mm(h), 1, String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/×/g, 'x').replace(/Ø/g, 'D').replace(/[^ -~]/g, ''));
+    // contorno de la cubierta (cm, centro en 0,0; y hacia arriba = fondo)
+    const contornoPts = (fm, L, W, r) => {
+      const pts = [], a = L / 2, b = W / 2;
+      if (fm === 'round' || fm === 'oval') { for (let i = 0; i < 144; i++) { const t = i / 144 * 2 * Math.PI; pts.push([a * Math.cos(t), (fm === 'round' ? a : b) * Math.sin(t)]); } return pts; }
+      if (fm !== 'ovcuad' || !r) return [[-a, -b], [a, -b], [a, b], [-a, b]];
+      [[a - r, b - r, 0], [-a + r, b - r, 90], [-a + r, -b + r, 180], [a - r, -b + r, 270]].forEach(([cx, cy, g0]) => { for (let i = 0; i <= 12; i++) { const t = (g0 + i * 7.5) * Math.PI / 180; pts.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]); } });
+      return pts;
+    };
+    // las piezas de la base vistas desde arriba y de frente, sacadas del mismo dibujo del croquis
+    const piezasDe = svgTxt => {
+      const res = [];
+      svgTxt.replace(/points="([^"]+)"/g, (_, p) => { res.push(p.trim().split(/\s+/).map(q => q.split(',').map(Number))); });
+      svgTxt.replace(/<rect[^>]*x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g, (_, x, y, w, h) => { x = +x; y = +y; res.push([[x, y], [x + +w, y], [x + +w, y + +h], [x, y + +h]]); });
+      return res;
+    };
+    // ---- planta ----
+    pol('CUBIERTA', contornoPts(M.forma, M.L, M.W, D.radio(M)), true);
+    pol('ESPACIO_LIBRE', [[-E.L / 2, -E.W / 2], [E.L / 2, -E.W / 2], [E.L / 2, E.W / 2], [-E.L / 2, E.W / 2]], true);
+    piezasDe(vista(c, P, [1, 0, 0], [0, 0, -1], 0, 0, 1)).forEach(q => pol('BASE', q.map(([x, y]) => [x, -y]), true));
+    if (P.ped) { const pts = []; for (let i = 0; i < 72; i++) { const t = i / 72 * 2 * Math.PI; pts.push([P.ped.plato / 2 * Math.cos(t), P.ped.plato / 2 * Math.sin(t)]); } pol('BASE', pts, true); }
+    for (let i = 1; i < v.nL; i++) { const x = -M.L / 2 + i * M.L / v.nL; lin('UNIONES', x, -M.W / 2, x, M.W / 2); }
+    for (let j = 1; j < v.nW; j++) { const y = -M.W / 2 + j * M.W / v.nW; lin('UNIONES', -M.L / 2, y, M.L / 2, y); }
+    const th = Math.max(4, M.L / 40);
+    lin('COTAS', -M.L / 2, M.W / 2 + 15, M.L / 2, M.W / 2 + 15); txt('COTAS', -th * 2, M.W / 2 + 18, th, (M.forma === 'round' ? 'D ' : '') + mm(M.L) + ' mm');
+    if (M.forma !== 'round') { lin('COTAS', M.L / 2 + 15, -M.W / 2, M.L / 2 + 15, M.W / 2); txt('COTAS', M.L / 2 + 18, 0, th, mm(M.W) + ' mm'); }
+    txt('TEXTO', -E.L / 2, -E.W / 2 - th * 2, th, 'PLANTA - ' + D.titulo(M) + ' - piedra ' + D.piedra(M.piedra).nombre + ' 12 mm - base ' + D.BASES[M.base].nombre + ' ' + D.color(M.color).nombre);
+    txt('TEXTO', -E.L / 2, -E.W / 2 - th * 3.6, th * 0.8, 'Espacio libre recomendado ' + E.L + ' x ' + E.W + ' cm. Unidades: mm. DKAS - dkas.mx');
+    // ---- frente (debajo de la planta) ----
+    const oy = -E.W / 2 - th * 6 - M.H;
+    piezasDe(vista(c, P, [1, 0, 0], [0, 1, 0], 0, 0, 1)).forEach(q => pol('BASE', q.map(([x, y]) => [x, oy - y]), true));
+    pol('CUBIERTA', [[-M.L / 2, oy + M.H - 2.5], [M.L / 2, oy + M.H - 2.5], [M.L / 2, oy + M.H], [-M.L / 2, oy + M.H]], true);
+    lin('PISO', -M.L / 2 - 20, oy, M.L / 2 + 20, oy);
+    lin('COTAS', -M.L / 2 - 15, oy, -M.L / 2 - 15, oy + M.H); txt('COTAS', -M.L / 2 - 15 - th * 6, oy + M.H / 2, th, mm(M.H) + ' mm');
+    txt('TEXTO', -M.L / 2, oy - th * 2, th, 'FRENTE');
+    return ['0', 'SECTION', '2', 'HEADER', '9', '$ACADVER', '1', 'AC1009', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES']
+      .concat(out.map(String), ['0', 'ENDSEC', '0', 'EOF']).join('\r\n');
+  }
   // el SVG pasado a JPEG (para descargar o mandar por WhatsApp)
   function png(m, info, q) {
     return new Promise((ok, bad) => {
@@ -168,5 +213,5 @@ ${parts.join('\n')}
       im.onerror = bad; im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
     });
   }
-  window.DKAS_CQ = { svg, png, plano };
+  window.DKAS_CQ = { svg, png, plano, dxf };
 })();

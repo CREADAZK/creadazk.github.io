@@ -43,6 +43,11 @@
     ped: { nombre: 'Pedestal', desc: 'Una columna al centro con plato al piso y cruz arriba.' },
   };
 
+  // colores de la base (pintura electrostática); los mismos nombres que usa el panel
+  const COLORES = [['negro', 'Negro mate', '#1f1e1d'], ['blanco', 'Blanco mate', '#ecebe6'], ['grafito', 'Gris grafito', '#4b4b4b'],
+    ['dorado', 'Dorado', '#b8954f'], ['champagne', 'Champagne', '#cdbb97'], ['bronce', 'Bronce', '#7a5a3a']].map(([id, nombre, hex]) => ({ id, nombre, hex }));
+  const color = id => COLORES.find(c => c.id === id) || COLORES[0];
+
   // medidas que el taller sí puede hacer, por uso y forma (L = largo o diámetro, W = ancho)
   const USOS = {
     comedor: { nombre: 'Comedor', H: 75, formas: {
@@ -180,7 +185,7 @@
     let W = redonda(forma) ? L : clamp(Math.round(+m.W || anchoPara(uso, forma, L)), ...ABS.W);
     if (W > L) [L, W] = [clamp(W, ...ABS.L), L]; // 100 × 250 es la misma mesa que 250 × 100
     const H = +m.H ? clamp(Math.round(+m.H), ...ABS.H) : USOS[uso].H;
-    const out = { uso, forma, L, W, H, piedra: piedra(m.piedra).id };
+    const out = { uso, forma, L, W, H, piedra: piedra(m.piedra).id, color: color(m.color).id };
     const bs = basesPara(out);
     out.base = bs.includes(m.base) ? m.base : bs[0];
     if (m.modelo && MODELOS.some(x => x.id === m.modelo && x.uso === uso && x.forma === forma && x.L === L && x.W === W && x.base === out.base)) out.modelo = m.modelo;
@@ -233,7 +238,7 @@
   function resumen(m) {
     const n = personas(m), v = viabilidad(m);
     return [['Uso', USOS[m.uso].nombre], ['Forma', FORMAS[m.forma]], ['Medidas', medida(m)], ['Altura', m.H + ' cm'],
-      ['Piedra', piedra(m.piedra).nombre + (piedra(m.piedra).acabado ? ' · ' + piedra(m.piedra).acabado.toLowerCase() : '')], ['Base', BASES[m.base].nombre]].concat(n ? [['Personas', n + ' personas']] : [])
+      ['Piedra', piedra(m.piedra).nombre + (piedra(m.piedra).acabado ? ' · ' + piedra(m.piedra).acabado.toLowerCase() : '')], ['Base', BASES[m.base].nombre], ['Color de base', color(m.color).nombre]].concat(n ? [['Personas', n + ' personas']] : [])
       .concat([['Fabricación', v.t + (v.placas > 1 ? ' · ' + v.placas + ' piezas de placa' : '')]]);
   }
 
@@ -412,6 +417,6 @@
 
   const DKAS = { PLACA, POR_PERSONA, CUBIERTA, PIEDRAS, RUGOSIDAD, FORMAS, FORMA_DESC, BASES, USOS, USO_DESC, MODELOS, COSTOS, CFG,
     piedra, radio, formasDe, limites, anchoPara, personas, perimetro, tamanoPara, opcionesPersonas, basesPara, normalizar,
-    medida, titulo, resumen, calcular, viabilidad, espacio, area, NIVELES, ABS, piezas, costear, ganancia, sugerido, redonda, registrarBase, quitarBase, PERFILES, propias };
+    medida, titulo, resumen, calcular, COLORES, color, viabilidad, espacio, area, NIVELES, ABS, piezas, costear, ganancia, sugerido, redonda, registrarBase, quitarBase, PERFILES, propias };
   if (typeof module !== 'undefined') module.exports = DKAS; else root.DKAS = DKAS;
 })(typeof window !== 'undefined' ? window : globalThis);

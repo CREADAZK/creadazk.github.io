@@ -13,8 +13,8 @@
     if (!A.load('dazk-canal', '')) A.save('dazk-canal', A.canal(c || (!ref || ref === location.hostname ? 'directo' : ref)) || 'directo');
   } catch (e) {}
 
-  const codigo = m => [m.uso, m.forma, m.L, m.W, m.base, m.piedra].concat(m.H !== D.USOS[m.uso].H ? [m.H] : []).join('.');
-  function deCodigo(s) { const p = String(s || '').split('.'); return p.length === 6 || p.length === 7 ? { uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5], H: +p[6] || 0 } : null; }
+  const codigo = m => [m.uso, m.forma, m.L, m.W, m.base, m.piedra].concat(m.color && m.color !== 'negro' ? [m.H, m.color] : m.H !== D.USOS[m.uso].H ? [m.H] : []).join('.');
+  function deCodigo(s) { const p = String(s || '').split('.'); return p.length >= 6 && p.length <= 8 ? { uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5], H: +p[6] || 0, color: p[7] || 'negro' } : null; }
   const esp = m => { const e = D.espacio(m); return e.L + ' × ' + e.W + ' cm'; };
 
   let st = D.normalizar(Object.assign({ uso: 'comedor', forma: 'rect', base: 'patas', piedra: 'statuario' }, D.tamanoPara('comedor', 'rect', 8)));
@@ -73,7 +73,9 @@
       '<button class="piedra' + (st.piedra === p.id ? ' sel' : '') + '" data-piedra="' + p.id + '"><img src="img/piedras/' + p.id + '.jpg" alt="" loading="lazy"><b>' + p.nombre + '</b><small>' + p.desc + (p.acabado ? ' · ' + p.acabado.toLowerCase() : '') + '</small></button>').join('') + '</div><p class="nota">Todas en placa de 320 × 160 cm y 12 mm de grosor.</p>';
     // 5 · base
     $('#p3').innerHTML = tit(3, 'El acero', 'Elige la <em>base.</em>') + '<p class="sub">Solo te mostramos las bases que funcionan con tu mesa.</p><div class="bases">' + D.basesPara(st).map(b =>
-      '<button class="base' + (st.base === b ? ' sel' : '') + '" data-base="' + b + '"><img src="' + (D.BASES[b].foto || 'img/bases/' + b + '.jpg') + '" alt="" loading="lazy"><b>' + D.BASES[b].nombre + '</b><small>' + D.BASES[b].desc + '</small></button>').join('') + '</div>';
+      '<button class="base' + (st.base === b ? ' sel' : '') + '" data-base="' + b + '"><img src="' + (D.BASES[b].foto || 'img/bases/' + b + '.jpg') + '" alt="" loading="lazy"><b>' + D.BASES[b].nombre + '</b><small>' + D.BASES[b].desc + '</small></button>').join('') + '</div>'
+      + '<h3>Color de la base</h3><div class="colores">' + D.COLORES.map(k => '<button class="col' + (st.color === k.id ? ' sel' : '') + '" data-color="' + k.id + '"><i style="background:' + k.hex + '"></i>' + k.nombre + '</button>').join('') + '</div>'
+      + '<p class="nota">Pintura electrostática. Así se ve en el 3D.</p>';
     // 5 · enviar
     if (!enviado) { $('#p5res').innerHTML = D.resumen(st).filter(r => r[0] !== 'Fabricación').map(([k, v]) => '<li><span>' + k + '</span><b>' + esc(v) + '</b></li>').join(''); vivo(); pintarLista(); }
     $('#atras').disabled = paso === 0; $('#sig').hidden = paso === PASOS.length - 1; $('#cuenta').textContent = (paso + 1) + ' / ' + PASOS.length;
@@ -92,6 +94,7 @@
     const vb = $('#viab'); if (vb) vb.innerHTML = semaforo(v);
     const tc = $('#tec'); if (tc) tc.innerHTML = tecnica(c);
     const v5 = $('#p5viab'); if (v5) v5.innerHTML = semaforo(v, true);
+    const a5 = $('#p5arch'); if (a5 && !a5.innerHTML) a5.innerHTML = archivos();
   }
   function semaforo(v, corto) {
     return '<div class="viab n' + v.nivel + '"><div class="vb-top"><div class="metro"><i></i><i></i><i></i></div><div><p class="et">Factibilidad</p><b>' + v.t + '</b></div></div>'
@@ -102,7 +105,13 @@
     const v = c.viab, n = c.personas;
     return '<div class="fic">' + [['Superficie', v.m2 + ' m²'], ['Peso de la piedra', '≈ ' + v.peso + ' kg'], ['Placas', v.placas > 1 ? v.placas + ' piezas · ' + v.uniones + (v.uniones === 1 ? ' unión' : ' uniones') : '1 · sin uniones'],
       ['Espacio libre', esp(st)], ['Cubierta', '2.5 cm · piedra 12 mm'], [n ? 'Personas' : 'Altura', n ? n + ' · 70 cm c/u' : st.H + ' cm']].map(([k, x]) => '<div><span>' + k + '</span><b>' + x + '</b></div>').join('') + '</div>'
-      + '<button type="button" class="lnk-g" data-ficha>Descargar ficha técnica y plano <span>→</span></button>';
+      + '<button type="button" class="lnk-g" data-ficha>Descargar ficha técnica y plano <span>→</span></button>' + archivos();
+  }
+  function archivos() {
+    return '<div class="archivos"><p class="et">Archivos para tu proyecto</p><div>'
+      + '<button type="button" data-bajar="dxf"><b>DXF</b><small>Plano para AutoCAD</small></button>'
+      + '<button type="button" data-bajar="obj"><b>OBJ</b><small>Modelo 3D · SketchUp, Rhino, Revit</small></button>'
+      + '<button type="button" data-bajar="glb"><b>GLB</b><small>Modelo 3D con texturas</small></button></div></div>';
   }
   function ir(i) {
     paso = Math.max(0, Math.min(PASOS.length - 1, i));
@@ -124,6 +133,8 @@
     if (b.dataset.pers) return set(D.tamanoPara(st.uso, st.forma, +b.dataset.pers));
     if (b.dataset.piedra) return set({ piedra: b.dataset.piedra });
     if (b.dataset.base) return set({ base: b.dataset.base });
+    if (b.dataset.color) return set({ color: b.dataset.color });
+    if (b.dataset.bajar) return bajarArchivo(b.dataset.bajar, b);
     if (b.dataset.paso) { const k = b.dataset.paso, c = { [k]: st[k] + +b.dataset.d }; if (k === 'L' && D.redonda(st.forma)) c.W = c.L; set(c); return; }
     if (b.dataset.ficha != null) return ficha();
     if (b.dataset.vista) { $$('[data-vista]').forEach(x => x.classList.toggle('on', x === b)); return V.vista(b.dataset.vista); }
@@ -243,6 +254,18 @@
   });
   const y = A.load('dazk-yo', {}); ['nombre', 'tel', 'correo', 'despacho'].forEach(k => { if (y[k]) $('#' + k).value = y[k]; });
   const mis = A.load('dazk-pedidos', []); if (mis.length) { const a = $('#mis'); a.hidden = false; a.href = mis.length === 1 ? A.seguimiento(mis[0].token) : 'pedido.html'; }
+
+  // ---------- archivos de trabajo: plano DXF y modelo 3D a escala real ----------
+  function guardar(blob, nombre) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+  async function bajarArchivo(tipo, b) {
+    const nom = 'DKAS-' + codigo(st).replace(/\./g, '-'), antes = b.innerHTML; b.disabled = true;
+    try {
+      if (tipo === 'dxf') guardar(new Blob([window.DKAS_CQ.dxf(st)], { type: 'application/dxf' }), nom + '.dxf');
+      if (tipo === 'obj') { if (!THREE.OBJExporter) await carga('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/OBJExporter.js'); guardar(new Blob([V.obj()], { type: 'text/plain' }), nom + '.obj'); }
+      if (tipo === 'glb') { if (!THREE.GLTFExporter) await carga('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js'); await V.listo(); guardar(new Blob([await V.glb()], { type: 'model/gltf-binary' }), nom + '.glb'); }
+    } catch (x) { console.warn(x); b.innerHTML = '<b>Error</b><small>Intenta de nuevo</small>'; setTimeout(() => { b.innerHTML = antes; }, 2500); }
+    b.disabled = false;
+  }
 
   // ---------- ficha técnica: render con medidas, datos, factibilidad y plano; se imprime o se guarda como PDF ----------
   function ficha() {

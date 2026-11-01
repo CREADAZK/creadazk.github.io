@@ -185,6 +185,11 @@
     ped: { nombre: 'Pedestal', desc: 'Una columna al centro con plato al piso y cruz arriba.' },
   };
 
+  // colores de la base (pintura electrostática); los mismos nombres que usa el panel
+  const COLORES = [['negro', 'Negro mate', '#1f1e1d'], ['blanco', 'Blanco mate', '#ecebe6'], ['grafito', 'Gris grafito', '#4b4b4b'],
+    ['dorado', 'Dorado', '#b8954f'], ['champagne', 'Champagne', '#cdbb97'], ['bronce', 'Bronce', '#7a5a3a']].map(([id, nombre, hex]) => ({ id, nombre, hex }));
+  const color = id => COLORES.find(c => c.id === id) || COLORES[0];
+
   // medidas que el taller sí puede hacer, por uso y forma (L = largo o diámetro, W = ancho)
   const USOS = {
     comedor: { nombre: 'Comedor', H: 75, formas: {
@@ -322,7 +327,7 @@
     let W = redonda(forma) ? L : clamp(Math.round(+m.W || anchoPara(uso, forma, L)), ...ABS.W);
     if (W > L) [L, W] = [clamp(W, ...ABS.L), L]; // 100 × 250 es la misma mesa que 250 × 100
     const H = +m.H ? clamp(Math.round(+m.H), ...ABS.H) : USOS[uso].H;
-    const out = { uso, forma, L, W, H, piedra: piedra(m.piedra).id };
+    const out = { uso, forma, L, W, H, piedra: piedra(m.piedra).id, color: color(m.color).id };
     const bs = basesPara(out);
     out.base = bs.includes(m.base) ? m.base : bs[0];
     if (m.modelo && MODELOS.some(x => x.id === m.modelo && x.uso === uso && x.forma === forma && x.L === L && x.W === W && x.base === out.base)) out.modelo = m.modelo;
@@ -375,7 +380,7 @@
   function resumen(m) {
     const n = personas(m), v = viabilidad(m);
     return [['Uso', USOS[m.uso].nombre], ['Forma', FORMAS[m.forma]], ['Medidas', medida(m)], ['Altura', m.H + ' cm'],
-      ['Piedra', piedra(m.piedra).nombre + (piedra(m.piedra).acabado ? ' · ' + piedra(m.piedra).acabado.toLowerCase() : '')], ['Base', BASES[m.base].nombre]].concat(n ? [['Personas', n + ' personas']] : [])
+      ['Piedra', piedra(m.piedra).nombre + (piedra(m.piedra).acabado ? ' · ' + piedra(m.piedra).acabado.toLowerCase() : '')], ['Base', BASES[m.base].nombre], ['Color de base', color(m.color).nombre]].concat(n ? [['Personas', n + ' personas']] : [])
       .concat([['Fabricación', v.t + (v.placas > 1 ? ' · ' + v.placas + ' piezas de placa' : '')]]);
   }
 
@@ -554,7 +559,7 @@
 
   const DKAS = { PLACA, POR_PERSONA, CUBIERTA, PIEDRAS, RUGOSIDAD, FORMAS, FORMA_DESC, BASES, USOS, USO_DESC, MODELOS, COSTOS, CFG,
     piedra, radio, formasDe, limites, anchoPara, personas, perimetro, tamanoPara, opcionesPersonas, basesPara, normalizar,
-    medida, titulo, resumen, calcular, viabilidad, espacio, area, NIVELES, ABS, piezas, costear, ganancia, sugerido, redonda, registrarBase, quitarBase, PERFILES, propias };
+    medida, titulo, resumen, calcular, COLORES, color, viabilidad, espacio, area, NIVELES, ABS, piezas, costear, ganancia, sugerido, redonda, registrarBase, quitarBase, PERFILES, propias };
   if (typeof module !== 'undefined') module.exports = DKAS; else root.DKAS = DKAS;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -778,6 +783,9 @@
       actual = m; const c = D.calcular(m), M = c.m;
       [mesa, sillas].forEach(g => { while (g.children.length) { const o = g.children.pop(); o.traverse(x => x.geometry && x.geometry.dispose()); } });
       const v = c.viab || D.viabilidad(M), varias = v.placas > 1;
+      // color de la base: los metálicos (dorado, champagne, bronce) brillan un poco más
+      const col = D.color(M.color), metal = ['dorado', 'champagne', 'bronce'].includes(col.id);
+      acero.color.set(col.hex).convertSRGBToLinear(); acero.metalness = metal ? 0.8 : 0.55; acero.roughness = metal ? 0.34 : 0.48;
       const tx = varias ? compuesta(M.piedra, M, v) : textura(M.piedra), rug = (D.RUGOSIDAD || {})[M.piedra] ?? 0.45, pul = rug < 0.3;
       // la piedra se ve con el color de su foto: sin el filtro de cine (tone mapping) que la deslava, y con poco reflejo
       const K = PIEDRA_LUZ.k, cara = new T.MeshPhysicalMaterial({ map: tx.tex, color: new T.Color(K, K, K), roughness: rug, clearcoat: pul ? PIEDRA_LUZ.cc : 0.04, clearcoatRoughness: 0.2, envMapIntensity: PIEDRA_LUZ.env, toneMapped: false });
@@ -850,6 +858,8 @@
           new T.GLTFExporter().parse(r, ok, { binary: true, embedImages: true, maxTextureSize: 2048 });
         });
       },
+      // la mesa sola en OBJ (solo geometría, en metros) para SketchUp, Rhino, Revit o 3ds Max
+      obj() { if (!T.OBJExporter) throw new Error('falta OBJExporter'); const r = mesa.clone(true); r.updateMatrixWorld(true); return new T.OBJExporter().parse(r); },
       listo: () => actual && (comp && comp.key.startsWith(actual.piedra + '|' + actual.L + '|' + actual.W + '|') ? comp.listo : textura(actual.piedra).listo),
     };
   }

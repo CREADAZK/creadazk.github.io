@@ -15,7 +15,7 @@
   let me = null, todos = [], cfg = {}, filtro = 'activos', busca = '';
 
   // ---------- la mesa de un pedido ----------
-  const deCodigo = s => { const p = String(s || '').split('.'); return p.length === 6 || p.length === 7 ? { uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5], H: +p[6] || 0 } : null; };
+  const deCodigo = s => { const p = String(s || '').split('.'); return p.length >= 6 && p.length <= 8 ? { uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5], H: +p[6] || 0, color: p[7] || 'negro' } : null; };
   function mesaOriginal(p) {
     const it = (p.items || []).find(x => x.tipo === 'mesa') || {}, sp = Object.fromEntries((it.specs || []).map(x => [x[0], x[1]]));
     const c = deCodigo(sp['Código']); if (c) return c;
@@ -41,11 +41,11 @@
     if (f.modelo === 'otro') return { txt: (f.modeloOtro || 'Personalizado') + ' · fuera de catálogo', nuestro: false };
     return mod ? { txt: mod.nombre + ' · de catálogo', nuestro: true, nombre: mod.nombre } : { txt: 'Personalizado · diseño del cliente', nuestro: false };
   }
-  const colorDe = p => ficha(p).color || COLORES[0];
+  const colorDe = p => ficha(p).color || D.color(mesaDe(p).color).nombre;
   // base: una de las nuestras, u "otra" que se escribe a mano (los cortes se calculan con la nuestra como referencia)
   const baseDe = p => ficha(p).baseOtra || D.BASES[mesaDe(p).base].nombre;
   const conBase = (p, b) => /^base\b/i.test(baseDe(p)) ? baseDe(p) : (b || 'Base') + ' ' + baseDe(p);
-  const resumenP = p => D.resumen(mesaDe(p)).map(r => r[0] === 'Base' ? ['Base', baseDe(p) + (ficha(p).baseOtra ? ' (otra)' : '')] : r);
+  const resumenP = p => D.resumen(mesaDe(p)).map(r => r[0] === 'Base' ? ['Base', baseDe(p) + (ficha(p).baseOtra ? ' (otra)' : '')] : r[0] === 'Color de base' ? ['Color de base', colorDe(p)] : r);
   const opcBases = (m, otra) => opts(Object.fromEntries(D.basesPara(m).map(k => [k, D.BASES[k].nombre]).concat([['__otra', 'Otra base…']])), otra ? '__otra' : m.base);
   const activo = p => !['entregado', 'cancelado'].includes(p.estado);
   function numeros(p) {
@@ -224,7 +224,7 @@
       + '<div class="tabs"><a href="#p=' + p.id + '"' + (tall ? '' : ' class="on"') + '>Pedido y logística</a><a href="#t=' + p.id + '"' + (tall ? ' class="on"' : '') + '>Taller y creación</a></div>'
       + (p.notas ? '<p class="nota-cli"><b>El cliente escribió:</b> “' + esc(p.notas) + '”</p>' : '');
     const pie = '<div class="pie-ped">' + (p.estado === 'cancelado' ? '' : '<button class="lnk gris" id="cancelar">Cancelar este pedido</button>') + '</div>';
-    const resumen = '<ul class="res">' + resumenP(p).concat([['Color de base', colorDe(p)], ['Modelo', modeloDe(p).txt]]).map(([k, v]) => '<li><span>' + k + '</span><b>' + esc(v) + '</b></li>').join('') + (x.n > 1 ? '<li><span>Cantidad</span><b>' + x.n + ' mesas</b></li>' : '') + '</ul>';
+    const resumen = '<ul class="res">' + resumenP(p).concat([['Modelo', modeloDe(p).txt]]).map(([k, v]) => '<li><span>' + k + '</span><b>' + esc(v) + '</b></li>').join('') + (x.n > 1 ? '<li><span>Cantidad</span><b>' + x.n + ' mesas</b></li>' : '') + '</ul>';
     const hdl = '<datalist id="hlist">' + herreros().map(h => '<option value="' + esc(h) + '">').join('') + '</datalist>';
     if (!tall) {
       main.innerHTML = cab
@@ -498,7 +498,7 @@
     const y0 = 420, fi = await cargarImg(await fotoMesa(p));
     if (fi) { g.save(); g.beginPath(); g.roundRect ? g.roundRect(70, y0, 560, 373, 18) : g.rect(70, y0, 560, 373); g.clip(); g.drawImage(fi, 70, y0, 560, 373); g.restore(); }
     txt(D.titulo(m), 660, y0 + 30, '500 30px "Cormorant Garamond",Georgia,serif', '#1a1917');
-    const filas = resumenP(p).filter(r => r[0] !== 'Uso').concat([['Color base', colorDe(p)], ['Modelo', modeloDe(p).nuestro ? modeloDe(p).nombre + ' (catálogo)' : (f.modelo === 'otro' ? (f.modeloOtro || 'Personalizado') : 'Personalizado')], ['MDF', m.forma === 'round' ? 'Ø ' + c.mdf.L + ' cm' : c.mdf.L + ' × ' + c.mdf.W + ' cm'], ['Base (medida)', c.base.L + ' × ' + c.base.W + ' × ' + c.base.H + ' cm']]).concat(x.n > 1 ? [['Cantidad', x.n + ' mesas']] : []);
+    const filas = resumenP(p).filter(r => r[0] !== 'Uso').concat([['Modelo', modeloDe(p).nuestro ? modeloDe(p).nombre + ' (catálogo)' : (f.modelo === 'otro' ? (f.modeloOtro || 'Personalizado') : 'Personalizado')], ['MDF', m.forma === 'round' ? 'Ø ' + c.mdf.L + ' cm' : c.mdf.L + ' × ' + c.mdf.W + ' cm'], ['Base (medida)', c.base.L + ' × ' + c.base.W + ' × ' + c.base.H + ' cm']]).concat(x.n > 1 ? [['Cantidad', x.n + ' mesas']] : []);
     filas.forEach(([k, v], i) => { const y = y0 + 74 + i * 30; txt(k, 660, y, '400 21px Inter,Arial', '#8a8378'); txt(String(v), 840, y, '500 21px Inter,Arial', '#1a1917'); });
     // muestra de la piedra que eligió, junto a su renglón
     { const ip = filas.findIndex(r => r[0] === 'Piedra'), mp = await cargarImg('img/piedras/' + m.piedra + '.jpg');

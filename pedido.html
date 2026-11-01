@@ -295,6 +295,15 @@ a,button,label,.btn{-webkit-tap-highlight-color:transparent}
 .cot-extra{margin-top:26px;padding-top:18px;border-top:1px solid rgba(255,255,255,.1)}
 #sig.cot-sig{background:#c2a273;color:#16120d;font-weight:700}
 #sig.cot-sig{font-size:12.5px;letter-spacing:.06em;white-space:nowrap;padding:0 16px}#cuenta{white-space:nowrap}
+
+/* la base que dibuja el cliente */
+.base-cli,.base .mb-ico{border-style:dashed}.base .mb-ico{display:grid;place-items:center;aspect-ratio:3/2;font-size:34px;background:var(--bg3);border-radius:4px;width:100%}
+.dz-cli{position:fixed;inset:0;z-index:95;background:rgba(8,7,6,.8);display:flex;align-items:flex-end;justify-content:center}
+.dz-caja{width:100%;max-width:820px;max-height:94vh;overflow:auto;background:var(--bg2);border-radius:16px 16px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
+.dz-caja header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.dz-caja header b{font:300 30px/1 var(--serif)}
+.dz-caja .sub{color:var(--mut);font-size:14px;margin:6px 0 12px}.dz-caja .lienzo{background:#fbfaf8;border-radius:10px;overflow:hidden;touch-action:none}.dz-caja canvas{display:block;width:100%;height:auto;touch-action:none}
+.dz-caja .botones{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.dz-caja .botones .btn{flex:1;min-width:120px}
+.dz-caja .frente-box{background:#fbfaf8;border-radius:10px;padding:6px;margin-top:10px}.dz-caja .frente-box svg{display:block;width:100%;height:auto}.dz-caja .prop-n{margin-top:14px;color:var(--mut)}
 .pm{max-width:680px;margin:0 auto;padding:96px 18px 80px}
 .linea{list-style:none;padding:0;display:flex;justify-content:space-between;margin:6px 0 26px;position:relative}
 .linea::before{content:'';position:absolute;left:8px;right:8px;top:7px;height:1px;background:var(--line2)}
@@ -310,4 +319,4 @@ a,button,label,.btn{-webkit-tap-highlight-color:transparent}
 .res a{color:var(--ink)}</style></head><body>
 <header class="top solido" id="top"><a class="logo" href="./"><img src="img/dkas-claro.png" alt="DKAS"></a><nav><a class="lnk" href="pedido.html">Mis pedidos</a></nav></header>
 <main class="pm" id="m"><p class="sub">Cargando…</p></main>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/dkas-data.js?v=9d6be8a58a"></script><script src="js/dkas-api.js?v=3079b292ee"></script><script src="js/dkas-croquis.js?v=e72aa8050e"></script><script src="js/pedido-ui.js?v=e104aa25b0"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/dkas-data.js?v=e604aea57b"></script><script src="js/dkas-api.js?v=ac4ad7bd46"></script><script src="js/dkas-croquis.js?v=e72aa8050e"></script><script src="js/pedido-ui.js?v=e104aa25b0"></script></body></html>

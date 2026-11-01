@@ -9,7 +9,7 @@
   try { const c = q.get('c'), ref = document.referrer ? new URL(document.referrer).hostname : ''; if (!A.load('dazk-canal', '')) A.save('dazk-canal', A.canal(c || (nomQ ? 'whatsapp' : !ref || ref === location.hostname ? 'directo' : ref)) || 'directo'); } catch (e) {}
 
   const box = $('#cz'), res = $('#cz-res');
-  let m = null, ruta = [], i = 0, origen = '', ayuda = false, enviado = null;
+  let m = null, ruta = [], i = 0, origen = '', ayuda = false, enviado = null, otraP = null, otraB = null;
   const tamano = (uso, forma, n) => { const o = D.opcionesPersonas(uso, forma); return o.length ? D.tamanoPara(uso, forma, n && o.includes(n) ? n : o[Math.floor(o.length / 2)]) : (() => { const l = D.limites(uso, forma, 0).L; return { L: Math.round((l[0] + l[1]) / 20) * 10, W: null }; })(); };
   const nueva = (uso, forma) => D.normalizar(Object.assign({ uso, forma, base: D.basesPara({ uso, forma, L: 200, W: 100 })[0] || 'patas', piedra: 'statuario' }, tamano(uso, forma, uso === 'comedor' ? 8 : 4)));
 
@@ -42,8 +42,12 @@
         + (D.redonda(m.forma) ? '' : '<label>Ancho<input type="number" inputmode="numeric" data-dim="W" value="' + m.W + '"><em>cm</em></label>') + '</div></details>' + sig(); },
     forma: () => tit('Forma', '¿Qué <em>forma?</em>') + '<div class="cz-ops cz-formas">' + D.formasDe(m.uso).map(f => '<button class="cz-op' + (m.forma === f ? ' on' : '') + '" data-forma="' + f + '">' + svgForma(f) + '<b>' + D.FORMAS[f] + '</b></button>').join('') + '</div>',
     piedra: () => tit('Piedra', 'Escoge tu <em>piedra.</em>', 'Fotos reales de cada placa.') + '<div class="cz-fotos">' + D.PIEDRAS.map(p => '<button class="' + (!ayuda && m.piedra === p.id ? 'on' : '') + '" data-piedra="' + p.id + '"><img src="img/piedras/' + p.id + '.jpg" alt="" loading="lazy"><b>' + p.nombre + '</b></button>').join('') + '</div>'
+      + '<button class="cz-otra' + (otraP != null ? ' on' : '') + '" data-otrap><b>Otra piedra</b><small>¿Buscas una que no está aquí? Dinos cuál</small></button>'
+      + (otraP != null ? '<div class="cz-otra-f"><textarea id="cz-op" rows="2" maxlength="110" placeholder="Ej. mármol negro con vetas doradas, o la que vi en tal lugar…">' + esc(otraP) + '</textarea>' + sig() + '</div>' : '')
       + '<button class="btn cz-yo' + (ayuda ? ' on' : '') + '" data-ayuda>No sé, ayúdame a elegir</button>',
     base: () => tit('Base', 'Escoge la <em>base.</em>', 'Acero hecho en nuestro taller.') + '<div class="cz-fotos">' + D.basesPara(m).map(b => '<button class="' + (m.base === b ? 'on' : '') + '" data-base="' + b + '"><img src="' + (D.BASES[b].foto || 'img/bases/' + b + '.jpg') + '" alt="" loading="lazy"><b>' + D.BASES[b].nombre + '</b></button>').join('') + '</div>'
+      + '<button class="cz-otra' + (otraB != null ? ' on' : '') + '" data-otrab><b>Otra base</b><small>¿Te imaginas otra? Cuéntanos o dibújala</small></button>'
+      + (otraB != null ? '<div class="cz-otra-f"><textarea id="cz-ob" rows="2" maxlength="110" placeholder="Ej. de madera, en forma de arco, una sola pata al centro…">' + esc(otraB) + '</textarea><a class="lnk-g" href="./#app">¿Prefieres dibujarla tú? Pide acceso al diseñador 3D →</a></div>' : '')
       + '<h2 class="cz-h2">Color de la base</h2><div class="cz-chips">' + D.COLORES.map(k => '<button class="cz-chip cz-col' + ((m.color || 'negro') === k.id ? ' on' : '') + '" data-color="' + k.id + '"><i style="background:' + k.hex + '"></i>' + k.nombre + '</button>').join('') + '</div>' + sig('Listo'),
     datos: () => tit('Último paso', '¿A dónde te mandamos tu <em>cotización?</em>', 'Un asesor de DKAS revisa tu mesa y te escribe por WhatsApp. Sin compromiso.')
       + '<div class="cz-resumen"><img src="img/piedras/' + m.piedra + '.jpg" alt=""><ul>' + lineas().map(z => '<li>' + esc(z) + '</li>').join('') + '</ul></div>'
@@ -57,7 +61,7 @@
       + '<a class="btn cz-yo" href="' + A.seguimiento(enviado.token) + '">Ver mi solicitud</a></div>'
   };
   function lineas() { const n = D.personas(m), col = D.color(m.color || 'negro');
-    return [D.USOS[m.uso].nombre + ' ' + D.FORMAS[m.forma].toLowerCase() + ' · ' + D.medida(m) + (n ? ' · ' + n + ' personas' : ''), ayuda ? 'Piedra: que me ayuden a elegir' : 'Piedra ' + D.piedra(m.piedra).nombre, 'Base ' + D.BASES[m.base].nombre + ' · ' + col.nombre.toLowerCase()]; }
+    return [D.USOS[m.uso].nombre + ' ' + D.FORMAS[m.forma].toLowerCase() + ' · ' + D.medida(m) + (n ? ' · ' + n + ' personas' : ''), otraP ? 'Piedra: otra — ' + otraP : ayuda ? 'Piedra: que me ayuden a elegir' : 'Piedra ' + D.piedra(m.piedra).nombre, (otraB ? 'Base: otra — ' + otraB : 'Base ' + D.BASES[m.base].nombre) + ' · ' + col.nombre.toLowerCase()]; }
 
   function pinta() {
     const p = ruta[i]; box.innerHTML = '<div class="cz-prog">' + ruta.filter(x => x !== 'inicio').map((x, k) => '<i class="' + (k < ruta.filter(z => z !== 'inicio').indexOf(p) ? 'h' : x === p ? 'on' : '') + '"></i>').join('') + '</div>' + PANTALLA[p]();
@@ -77,12 +81,15 @@
     if (b.dataset.pers) return cambia(D.tamanoPara(m.uso, m.forma, +b.dataset.pers), true);
     if (b.dataset.tam) return cambia({ L: +b.dataset.tam, W: D.redonda(m.forma) ? +b.dataset.tam : null }, true);
     if (b.dataset.forma) { const n = D.personas(m); return cambia(Object.assign({ forma: b.dataset.forma }, tamano(m.uso, b.dataset.forma, n)), true); }
-    if (b.dataset.piedra) { ayuda = false; return cambia({ piedra: b.dataset.piedra }, true); }
-    if (b.dataset.ayuda != null) { ayuda = true; pinta(); return setTimeout(() => ir(1), 180); }
-    if (b.dataset.base) return cambia({ base: b.dataset.base });
+    if (b.dataset.piedra) { ayuda = false; otraP = null; return cambia({ piedra: b.dataset.piedra }, true); }
+    if (b.dataset.otrap != null) { ayuda = false; otraP = otraP == null ? '' : otraP; pinta(); const t = $('#cz-op'); if (t) t.focus(); return; }
+    if (b.dataset.otrab != null) { otraB = otraB == null ? '' : otraB; pinta(); const t = $('#cz-ob'); if (t) t.focus(); return; }
+    if (b.dataset.ayuda != null) { ayuda = true; otraP = null; pinta(); return setTimeout(() => ir(1), 180); }
+    if (b.dataset.base) { otraB = null; return cambia({ base: b.dataset.base }); }
     if (b.dataset.color) return cambia({ color: b.dataset.color });
-    if (b.dataset.sig != null) return ir(1);
+    if (b.dataset.sig != null) { if (otraP === '' && ruta[i] === 'piedra') { const t = $('#cz-op'); if (t) t.focus(); return; } return ir(1); }
   });
+  box.addEventListener('input', e => { if (e.target.id === 'cz-op') otraP = e.target.value.slice(0, 110); if (e.target.id === 'cz-ob') otraB = e.target.value.slice(0, 110); if (e.target.id === 'cz-op' || e.target.id === 'cz-ob') res.innerHTML = '<span>' + esc(lineas().join(' · ')) + '</span>'; });
   box.addEventListener('change', e => { const k = e.target.dataset.dim; if (!k) return; const v = Math.round(+e.target.value); if (!(v > 0)) return; const c = { [k]: v }; if (k === 'L' && D.redonda(m.forma)) c.W = v; m = D.normalizar(Object.assign({}, m, c)); const t = $('.cz-med b'); if (t) t.textContent = D.medida(m); res.innerHTML = '<span>' + esc(lineas().join(' · ')) + '</span>'; });
   $('#cz-atras').onclick = () => ir(-1);
 
@@ -93,7 +100,7 @@
     b.disabled = true; b.textContent = 'Enviando…';
     try {
       const cod = [m.uso, m.forma, m.L, m.W, m.base, m.piedra, m.H].concat(m.color && m.color !== 'negro' ? [m.color] : []).join('.');
-      const specs = D.resumen(m).filter(r => r[0] !== 'Fabricación' && !(ayuda && r[0] === 'Piedra')).concat([['Pidió', 'Cotizador express' + (origen ? ' · ' + origen : '')]], ayuda ? [['Piedra', 'Quiere que le ayudemos a elegir']] : [], [['Código', cod]]);
+      const specs = D.resumen(m).filter(r => r[0] !== 'Fabricación' && !((ayuda || otraP) && r[0] === 'Piedra') && !(otraB && r[0] === 'Base')).concat(otraP ? [['Piedra', ('Otra: ' + otraP).slice(0, 120)]] : [], otraB ? [['Base', ('Otra: ' + otraB).slice(0, 120)]] : []).concat([['Pidió', 'Cotizador express' + (origen ? ' · ' + origen : '')]], ayuda ? [['Piedra', 'Quiere que le ayudemos a elegir']] : [], [['Código', cod]]);
       const r = await A.crearPedido({ nombre, tel, notas: ($('#cz-notas') || {}).value || '', items: [{ tipo: 'mesa', titulo: D.titulo(m), cantidad: 1, uso: m.uso, specs, link: SITE + '#d=' + cod }], canal: A.load('dazk-canal', '') });
       A.save('dazk-yo', Object.assign(A.load('dazk-yo', {}), { nombre, tel }));
       A.save('dazk-pedidos', [{ folio: r.folio, token: r.token, fecha: new Date().toISOString() }].concat(A.load('dazk-pedidos', [])));

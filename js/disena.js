@@ -185,5 +185,32 @@
   // al salir de la pantalla la base de prueba no se queda en las listas
   function salir() { if (D.BASES[PRUEBA]) D.quitarBase(PRUEBA); visor = null; }
 
-  window.DKAS_DISENA = { pantalla, salir, redisenar, VARIANTES };
+  // ---------- para el cliente (diseñador 3D de la página): dibuja, el sistema la vuelve fabricable y la usa en su mesa ----------
+  // la base del cliente no se suma a la lista general de bases (para no llenar el catálogo de nadie)
+  function registrarCli(id, b) { D.registrarBase(id, Object.assign({ desc: 'Diseñada por el cliente.' }, b, { cli: true })); }
+  function abrirCliente(usar) {
+    trazos = []; n = 0; prop = null;
+    const v = document.createElement('div'); v.className = 'dz-cli';
+    v.innerHTML = '<div class="dz-caja"><header><b>Diseña tu <em>base.</em></b><button class="btn chico" data-x>Cerrar</button></header>'
+      + '<p class="sub">Dibuja las patas vistas de frente, de la piedra hasta el piso. Con dibujar la mitad basta: la copiamos del otro lado. Nosotros la volvemos una base que sí se fabrica.</p>'
+      + '<div class="lienzo"><canvas id="dz" width="' + CW + '" height="' + CH + '"></canvas></div>'
+      + '<div class="botones"><button class="btn" id="dz-des">↶ Deshacer</button><button class="btn" id="dz-borra">Borrar</button><button class="btn oro" id="dz-ok">Ver cómo queda →</button></div>'
+      + '<div id="dz-prop" hidden><p class="prop-n" id="dz-n"></p><div id="dz-frente"></div><p class="err" id="dz-err" hidden></p>'
+      + '<div class="botones"><button class="btn" id="dz-otra">Otra versión ↻</button><button class="btn oro" id="dz-usar">Usar esta base ✓</button></div></div></div>';
+    document.body.appendChild(v); document.body.style.overflow = 'hidden';
+    const cerrar = () => { v.remove(); document.body.style.overflow = ''; };
+    pizarra();
+    const ver = () => { if (!trazos.length) return; const r = redisenar(trazos, variante(n)); $('#dz-prop').hidden = false;
+      $('#dz-err').hidden = !r.error; $('#dz-n').hidden = $('#dz-frente').hidden = $('#dz-usar').hidden = !!r.error;
+      if (r.error) { $('#dz-err').textContent = r.error; return; }
+      prop = r; $('#dz-n').innerHTML = 'Versión ' + (n + 1) + ' · <b>' + esc(r.nombre) + '</b>'; $('#dz-frente').innerHTML = '<div class="frente-box">' + svgFrente(r.segs, r.perfil) + '</div>';
+      $('#dz-prop').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); };
+    v.onclick = e => { const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.x != null) return cerrar();
+      if (b.id === 'dz-des') { trazos.pop(); pizarra(); } else if (b.id === 'dz-borra') { trazos = []; pizarra(); $('#dz-prop').hidden = true; }
+      else if (b.id === 'dz-ok') { n = 0; ver(); } else if (b.id === 'dz-otra') { n++; ver(); }
+      else if (b.id === 'dz-usar' && prop) { const p = prop; cerrar(); usar({ segs: p.segs, perfil: p.perfil }); } };
+  }
+
+  window.DKAS_DISENA = { pantalla, salir, redisenar, VARIANTES, abrirCliente, registrarCli };
 })();

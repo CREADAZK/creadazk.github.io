@@ -289,14 +289,14 @@
   const propias = [];
   function registrarBase(id, b) {
     if (!b || !Array.isArray(b.segs) || !b.segs.length) return;
-    BASES[id] = { nombre: String(b.nombre || 'Base nueva').slice(0, 40), desc: String(b.desc || 'Diseño DKAS hecho en el taller.').slice(0, 140), segs: b.segs.map(q => q.map(Number)), perfil: PERFILES[b.perfil] ? b.perfil : 'ligero', foto: b.foto || null, propia: true };
-    if (!propias.includes(id)) propias.push(id);
+    BASES[id] = { nombre: String(b.nombre || 'Base nueva').slice(0, 40), desc: String(b.desc || 'Diseño DKAS hecho en el taller.').slice(0, 140), segs: b.segs.map(q => q.map(Number)), perfil: PERFILES[b.perfil] ? b.perfil : 'ligero', foto: b.foto || null, propia: true, cli: !!b.cli };
+    if (!b.cli && !propias.includes(id)) propias.push(id); // la base de un cliente es solo para su mesa: no entra a la lista
   }
   function quitarBase(id) { const i = propias.indexOf(id); if (i >= 0) propias.splice(i, 1); delete BASES[id]; }
 
   // qué bases sí funcionan para esa mesa
   function basesPara(m) {
-    const extra = ['rect', 'ovcuad', 'oval'].includes(m.forma) ? propias.slice() : [];
+    const extra = ['rect', 'ovcuad', 'oval'].includes(m.forma) ? propias.concat(BASES[m.base] && BASES[m.base].cli ? [m.base] : []) : [];
     return basesNuestras(m).concat(extra);
   }
   function basesNuestras(m) {
@@ -328,7 +328,7 @@
     if (W > L) [L, W] = [clamp(W, ...ABS.L), L]; // 100 × 250 es la misma mesa que 250 × 100
     const H = +m.H ? clamp(Math.round(+m.H), ...ABS.H) : USOS[uso].H;
     const out = { uso, forma, L, W, H, piedra: piedra(m.piedra).id, color: color(m.color).id };
-    const bs = basesPara(out);
+    const bs = basesPara(Object.assign({}, out, { base: m.base }));
     out.base = bs.includes(m.base) ? m.base : bs[0];
     if (m.modelo && MODELOS.some(x => x.id === m.modelo && x.uso === uso && x.forma === forma && x.L === L && x.W === W && x.base === out.base)) out.modelo = m.modelo;
     return out;

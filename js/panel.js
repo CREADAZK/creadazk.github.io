@@ -125,6 +125,8 @@
     todos = l; cfg = c || {};
     // las bases diseñadas en el panel (Diseñar bases) entran al sistema como cualquier otra
     try { const bs = await A.basesPublicas(); Object.entries(bs || {}).forEach(([id, b]) => D.registrarBase(id, b)); } catch (e) {}
+    // las bases que dibujaron los clientes (cada una solo para su mesa)
+    try { const bc = await A.basesClientes(); Object.entries(bc || {}).forEach(([k, b]) => D.registrarBase('c-' + k.slice(0, 10), Object.assign({ desc: 'Diseñada por el cliente.' }, b, { cli: true }))); } catch (e) {}
   }
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
@@ -848,8 +850,10 @@
   // ---------- Cotizar en una sola pantalla: lo que escogió, precio (opcional), mensaje y WhatsApp ----------
   async function cotizarRapido(p, seguimiento) {
     const m = mesaDe(p), x = numeros(p), n = p.nombre.split(' ')[0], yoN = String(me.nombre || 'Zury').split(' ')[0], col = D.color(m.color || 'negro');
+    const spec = k => (((p.items[0] || {}).specs || []).find(z => z[0] === k) || [])[1] || '', otraP = /^Otra:/.test(spec('Piedra')) ? spec('Piedra').replace(/^Otra:\s*/, '') : '', otraB = /^Otra:/.test(spec('Base')) ? spec('Base').replace(/^Otra:\s*/, '') : '', ayudaP = /ayudemos/.test(spec('Piedra'));
+    const nomP = otraP ? 'Otra: ' + otraP : ayudaP ? 'Que le ayudemos a elegir' : D.piedra(m.piedra).nombre, nomB = otraB ? 'Otra: ' + otraB : baseDe(p);
     const v = document.createElement('div'); v.className = 'vm';
-    const lin = () => ['Mesa de ' + D.USOS[m.uso].nombre.toLowerCase() + ' ' + D.FORMAS[m.forma].toLowerCase() + ' · ' + D.medida(m) + (D.personas(m) ? ' (' + D.personas(m) + ' personas)' : ''), 'Piedra ' + D.piedra(m.piedra).nombre, 'Base ' + baseDe(p) + ', color ' + colorDe(p).toLowerCase(), 'Altura ' + m.H + ' cm'];
+    const lin = () => ['Mesa de ' + D.USOS[m.uso].nombre.toLowerCase() + ' ' + D.FORMAS[m.forma].toLowerCase() + ' · ' + D.medida(m) + (D.personas(m) ? ' (' + D.personas(m) + ' personas)' : ''), 'Piedra ' + nomP, 'Base ' + nomB + ', color ' + colorDe(p).toLowerCase(), 'Altura ' + m.H + ' cm'];
     const ligaPed = SITE + 'pedido.html#t=' + p.token, citaTxt = '¿Te gustaría que te visitemos con muestras de las piedras y midamos tu espacio? Estamos disponibles cuando gustes.';
     const mensajes = precio => { const ant = precio ? Math.ceil(precio / 2) : 0, lista = lin().map(z => '• ' + z).join('\n');
       if (seguimiento) return [
@@ -865,10 +869,11 @@
         ['Esto es lo que escogiste', 'Hola ' + n + ', ¿cómo estás? 😊 Soy ' + yoN + ' de DKAS. Esta es la mesa que escogiste:\n' + lista + '\n\n¿Es correcto? Si quieres ajustamos algo y te preparo tu cotización.'],
         ['Cita con muestras', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Recibí tu mesa (' + D.piedra(m.piedra).nombre + ', base ' + baseDe(p) + '). Para recomendarte la medida ideal, te visitamos con muestras reales de las piedras y medimos tu espacio. Estamos disponibles cuando gustes, ¿qué día te acomoda?'],
         ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Recibimos su solicitud:\n' + lista + '\n\nEn breve le compartimos la cotización formal. Si lo prefiere, le visitamos con muestras de las piedras para medir su espacio.']]; };
-    const tile = (img, t, sub) => '<div class="cr-t"><img src="' + img + '" alt=""><div><small>' + t + '</small><b>' + esc(sub) + '</b></div></div>';
+    const tile = (img, t, sub) => '<div class="cr-t">' + (img ? '<img src="' + img + '" alt="">' : '<span class="cr-ico">✏️</span>') + '<div><small>' + t + '</small><b>' + esc(sub) + '</b></div></div>';
     v.innerHTML = '<div class="vm-caja"><button class="vm-x" aria-label="Cerrar">×</button><div class="vm-foto"><img id="cr-foto" alt=""></div><div class="vm-tx">'
       + '<p class="vm-et">' + (seguimiento ? 'Seguimiento' : 'Cotizar') + ' · ' + esc(p.nombre) + ' · #' + p.folio + '</p><h2>' + esc(D.titulo(m)) + '</h2>'
-      + '<div class="cr-tiles">' + tile('img/piedras/' + m.piedra + '.jpg', 'Piedra', D.piedra(m.piedra).nombre) + tile(D.BASES[m.base].foto || 'img/bases/' + m.base + '.jpg', 'Base', baseDe(p) + ' · ' + colorDe(p).toLowerCase())
+      + (otraP || otraB ? '<p class="cr-otra">⚠ Pidió algo que no está en el catálogo: <b>' + esc([otraP && 'piedra — ' + otraP, otraB && 'base — ' + otraB].filter(Boolean).join(' · ')) + '</b>. Escríbele para ayudarle.</p>' : '')
+      + '<div class="cr-tiles">' + tile(otraP ? null : 'img/piedras/' + m.piedra + '.jpg', otraP ? 'Piedra (otra)' : 'Piedra', nomP) + tile(D.BASES[m.base].cli || otraB ? null : D.BASES[m.base].foto || 'img/bases/' + m.base + '.jpg', otraB ? 'Base (otra)' : D.BASES[m.base].cli ? 'Base (la dibujó)' : 'Base', nomB + ' · ' + colorDe(p).toLowerCase())
       + '<div class="cr-t cr-m"><div><small>Medidas</small><b>' + esc(D.medida(m)) + ' · h ' + m.H + '</b>' + (D.personas(m) ? '<span>' + D.personas(m) + ' personas</span>' : '') + '</div></div></div>'
       + '<p class="cr-ed"><a class="lnk" href="#t=' + p.id + '">Cambiar la mesa o ver costos →</a></p>'
       + (seguimiento ? '' : '<label class="cr-precio">Precio total <small>(opcional: si lo dejas vacío le mandas lo que escogió, sin precio)</small><div><input id="cr-p" inputmode="decimal" placeholder="$" value="' + (x.pactado || '') + '">' + (x.sugerido ? '<button class="btn chico" id="cr-sug">Sugerido ' + pesos(x.sugerido) + '</button>' : '') + '</div></label>')

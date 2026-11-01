@@ -74,7 +74,8 @@
       '<button class="piedra' + (st.piedra === p.id ? ' sel' : '') + '" data-piedra="' + p.id + '"><img src="img/piedras/' + p.id + '.jpg" alt="" loading="lazy"><b>' + p.nombre + '</b><small>' + p.desc + (p.acabado ? ' · ' + p.acabado.toLowerCase() : '') + '</small></button>').join('') + '</div><p class="nota">Todas en placa de 320 × 160 cm y 12 mm de grosor.</p>';
     // 5 · base
     $('#p3').innerHTML = tit(3, 'El acero', 'Elige la <em>base.</em>') + '<p class="sub">Solo te mostramos las bases que funcionan con tu mesa.</p><div class="bases">' + D.basesPara(st).map(b =>
-      '<button class="base' + (st.base === b ? ' sel' : '') + '" data-base="' + b + '"><img src="' + (D.BASES[b].foto || 'img/bases/' + b + '.jpg') + '" alt="" loading="lazy"><b>' + D.BASES[b].nombre + '</b><small>' + D.BASES[b].desc + '</small></button>').join('') + '</div>'
+      '<button class="base' + (st.base === b ? ' sel' : '') + '" data-base="' + b + '">' + (D.BASES[b].cli ? '<span class="mb-ico">✏️</span>' : '<img src="' + (D.BASES[b].foto || 'img/bases/' + b + '.jpg') + '" alt="" loading="lazy">') + '<b>' + D.BASES[b].nombre + '</b><small>' + D.BASES[b].desc + '</small></button>').join('')
+      + (['rect', 'ovcuad', 'oval'].includes(st.forma) && (accId() || window.DKAS_STAFF) ? '<button class="base base-cli" data-mibase><span class="mb-ico">✏️</span><b>' + (D.BASES[miBaseId()] ? 'Volver a dibujar mi base' : 'Diseña tu propia base') + '</b><small>Dibújala con el dedo y la volvemos fabricable</small></button>' : '') + '</div>'
       + '<h3>Color de la base</h3><div class="colores">' + D.COLORES.map(k => '<button class="col' + (st.color === k.id ? ' sel' : '') + '" data-color="' + k.id + '"><i style="background:' + k.hex + '"></i>' + k.nombre + '</button>').join('') + '</div>'
       + '<p class="nota">Pintura electrostática. Así se ve en el 3D.</p>';
     // 5 · enviar
@@ -135,6 +136,7 @@
     if (b.dataset.pers) return set(D.tamanoPara(st.uso, st.forma, +b.dataset.pers));
     if (b.dataset.piedra) return set({ piedra: b.dataset.piedra });
     if (b.dataset.base) return set({ base: b.dataset.base });
+    if (b.dataset.mibase != null) return miBase();
     if (b.dataset.color) return set({ color: b.dataset.color });
     if (b.dataset.bajar) return bajarArchivo(b.dataset.bajar, b);
     if (b.dataset.paso) { const k = b.dataset.paso, c = { [k]: st[k] + +b.dataset.d }; if (k === 'L' && D.redonda(st.forma)) c.W = c.L; set(c); return; }
@@ -229,7 +231,7 @@
         const x = t[i], cod = codigo(x.m);
         if (t.length > 1) b.textContent = 'Enviando ' + (i + 1) + ' de ' + t.length + '…';
         const conj = t.length > 1 ? [['Pedido conjunto', 'Diseño ' + (i + 1) + ' de ' + t.length + ' · ' + piezas(t) + ' mesas' + (proyecto ? ' · ' + proyecto : '')]] : [];
-        const it = { tipo: 'mesa', titulo: D.titulo(x.m), cantidad: x.cant, uso: x.m.uso, specs: D.resumen(x.m).concat(extra, conj, [['Código', cod]]), link: SITE + '#d=' + cod };
+        const it = { tipo: 'mesa', titulo: D.titulo(x.m), cantidad: x.cant, uso: x.m.uso, specs: D.resumen(x.m).concat(D.BASES[x.m.base] && D.BASES[x.m.base].cli ? [['Base diseñada', 'Por el cliente (la ves en el panel)']] : [], extra, conj, [['Código', cod]]), link: SITE + '#d=' + cod };
         if ($('#tel').value.replace(/\D/g, '').length < 10) throw new Error('Escribe tu WhatsApp a 10 dígitos: ahí te mandamos tu cotización.');
         const r = await A.crearPedido({ nombre: $('#nombre').value, tel: $('#tel').value, notas: $('#notas').value, items: [it], canal: A.load('dazk-canal', '') });
         const img = x.actual ? await chica($('#p5img').src || V.foto(1200, 800)) : x.img;
@@ -332,6 +334,13 @@
     V.mostrar(st); pintar();
   }).catch(() => {});
   // ---------- su mesa se guarda sola en el sistema (el panel la ve en Clientes) y la recupera al volver ----------
+  // la base que dibuja el cliente: solo para su mesa (basesCli/<su id>)
+  function miBaseId() { return 'c-' + String(accId() || 'prueba').slice(0, 10); }
+  function miBase() {
+    if (!window.DKAS_DISENA) return;
+    DKAS_DISENA.abrirCliente(p => { const yo = A.load('dazk-yo', {}), data = { nombre: 'Base de ' + ((yo.nombre || 'cliente').split(' ')[0]).slice(0, 30), segs: p.segs, perfil: p.perfil };
+      DKAS_DISENA.registrarCli(miBaseId(), data); if (accId()) A.guardarBaseCli(accId(), data).catch(() => {}); set({ base: miBaseId() }); });
+  }
   function accId() { return !window.DKAS_STAFF && window.DKAS_ACC_ID; }
   function aviso() {
     const el = $('#aviso-env'); if (!el) return;
@@ -351,6 +360,7 @@
   async function recuperar() {
     if (!accId() || recuperado) return; recuperado = true;
     try {
+      try { const bc = await A.verBaseCli(accId()); if (bc && window.DKAS_DISENA) DKAS_DISENA.registrarCli(miBaseId(), bc); } catch (e) {}
       const d = await A.verDiseno(accId()); if (!d) return guardaSola();
       if (d.enviado) miEnvio = d.enviado;
       if (d.cod && deCodigo(d.cod) && !enlace) { st = D.normalizar(deCodigo(d.cod)); guardadoCod = d.cod; V.mostrar(st); ir(d.enviado ? 0 : 4); }

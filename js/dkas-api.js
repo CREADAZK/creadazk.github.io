@@ -241,6 +241,10 @@
     async verDiseno(s) { return db('disenos/' + s); },
     async guardarDiseno(s, x) { await db('disenos/' + s, 'PATCH', Object.assign({}, x, { actualizado: TS })); },
     async disenos() { return (await db('disenos', 'GET', undefined, true)) || {}; },
+    // la base que el cliente dibuja (solo para su mesa; no entra al catálogo)
+    async verBaseCli(s) { return db('basesCli/' + s); },
+    async guardarBaseCli(s, b) { await db('basesCli/' + s, 'PUT', Object.assign({}, b, { creado: TS })); },
+    async basesClientes() { return (await db('basesCli', 'GET', undefined, true)) || {}; },
     // la agenda del equipo: pendientes con fecha (solo staff)
     async agenda() { return Object.entries((await db('agenda', 'GET', undefined, true)) || {}).map(([id, x]) => Object.assign({ id }, x)); },
     async guardarTarea(id, x) { await db('agenda/' + id, 'PUT', x, true); },
@@ -310,6 +314,9 @@
     async verDiseno(s) { return load('dazk-demo-dis', {})[s] || null; },
     async guardarDiseno(s, x) { const d = load('dazk-demo-dis', {}); d[s] = Object.assign({}, d[s], x, { actualizado: Date.now() }); save('dazk-demo-dis', d); },
     async disenos() { return load('dazk-demo-dis', {}); },
+    async verBaseCli(s) { return load('dazk-demo-bcli', {})[s] || null; },
+    async guardarBaseCli(s, b) { const d = load('dazk-demo-bcli', {}); d[s] = Object.assign({}, b, { creado: Date.now() }); save('dazk-demo-bcli', d); },
+    async basesClientes() { return load('dazk-demo-bcli', {}); },
     async agenda() { return Object.entries(load('dazk-demo-agenda', {})).map(([id, x]) => Object.assign({ id }, x)); },
     async guardarTarea(id, x) { const d = load('dazk-demo-agenda', {}); d[id] = x; save('dazk-demo-agenda', d); },
     async borrarTarea(id) { const d = load('dazk-demo-agenda', {}); delete d[id]; save('dazk-demo-agenda', d); },

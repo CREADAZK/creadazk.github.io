@@ -225,6 +225,10 @@
     async cambiarAcceso(t, activo) { await db('accesos/' + t + '/activo', 'PUT', !!activo, true); },
     async guardarBase(id, b) { await db('catalogo/bases/' + id, 'PUT', b, true); },
     async borrarBase(id) { await db('catalogo/bases/' + id, 'DELETE', undefined, true); },
+    // la agenda del equipo: pendientes con fecha (solo staff)
+    async agenda() { return Object.entries((await db('agenda', 'GET', undefined, true)) || {}).map(([id, x]) => Object.assign({ id }, x)); },
+    async guardarTarea(id, x) { await db('agenda/' + id, 'PUT', x, true); },
+    async borrarTarea(id) { await db('agenda/' + id, 'DELETE', undefined, true); },
     async visitas() { const q = '?orderBy=' + encodeURIComponent('"t"') + '&limitToLast=1000&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}).sort((a, b) => b.t - a.t); },
   };
 
@@ -279,6 +283,9 @@
     async staffMensaje(id, texto, interno) { edit(x => x.id === id, (p, ev) => ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: interno ? 'nota' : 'mensaje', texto, interno: !!interno })); },
     async guardarFicha(id, key, data, nota) { edit(x => x.id === id, (p, ev) => { p.fichas = p.fichas || {}; p.fichas[key] = data; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'nota', texto: nota, interno: true }); }); },
     async visita(id, data, primera) { const d = load('dazk-demo-visitas', {}); d[id] = Object.assign({}, d[id], primera ? { t: Date.now() } : {}, { ult: Date.now() }, data); save('dazk-demo-visitas', d); },
+    async agenda() { return Object.entries(load('dazk-demo-agenda', {})).map(([id, x]) => Object.assign({ id }, x)); },
+    async guardarTarea(id, x) { const d = load('dazk-demo-agenda', {}); d[id] = x; save('dazk-demo-agenda', d); },
+    async borrarTarea(id) { const d = load('dazk-demo-agenda', {}); delete d[id]; save('dazk-demo-agenda', d); },
     async visitas() { return Object.values(load('dazk-demo-visitas', {})).sort((a, b) => b.t - a.t); },
     async enviarCotizacion(id, cot) { edit(x => x.id === id, (p, ev) => { p.cotizacion = Object.assign({}, cot, { enviada: Date.now() }); p.estado = 'cotizado'; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: 'Cotizado' }); ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'mensaje', texto: 'Te enviamos tu cotización. Revísala arriba y, si estás de acuerdo, toca «Acepto la cotización».' }); }); },
     async dejarResena(t, r) { edit(x => x.token === t, p => { p.resena = Object.assign({}, r, { creado: Date.now() }); }); },

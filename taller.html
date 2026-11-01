@@ -255,7 +255,34 @@ img.sin{min-height:52px}
 .vis .wa-v{display:inline-block;margin-top:8px;background:#25d366;border-color:#25d366;color:#fff}
 .vis .sin-tel{display:block;margin-top:6px;opacity:.6}
 .vis .int{display:block;margin-top:4px;color:#8f7043}
+
+/* agenda */
+.ag-nueva textarea{resize:vertical;min-height:58px;font-size:16px}
+.ag-campos label,.ag-campos input{min-width:0}
+.ag-campos{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:12px;margin-top:12px;align-items:end}
+.ag-urg{display:flex;align-items:center;gap:8px;min-height:46px;padding:0 4px;color:var(--rojo);font-weight:600;font-size:14px;cursor:pointer}
+.ag-urg input{width:20px;height:20px;margin:0;accent-color:var(--rojo)}
+.ag-rapido{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.ag-rapido .btn{min-height:38px;padding:0 14px;font-size:13.5px}
+.ag-rapido .btn.on{border-color:var(--oro2);background:#faf6ef}
+.ag-bot{display:flex;gap:10px;margin-top:14px}.ag-bot .btn{flex:1;min-height:48px}
+.ag-g{display:flex;align-items:center;gap:8px}.ag-g i{font-style:normal;background:var(--suave);border:1px solid var(--linea);border-radius:20px;padding:0 8px;font-size:11px;color:var(--gris)}
+.ag-g.mal{color:var(--rojo)}.ag-g.ag-hoy{color:var(--ambar)}.ag-g.gris{color:var(--gris2)}
+.ag-g .lnk{font-size:12px;letter-spacing:.08em}
+.tarea{display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border-top:1px solid var(--linea);transition:opacity .3s,background .15s}
+.tarea:first-child{border-top:0}
+.tarea.urg{background:#fdf5f4}
+.tarea .chk{flex:none;width:28px;height:28px;margin-top:1px;border-radius:50%;border:2px solid var(--gris2);display:grid;place-items:center;transition:background .15s,border-color .15s}
+.tarea .chk::after{content:'';width:10px;height:6px;border:2px solid transparent;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+.tarea.hecha .chk{background:var(--verde);border-color:var(--verde)}.tarea.hecha .chk::after{border-color:#fff}
+.tarea.hecha .tx p{text-decoration:line-through;color:var(--gris2)}
+.tarea .tx{flex:1;min-width:0}.tarea .tx p{font-size:15.5px;line-height:1.4;overflow-wrap:anywhere}
+.tarea .tx small{display:block;color:var(--gris);font-size:12.5px;margin-top:3px}.tarea .tx small b{color:var(--rojo)}
+.tarea .acc{display:flex;gap:12px;flex:none}.tarea .acc .lnk{font-size:13px;padding:4px 0}
+.ag-vacio{padding:24px 0;text-align:center}
+@media (max-width:600px){.ag-campos{grid-template-columns:1fr 1fr}.ag-urg{grid-column:1/-1;min-height:32px}.tarea .acc{flex-direction:column;gap:2px;align-items:flex-end}}
+@media (max-width:640px){.top img{height:22px}.top>a{flex:none}.top nav{flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.top nav::-webkit-scrollbar{display:none}.top nav a{flex:none;white-space:nowrap}}
 </style></head><body>
-<header class="top"><a href="#"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#" data-sec="log">Pedidos<span class="lg"> y logística</span></a><a href="#taller" data-sec="taller">Taller<span class="lg"> y creación</span></a><a href="#bases" data-sec="bases">Diseñar<span class="lg"> bases</span></a><a href="#visitas" data-sec="visitas">Visitas</a><a href="#accesos" data-sec="accesos">Accesos<i class="badge" id="nb-acc" hidden></i></a><a href="#precios" data-sec="precios">Precios</a><a href="#" id="salir">Salir</a></nav></header>
+<header class="top"><a href="#"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#" data-sec="log">Pedidos<span class="lg"> y logística</span></a><a href="#taller" data-sec="taller">Taller<span class="lg"> y creación</span></a><a href="#bases" data-sec="bases">Diseñar<span class="lg"> bases</span></a><a href="#agenda" data-sec="agenda">Agenda<i class="badge" id="nb-age" hidden></i></a><a href="#visitas" data-sec="visitas">Visitas</a><a href="#accesos" data-sec="accesos">Accesos<i class="badge" id="nb-acc" hidden></i></a><a href="#precios" data-sec="precios">Precios</a><a href="#" id="salir">Salir</a></nav></header>
 <div id="avisos" class="avisos" hidden></div><main id="m"></main><div id="toast" hidden></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=7b4997caaf"></script><script src="js/dkas-api.js?v=2d8522b39d"></script><script src="js/dkas-croquis.js?v=ab948a527e"></script><script src="js/disena.js?v=cbae2a2d2d"></script><script src="js/panel.js?v=8c387e2815"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=7b4997caaf"></script><script src="js/dkas-api.js?v=8dd7ced50b"></script><script src="js/dkas-croquis.js?v=ab948a527e"></script><script src="js/disena.js?v=cbae2a2d2d"></script><script src="js/panel.js?v=dfe5f0b135"></script></body></html>

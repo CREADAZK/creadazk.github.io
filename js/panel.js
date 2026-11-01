@@ -596,9 +596,9 @@
     const PASO = ['Vio la página', 'Abrió el 3D', 'Armó su mesa', 'Mandó su diseño'];
     const cuando = t => { const d = new Date(t); return d.toDateString() === hoy ? 'hoy ' + d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }) : A.fecha(t); };
     main.innerHTML = '<h1>Visitas</h1><p class="sub">Quién ha entrado a dkas.mx. Al entrar se les pide su nombre y la página los recuerda.</p>'
-      + '<div class="resumen-g"><div><b>' + gente.length + '</b><span>personas</span></div><div><b>' + gente.filter(g => new Date(g.ult).toDateString() === hoy).length + '</b><span>hoy</span></div><div><b>' + gente.filter(g => g.max >= 3).length + '</b><span>mandaron diseño</span></div></div>'
+      + '<div class="resumen-g"><div><b>' + gente.length + '</b><span>personas</span></div><div><b>' + gente.filter(g => new Date(g.ult).toDateString() === hoy).length + '</b><span>hoy</span></div><div><b>' + gente.filter(g => g.folio).length + '</b><span>mandaron pedido</span></div></div>'
       + '<div class="sec">' + (gente.length ? gente.map(g => '<div class="fila vis"><div><b>' + esc(g.nombre || 'Sin nombre') + '</b><small>' + esc([g.disp, g.origen].filter(Boolean).join(' · ')) + '</small></div>'
-        + '<div><span>' + PASO[Math.min(3, g.max)] + (g.folio ? ' · pedido #' + g.folio : '') + '</span><small>' + g.veces + (g.veces === 1 ? ' visita' : ' visitas') + ' · última ' + cuando(g.ult) + '</small></div></div>').join('') : '<p class="sub">Todavía nadie.</p>') + '</div>';
+        + '<div><span>' + (g.folio ? 'Mandó pedido #' + g.folio : PASO[Math.min(2, g.max)]) + '</span><small>' + g.veces + (g.veces === 1 ? ' visita' : ' visitas') + ' · última ' + cuando(g.ult) + '</small></div></div>').join('') : '<p class="sub">Todavía nadie.</p>') + '</div>';
   }
 
   // ---------- accesos al diseñador 3D: solicitudes por aprobar y links de acceso directo ----------

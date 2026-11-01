@@ -781,8 +781,7 @@
         const adj = e.target.closest('[data-adj]');
         if (adj) { adj.disabled = true; adj.textContent = 'Preparando…';
           try { const m = mesaCli(c), info = { cliente: c.nombre, plano: true }, files = [];
-            const f = c.d && c.d.img ? c.d.img : await foto3d(m); if (f) files.push(new File([await (await fetch(f)).blob()], 'mesa-' + c.nombre.split(' ')[0].toLowerCase() + '.jpg', { type: 'image/jpeg' }));
-            files.push(new File([await CQ.png(m, info)], 'plano-mesa.jpg', { type: 'image/jpeg' }));
+            const f = await foto3d(m) || (c.d && c.d.img); files.push(new File([await CQ.png(m, Object.assign(info, { foto: f || undefined }))], 'tu-mesa-' + c.nombre.split(' ')[0].toLowerCase() + '.jpg', { type: 'image/jpeg' }));
             await compartir(files, ta.value, A.waNum(c.tel)); } catch (x) { alerta(x.message); }
           cerrar(); if (!seg[c.k]) { try { await A.marcarEscrito(c.k, true); seg[c.k] = { escrito: Date.now(), por: me.nombre }; setTimeout(clientes, 900); } catch (x) {} } return; }
         if (e.target.closest('[data-abrir]')) { setTimeout(cerrar, 300); if (!seg[c.k]) { try { await A.marcarEscrito(c.k, true); seg[c.k] = { escrito: Date.now(), por: me.nombre }; setTimeout(clientes, 900); } catch (x) {} } }
@@ -908,8 +907,8 @@
             detalle: resumenP(p).map(([k, w]) => k + ': ' + w).join(' · '), condiciones: 'Anticipo del 50% para empezar a fabricar; el saldo se paga al entregar.' };
           await A.enviarCotizacion(p.id, cot); p.cotizacion = Object.assign({}, cot, { enviada: Date.now() }); p.estado = 'cotizado';
           files.push(new File([await imagenCoti(p)], 'cotizacion-' + p.folio + '.jpg', { type: 'image/jpeg' }));
-        } else if (!seguimiento) files.push(new File([await imagenEleccion(p)], 'tu-mesa-' + p.folio + '.jpg', { type: 'image/jpeg' }));
-        if (!seguimiento) files.push(new File([await CQ.png(m, { cliente: p.nombre, plano: true })], 'plano-' + p.folio + '.jpg', { type: 'image/jpeg' }));
+          files.push(new File([await CQ.png(m, { cliente: p.nombre, plano: true })], 'plano-' + p.folio + '.jpg', { type: 'image/jpeg' }));
+        } else if (!seguimiento) files.push(new File([await CQ.png(m, { cliente: p.nombre, plano: true, foto: await fotoMesa(p) || undefined, titulo: 'Tu mesa · pedido #' + p.folio })], 'tu-mesa-' + p.folio + '.jpg', { type: 'image/jpeg' }));
         await compartir(files, tx, A.waNum(p.tel));
         if (pr) toast('Cotización enviada: pasa a «Esperan respuesta»');
         cerrar(); await recargar(); if (location.hash === '#clientes') clientes();
@@ -975,7 +974,7 @@
     const info = { cliente: c.nombre, plano: true }, v = document.createElement('div'); v.className = 'vm';
     v.innerHTML = '<div class="vm-caja"><button class="vm-x" aria-label="Cerrar">×</button>' + (c.d.img ? '<div class="vm-foto"><img src="' + c.d.img + '" alt=""></div>' : '')
       + '<div class="vm-tx"><p class="vm-et">La mesa de ' + esc(c.nombre) + (c.p ? ' · enviada' : ' · guardada, sin enviar') + '</p><h2>' + esc(D.titulo(m)) + '</h2>'
-      + '<div class="vm-cq" role="button">' + CQ.plano(m, info) + '<span>Tocar para ver en grande</span></div>'
+      + '<div class="vm-cq" role="button">' + CQ.lamina(m, info) + '<span>Tocar para ver en grande</span></div>'
       + '<ul class="vm-med">' + D.resumen(m).map(([k, x]) => '<li><span>' + esc(k) + '</span><b>' + esc(x) + '</b></li>').join('') + '</ul>'
       + '<div class="vm-bot">' + (c.tel ? '<button class="btn verde" data-vm="wa">Mandarle foto y plano por WhatsApp</button>' : '') + '<a class="btn" target="_blank" rel="noopener" href="' + SITE + '#d=' + encodeURIComponent(c.d.cod) + '">Abrirla en el 3D</a><button class="btn" data-vm="bajar">Descargar plano</button></div></div></div>';
     document.body.appendChild(v); document.body.style.overflow = 'hidden';
@@ -985,8 +984,7 @@
       if (e.target.closest('.vm-cq')) { const u = URL.createObjectURL(await CQ.png(m, info)), w = window.open(u, '_blank'); if (!w) location.href = u; return; }
       const b = e.target.closest('[data-vm]'); if (!b) return;
       if (b.dataset.vm === 'bajar') return bajar(await CQ.png(m, info), 'plano-' + c.nombre + '.jpg');
-      const fs = [new File([await CQ.png(m, info)], 'plano-mesa.jpg', { type: 'image/jpeg' })];
-      if (c.d.img) try { fs.unshift(new File([await (await fetch(c.d.img)).blob()], 'mi-mesa.jpg', { type: 'image/jpeg' })); } catch (x) {}
+      const fs = [new File([await CQ.png(m, Object.assign({}, info, { foto: await foto3d(m) || c.d.img || undefined }))], 'tu-mesa.jpg', { type: 'image/jpeg' })];
       await compartir(fs, texto + '\n\n' + D.resumen(m).filter(z => z[0] !== 'Fabricación').map(z => z[0] + ': ' + z[1]).join('\n'), A.waNum(c.tel));
       A.marcarEscrito(c.k, true).catch(() => {});
     };
@@ -1025,21 +1023,7 @@
       tFoto = setTimeout(async () => { const u = await foto3d(m); if (u && $('#pp-img')) { fotoUrl = u; $('#pp-img').src = u; if ($('#pp-carga')) $('#pp-carga').hidden = true; } }, 250); }
     const cambia = cm => { if ((cm.uso && cm.uso !== m.uso) && !cm.H) cm.H = D.USOS[cm.uso].H; m = D.normalizar(Object.assign({}, m, cm)); if (!D.basesPara(m).includes(m.base)) m.base = D.basesPara(m)[0]; pinta(); };
     // la imagen que se manda: foto, datos y plano en una sola hoja
-    async function hoja() {
-      const fu = fotoUrl || await foto3d(m), cq = await CQ.png(m, { cliente: c.nombre, plano: true });
-      const ld = s2 => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = s2; });
-      const [f, p, logo] = await Promise.all([fu ? ld(fu) : null, ld(URL.createObjectURL(cq)), ld('img/dkas-claro.png')]);
-      const Wd = 1200, lin = lineas(m), Hp = p ? Math.round(Wd * p.height / p.width) : 0, Hd = 120 + (f ? 800 : 0) + 70 + lin.length * 48 + 40 + Hp + 30;
-      const cv = document.createElement('canvas'); cv.width = Wd; cv.height = Hd; const g = cv.getContext('2d');
-      g.fillStyle = '#fff'; g.fillRect(0, 0, Wd, Hd); g.fillStyle = '#14110e'; g.fillRect(0, 0, Wd, 120);
-      if (logo) g.drawImage(logo, 40, 30, 60 * logo.width / logo.height, 60);
-      g.fillStyle = '#c2a273'; g.font = '600 30px Arial'; g.textAlign = 'right'; g.fillText('Propuesta para ' + c.nombre, Wd - 40, 72); g.textAlign = 'left';
-      let y = 120; if (f) { g.drawImage(f, 0, y, Wd, 800); y += 800; }
-      g.fillStyle = '#14110e'; g.font = '700 38px Arial'; g.fillText(D.titulo(m), 40, y + 60); y += 70;
-      g.font = '30px Arial'; g.fillStyle = '#3d3a35'; lin.forEach(z => { y += 48; g.fillText('• ' + z, 40, y); }); y += 40;
-      if (p) g.drawImage(p, 0, y, Wd, Hp);
-      return new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.88));
-    }
+    async function hoja() { return CQ.png(m, { cliente: c.nombre, plano: true, foto: fotoUrl || await foto3d(m) || undefined, titulo: 'Propuesta para ti' }); }
     async function guardar(extra) { const img = fotoUrl ? await chica(fotoUrl).catch(() => null) : null;
       const x2 = Object.assign({ cod: codDe(m), titulo: D.titulo(m), por: String(me.nombre || 'DKAS').slice(0, 60), prop: Date.now() }, extra || {});
       if (img) { const cv = await new Promise(ok => { const i = new Image(); i.onload = () => { const q = document.createElement('canvas'); q.width = 480; q.height = 320; q.getContext('2d').drawImage(i, 0, 0, 480, 320); ok(q.toDataURL('image/jpeg', 0.7)); }; i.src = img; }); x2.img = cv; }

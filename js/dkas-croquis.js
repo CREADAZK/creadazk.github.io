@@ -160,6 +160,86 @@ ${parts.join('\n')}
 ${parts.join('\n')}
 <text x="40" y="${H0 - 22}" class="k">Medidas en cm. Línea punteada: espacio libre recomendado (${E.k} cm por lado para sillas y paso).${v.placas > 1 ? ' Línea dorada: unión de placas.' : ''}</text></svg>`;
   }
+  // ---------- lámina para el cliente (vertical, para WhatsApp): foto, planta con la piedra y las sillas, frente y lado con la base en su color, y fichas ----------
+  // info: { cliente, titulo, fecha, foto (dataURL de la mesa), tex (dataURL o ruta de la textura de la piedra) }
+  function lamina(m, info) {
+    info = info || {};
+    const c = D.calcular(m), M = c.m, P = D.piezas(c), E = D.espacio(M), Wd = 1200, pi = D.piedra(M.piedra), col = D.color(M.color || 'negro');
+    const tex = info.tex || 'img/piedras/' + M.piedra + '.jpg', per = c.personas || 0, red = M.forma === 'round', oscuro = ['negro', 'grafito', 'bronce'].includes(col.id);
+    const SER = "Georgia,'Times New Roman',serif", SAN = "Helvetica,Arial,sans-serif";
+    const out = []; let y = 0;
+    // encabezado
+    out.push(`<rect width="${Wd}" height="132" fill="#14110e"/><text x="60" y="84" font-family="${SER}" font-size="54" letter-spacing="10" fill="#e9dcc3">DKAS</text>`
+      + `<text x="${Wd - 60}" y="62" text-anchor="end" font-family="${SAN}" font-size="20" letter-spacing="5" fill="#c2a273">${esc((info.titulo || 'PLANO DE TU MESA').toUpperCase())}</text>`
+      + `<text x="${Wd - 60}" y="96" text-anchor="end" font-family="${SAN}" font-size="24" fill="#efe8dc">${esc([info.cliente, info.fecha || new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })].filter(Boolean).join(' · '))}</text>`);
+    y = 132;
+    if (info.foto) { out.push(`<image href="${info.foto}" x="0" y="${y}" width="${Wd}" height="700" preserveAspectRatio="xMidYMid slice"/>`); y += 700; }
+    // título
+    const tit = D.USOS[M.uso].nombre === 'Comedor' ? 'Mesa de comedor' : D.USOS[M.uso].nombre;
+    out.push(`<text x="60" y="${y + 92}" font-family="${SER}" font-size="58" fill="#14110e">${esc(tit)} <tspan fill="#a8844f" font-style="italic">${esc(D.FORMAS[M.forma].toLowerCase())}</tspan></text>`
+      + `<text x="60" y="${y + 142}" font-family="${SAN}" font-size="28" fill="#5e564b">${esc(D.medida(M) + (per ? ' · ' + per + ' personas' : '') + ' · altura ' + M.H + ' cm')}</text>`);
+    y += 180;
+    // ---- planta ----
+    const AH = 600, kP = Math.min((Wd - 160) / E.L, (AH - 90) / E.W), cx = Wd / 2, cy = y + 40 + AH / 2;
+    out.push(`<text x="60" y="${y + 30}" font-family="${SAN}" font-size="18" letter-spacing="5" fill="#a8844f">VISTA DE ARRIBA</text>`);
+    out.push(`<rect x="${cx - E.L / 2 * kP}" y="${cy - E.W / 2 * kP}" width="${E.L * kP}" height="${E.W * kP}" rx="18" fill="#f6f1e8" stroke="#d8cbb4" stroke-width="2" stroke-dasharray="10 8"/>`);
+    // sillas alrededor
+    const silla = (x0, y0, ang) => `<g transform="translate(${r1(x0)},${r1(y0)}) rotate(${r1(ang)})"><rect x="${-22 * kP}" y="${-20 * kP}" width="${44 * kP}" height="${40 * kP}" rx="${8 * kP}" fill="#ebe4d8" stroke="#cdbfa8" stroke-width="2"/><rect x="${-22 * kP}" y="${14 * kP}" width="${44 * kP}" height="${8 * kP}" rx="${4 * kP}" fill="#d9ccb6"/></g>`;
+    const a = M.L / 2 * kP, b = M.W / 2 * kP, sep = 34 * kP;
+    if (per) {
+      if (red || M.forma === 'oval') { for (let i = 0; i < per; i++) { const t = i / per * Math.PI * 2 - Math.PI / 2; out.push(silla(cx + (a + sep) * Math.cos(t), cy + (b + sep) * Math.sin(t), t * 180 / Math.PI + 90)); } }
+      else if (M.forma === 'square') { const s = Math.max(1, Math.round(per / 4)); for (let i = 0; i < s; i++) { const f = (i + 0.5) / s; out.push(silla(cx - a + 2 * a * f, cy - b - sep, 180), silla(cx - a + 2 * a * f, cy + b + sep, 0), silla(cx - a - sep, cy - b + 2 * b * f, 90), silla(cx + a + sep, cy - b + 2 * b * f, -90)); } }
+      else { const cab = per >= 8 && M.W >= 90 ? 2 : 0, s = Math.max(1, Math.floor((per - cab) / 2)); for (let i = 0; i < s; i++) { const f = (i + 0.5) / s; out.push(silla(cx - a + 2 * a * f, cy - b - sep, 180), silla(cx - a + 2 * a * f, cy + b + sep, 0)); } if (cab) out.push(silla(cx - a - sep, cy, 90), silla(cx + a + sep, cy, -90)); }
+    }
+    // la cubierta con la piedra
+    const forma = (cls, extra) => red ? `<circle cx="${cx}" cy="${cy}" r="${a}" ${extra}/>` : M.forma === 'oval' ? `<ellipse cx="${cx}" cy="${cy}" rx="${a}" ry="${b}" ${extra}/>` : `<rect x="${cx - a}" y="${cy - b}" width="${2 * a}" height="${2 * b}" rx="${(M.forma === 'ovcuad' ? D.radio(M) : 1) * kP}" ${extra}/>`;
+    out.push(`<clipPath id="cub">${forma('', '')}</clipPath><g filter="url(#sombra)">${forma('', 'fill="#ddd"')}</g>`
+      + `<image href="${tex}" x="${cx - a}" y="${cy - b}" width="${2 * a}" height="${2 * b}" preserveAspectRatio="xMidYMid slice" clip-path="url(#cub)"/>`
+      + forma('', 'fill="url(#brillo)" stroke="#2a2621" stroke-width="2.5"'));
+    // medidas
+    const pill = (x0, y0, t) => { const w = String(t).length * 13 + 34; return `<rect x="${r1(x0 - w / 2)}" y="${r1(y0 - 21)}" width="${w}" height="42" rx="21" fill="#fff" stroke="#c2a273" stroke-width="2"/><text x="${r1(x0)}" y="${r1(y0 + 8)}" text-anchor="middle" font-family="${SAN}" font-size="23" font-weight="700" fill="#14110e">${esc(t)}</text>`; };
+    const linea = (x1, y1, x2, y2) => `<line x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}" stroke="#c2a273" stroke-width="2.5"/>` + (Math.abs(y1 - y2) < 1 ? `<line x1="${r1(x1)}" y1="${r1(y1 - 10)}" x2="${r1(x1)}" y2="${r1(y1 + 10)}" stroke="#c2a273" stroke-width="2.5"/><line x1="${r1(x2)}" y1="${r1(y2 - 10)}" x2="${r1(x2)}" y2="${r1(y2 + 10)}" stroke="#c2a273" stroke-width="2.5"/>` : `<line x1="${r1(x1 - 10)}" y1="${r1(y1)}" x2="${r1(x1 + 10)}" y2="${r1(y1)}" stroke="#c2a273" stroke-width="2.5"/><line x1="${r1(x2 - 10)}" y1="${r1(y2)}" x2="${r1(x2 + 10)}" y2="${r1(y2)}" stroke="#c2a273" stroke-width="2.5"/>`);
+    out.push(linea(cx - a, cy, cx + a, cy), pill(cx, cy, (red ? 'Ø ' : '') + M.L + ' cm'));
+    if (!red) out.push(linea(cx + a * 0.62, cy - b, cx + a * 0.62, cy + b), pill(cx + a * 0.62, cy - b * 0.5, M.W + ' cm'));
+    out.push(pill(cx, cy + E.W / 2 * kP - 6, 'espacio recomendado ' + E.L + ' × ' + E.W + ' cm'));
+    y += AH + 60;
+    // ---- frente y lado ----
+    const EH = 300, piso = y + EH - 30, kF = Math.min(500 / M.L, 200 / M.H), kL = Math.min(280 / M.W, 200 / M.H), xF = 330, xL = 950;
+    out.push(`<text x="60" y="${y + 20}" font-family="${SAN}" font-size="18" letter-spacing="5" fill="#a8844f">DE FRENTE</text><text x="${xL - 150}" y="${y + 20}" font-family="${SAN}" font-size="18" letter-spacing="5" fill="#a8844f">DE LADO</text>`);
+    const elev = (u, ox, k, ancho) => `<line x1="${ox - ancho / 2 * k - 30}" y1="${piso}" x2="${ox + ancho / 2 * k + 30}" y2="${piso}" stroke="#cfc6b8" stroke-width="3"/>` + vista(c, P, u, [0, 1, 0], ox, piso, k)
+      + `<clipPath id="e${ox}"><rect x="${ox - ancho / 2 * k}" y="${piso - M.H * k - 2}" width="${ancho * k}" height="${Math.max(9, 2.5 * k)}" rx="3"/></clipPath><image href="${tex}" x="${ox - ancho / 2 * k}" y="${piso - M.H * k - 40}" width="${ancho * k}" height="80" preserveAspectRatio="xMidYMid slice" clip-path="url(#e${ox})"/>`
+      + `<rect x="${ox - ancho / 2 * k}" y="${piso - M.H * k - 2}" width="${ancho * k}" height="${Math.max(9, 2.5 * k)}" rx="3" fill="none" stroke="#2a2621" stroke-width="2"/>`;
+    out.push(elev([1, 0, 0], xF, kF, M.L), elev([0, 0, 1], xL, kL, M.W));
+    out.push(linea(xF + M.L / 2 * kF + 46, piso - M.H * kF, xF + M.L / 2 * kF + 46, piso), pill(xF + M.L / 2 * kF + 46, piso - M.H * kF / 2, M.H + ' cm'));
+    y += EH + 30;
+    // ---- fichas ----
+    const fichas = [['PIEDRA', pi.nombre, 'tex'], ['BASE', D.BASES[M.base].nombre, ''], ['COLOR DE BASE', col.nombre, 'col'], ['MEDIDAS', D.medida(M), ''], ['ALTURA', M.H + ' cm', ''], [per ? 'PERSONAS' : 'CUBIERTA', per ? per + ' personas' : '12 mm', '']];
+    const cw = (Wd - 120 - 40) / 3;
+    fichas.forEach(([k, val, sw], i) => { const x0 = 60 + (i % 3) * (cw + 20), y0 = y + Math.floor(i / 3) * 130;
+      out.push(`<rect x="${x0}" y="${y0}" width="${cw}" height="112" rx="18" fill="#f7f3ec"/>`);
+      const tx = sw ? x0 + 96 : x0 + 26;
+      if (sw === 'tex') out.push(`<clipPath id="sw${i}"><circle cx="${x0 + 50}" cy="${y0 + 56}" r="30"/></clipPath><image href="${tex}" x="${x0 + 20}" y="${y0 + 26}" width="60" height="60" preserveAspectRatio="xMidYMid slice" clip-path="url(#sw${i})"/><circle cx="${x0 + 50}" cy="${y0 + 56}" r="30" fill="none" stroke="#cdbfa8" stroke-width="2"/>`);
+      if (sw === 'col') out.push(`<circle cx="${x0 + 50}" cy="${y0 + 56}" r="30" fill="${col.hex}" stroke="#cdbfa8" stroke-width="2"/>`);
+      out.push(`<text x="${tx}" y="${y0 + 46}" font-family="${SAN}" font-size="16" letter-spacing="3" fill="#a8844f">${k}</text><text x="${tx}" y="${y0 + 82}" font-family="${SAN}" font-size="${String(val).length > 16 ? 21 : 25}" font-weight="700" fill="#14110e">${esc(val)}</text>`); });
+    y += 260 + 20;
+    const WA = (window.DKAS_WA || []).map(w => w.label).join(' · ');
+    out.push(`<line x1="60" y1="${y}" x2="${Wd - 60}" y2="${y}" stroke="#e7dfd1"/><text x="60" y="${y + 40}" font-family="${SAN}" font-size="19" fill="#7a7064">Medidas en centímetros. Espacio recomendado: ${E.k} cm por lado para sillas y paso.</text>`
+      + `<text x="60" y="${y + 74}" font-family="${SAN}" font-size="19" fill="#7a7064">Piedra sinterizada de 12 mm · base de acero hecha en nuestro taller.</text>`
+      + `<text x="${Wd - 60}" y="${y + 74}" text-anchor="end" font-family="${SAN}" font-size="20" font-weight="700" fill="#14110e">dkas.mx${WA ? ' · WhatsApp ' + esc(WA) : ''}</text>`);
+    const H0 = y + 110;
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${Wd} ${H0}" width="${Wd}" height="${H0}">
+<defs><linearGradient id="brillo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".12"/></linearGradient>
+<filter id="sombra" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#3a2f22" flood-opacity=".28"/></filter></defs>
+<style>.b{fill:${col.hex};stroke:${oscuro ? '#000' : '#8a7f70'};stroke-width:1}.mdf{fill:none;stroke:#999;stroke-width:1.5;stroke-dasharray:8 6}</style>
+<rect width="${Wd}" height="${H0}" fill="#fff"/>${out.join('\n')}</svg>`;
+  }
+  // la textura de la piedra como dataURL (una imagen hecha de un SVG no puede cargar archivos)
+  const texCache = {};
+  function texDe(id) {
+    if (texCache[id]) return texCache[id];
+    return (texCache[id] = new Promise(ok => { const im = new Image(); im.onload = () => { const cv = document.createElement('canvas'); cv.width = 480; cv.height = Math.round(480 * im.height / im.width); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); try { ok(cv.toDataURL('image/jpeg', 0.82)); } catch (e) { ok(null); } }; im.onerror = () => ok(null); im.src = 'img/piedras/' + id + '.jpg'; }));
+  }
+
   // plano en DXF (R12, milímetros): planta con cubierta, base, uniones y espacio libre; frente abajo. Capas por elemento
   function dxf(m) {
     const c = D.calcular(m), M = c.m, P = D.piezas(c), v = c.viab, E = D.espacio(M), out = [], mm = x => Math.round(x * 100) / 10;
@@ -206,12 +286,13 @@ ${parts.join('\n')}
       .concat(out.map(String), ['0', 'ENDSEC', '0', 'EOF']).join('\r\n');
   }
   // el SVG pasado a JPEG (para descargar o mandar por WhatsApp)
-  function png(m, info, q) {
+  async function png(m, info, q) {
+    const cli = info && info.plano, inf = cli ? Object.assign({}, info, { tex: await texDe(D.normalizar(m).piedra) || undefined }) : info;
     return new Promise((ok, bad) => {
-      const im = new Image(), cli = info && info.plano, s = cli ? plano(m, info) : svg(m, info), H = cli ? 900 : 1130; // plano: la versión para el cliente
-      im.onload = () => { const cv = document.createElement('canvas'); cv.width = 1600; cv.height = H; const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 1600, H); x.drawImage(im, 0, 0); cv.toBlob(ok, 'image/jpeg', q || 0.9); };
+      const im = new Image(), s = cli ? lamina(m, inf) : svg(m, info), Wd = +(s.match(/width="(\d+)"/) || [])[1] || 1600, H = +(s.match(/height="(\d+)"/) || [])[1] || 1130; // plano: la lámina para el cliente
+      im.onload = () => { const cv = document.createElement('canvas'); cv.width = Wd; cv.height = H; const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, Wd, H); x.drawImage(im, 0, 0); cv.toBlob(ok, 'image/jpeg', q || 0.9); };
       im.onerror = bad; im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
     });
   }
-  window.DKAS_CQ = { svg, png, plano, dxf };
+  window.DKAS_CQ = { svg, png, plano, lamina, texDe, dxf };
 })();

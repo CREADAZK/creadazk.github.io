@@ -736,8 +736,8 @@
       let mesa = c.d && c.d.titulo || ''; try { if (c.d && c.d.cod) { const pi = D.PIEDRAS.find(z => z.id === String(c.d.cod).split('.')[5]); if (pi) mesa += ' en ' + pi.nombre; } } catch (e) {}
       const deMesa = mesa ? ' (' + mesa + ')' : '', laQue = q ? ' como la «' + q + '»' : '';
       if (c.etapa === 'disena') return [
+        ['Directo', 'Hola ' + n + ', esta es la mesa que estás creando' + (mesa ? ': ' + mesa : '') + '. Te mando el plano; dime si está correcta y cuándo podemos vernos para personalizártela más y darte el mejor servicio posible. 🙌'],
         ['Cálido', 'Hola ' + n + ', ¿cómo estás? 😊 Soy ' + yoN + ' de DKAS. Vi que armaste tu mesa' + deMesa + ' en nuestra página, ¡quedó muy bonita! ¿Te ayudo a terminarla para prepararte tu cotización?'],
-        ['Directo', n + ', esta es la mesa que armaste' + (mesa ? ': ' + mesa : '') + '. ¿Quieres que te ayude con la cotización? Dime cómo prefieres darle seguimiento o cuándo podemos hablar.'],
         ['Ayudarle / llamada', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Vi tu diseño' + deMesa + '. Si quieres te ayudo a armarla: medidas, piedra o base. ¿Cuándo te queda bien que hablemos, hoy o mañana?'],
         ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Notamos que diseñó una mesa en nuestro configurador' + deMesa + '. Con gusto le preparamos una cotización formal. ¿Podría indicarnos un buen momento para comentarla?'], ['Cita con muestras', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Si quieres, te visitamos con muestras reales de las piedras y medimos tu espacio para recomendarte la mesa que más te conviene. Estamos disponibles cuando gustes, ¿qué día te acomoda?']];
       if (c.etapa === 'aprobar') return [
@@ -749,20 +749,25 @@
         ['Directo', n + ', recibí tu pedido' + (f ? ' #' + f : '') + (mesa ? ': ' + mesa : '') + '. ¿Quieres que revisemos juntos algún detalle antes de la cotización? ¿Cuándo podemos hablar?'],
         ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Confirmamos la recepción de su pedido' + (f ? ' #' + f : '') + deMesa + '. En breve le compartimos la cotización formal.']];
       return [ // aprobado, todavía no diseña
+        ['Directo', 'Hola ' + n + ', ' + (q ? 'esta es la mesa que te gustó: «' + q + '». Te mando el plano con medidas estándar; dime si te late y cuándo podemos vernos para personalizártela y darte el mejor servicio posible. 🙌' : 'ya tienes acceso para diseñar tu mesa en dkas.mx. Si prefieres, la armamos juntos: dime cuándo podemos vernos para personalizártela y darte el mejor servicio posible. 🙌')],
         ['Cálido', 'Hola ' + n + ', ¿cómo estás? 😊 Soy ' + yoN + ' de DKAS. Ya tienes acceso para diseñar tu mesa' + laQue + ' en dkas.mx. Entra desde este mismo celular y ármala a tu medida. ¡Aquí estoy para lo que necesites!'],
-        ['Directo', n + ', ya está tu acceso a dkas.mx. Entra desde este celular y arma tu mesa' + laQue + '. ¿Te ayudo a empezar?'],
         ['Ayudarle / llamada', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Si prefieres, armamos tu mesa juntos por aquí: dime para cuántas personas, la medida de tu espacio y la piedra que te gustó. ¿Cuándo podemos hablar?'],
         ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Su acceso al diseñador de mesas en dkas.mx ya está activo. Quedamos a sus órdenes para acompañarle en el diseño y la cotización.'], ['Cita con muestras', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Si quieres, te visitamos con muestras reales de las piedras y medimos tu espacio para recomendarte la mesa que más te conviene. Estamos disponibles cuando gustes, ¿qué día te acomoda?']];
     };
     const msj = c => opciones(c)[0][1];
     const wa = c => c.tel ? '<button class="btn chico wa-v" data-wa-op="' + c.k + '">WhatsApp</button>' : '';
-    // elegir el mensaje: tocas una opción, la puedes editar y se abre WhatsApp con ese texto
+    // la mesa del cliente para el plano: la que armó o, si no, la que le gustó (medidas estándar)
+    const mesaCli = c => { try {
+      if (c.d && c.d.cod) { const p = String(c.d.cod).split('.'); return D.normalizar({ uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5], H: +p[6] || undefined, color: p[7] || 'negro' }); }
+      const g = FI[sinPref(c.quiere)]; if (g && g.m) return D.normalizar(Object.assign({}, g.m, D.tamanoPara(g.m.uso, g.m.forma, g.m.uso === 'comedor' ? 8 : 4)));
+    } catch (e) {} return null; };
+    // elegir el mensaje: tocas una opción, la puedes editar y se manda por WhatsApp (con foto y plano si hay mesa)
     function elegirMensaje(c) {
       const ops = opciones(c), v = document.createElement('div'); v.className = 'vm';
       v.innerHTML = '<div class="vm-caja"><button class="vm-x" aria-label="Cerrar">×</button><div class="vm-tx"><p class="vm-et">Mensaje para ' + esc(c.nombre) + '</p><h2>¿Cómo le escribes?</h2>'
         + '<div class="m-ops">' + ops.map(([t, x], i) => '<button class="m-op' + (i ? '' : ' on') + '" data-op="' + i + '"><b>' + t + '</b><span>' + esc(x) + '</span></button>').join('') + '</div>'
         + '<label class="m-ed">Puedes cambiarlo antes de mandarlo<textarea rows="5">' + esc(ops[0][1]) + '</textarea></label>'
-        + '<div class="vm-bot"><a class="btn verde" target="_blank" rel="noopener" data-abrir>Abrir WhatsApp con este mensaje</a></div></div></div>';
+        + (mesaCli(c) ? '<p class="m-adj">📎 Se adjuntan la foto de su mesa y el plano con medidas</p><div class="vm-bot"><button class="btn verde" data-adj>Mandar con foto y plano por WhatsApp</button><a class="btn" target="_blank" rel="noopener" data-abrir>Solo el texto</a></div>' : '<div class="vm-bot"><a class="btn verde" target="_blank" rel="noopener" data-abrir>Abrir WhatsApp con este mensaje</a>' + (/^[0-9a-f]{32}$/.test(c.k) ? '<a class="btn" href="#prop=' + c.k + '">Armarle su mesa para mandarle plano</a>' : '') + '</div>') + '</div></div>';
       document.body.appendChild(v); document.body.style.overflow = 'hidden';
       const ta = v.querySelector('textarea'), a = v.querySelector('[data-abrir]'), liga = () => { a.href = 'https://wa.me/' + A.waNum(c.tel) + '?text=' + encodeURIComponent(ta.value); };
       liga(); ta.oninput = liga;
@@ -770,6 +775,14 @@
       v.onclick = async e => {
         if (e.target === v || e.target.closest('.vm-x')) return cerrar();
         const o = e.target.closest('[data-op]'); if (o) { v.querySelectorAll('.m-op').forEach(z => z.classList.toggle('on', z === o)); ta.value = ops[+o.dataset.op][1]; liga(); return; }
+        if (e.target.closest('a[href^="#prop="]')) return cerrar();
+        const adj = e.target.closest('[data-adj]');
+        if (adj) { adj.disabled = true; adj.textContent = 'Preparando…';
+          try { const m = mesaCli(c), info = { cliente: c.nombre, plano: true }, files = [];
+            const f = c.d && c.d.img ? c.d.img : await foto3d(m); if (f) files.push(new File([await (await fetch(f)).blob()], 'mesa-' + c.nombre.split(' ')[0].toLowerCase() + '.jpg', { type: 'image/jpeg' }));
+            files.push(new File([await CQ.png(m, info)], 'plano-mesa.jpg', { type: 'image/jpeg' }));
+            await compartir(files, ta.value, A.waNum(c.tel)); } catch (x) { alerta(x.message); }
+          cerrar(); if (!seg[c.k]) { try { await A.marcarEscrito(c.k, true); seg[c.k] = { escrito: Date.now(), por: me.nombre }; setTimeout(clientes, 900); } catch (x) {} } return; }
         if (e.target.closest('[data-abrir]')) { setTimeout(cerrar, 300); if (!seg[c.k]) { try { await A.marcarEscrito(c.k, true); seg[c.k] = { escrito: Date.now(), por: me.nombre }; setTimeout(clientes, 900); } catch (x) {} } }
       };
     }
@@ -840,17 +853,17 @@
     const ligaPed = SITE + 'pedido.html#t=' + p.token, citaTxt = '¿Te gustaría que te visitemos con muestras de las piedras y midamos tu espacio? Estamos disponibles cuando gustes.';
     const mensajes = precio => { const ant = precio ? Math.ceil(precio / 2) : 0, lista = lin().map(z => '• ' + z).join('\n');
       if (seguimiento) return [
-        ['Seguimiento', 'Hola ' + n + ', ¿cómo estás? 😊 Soy ' + yoN + ' de DKAS. ¿Pudiste ver la cotización de tu mesa (#' + p.folio + ')? Si quieres ajustamos medidas, piedra o base. Aquí la ves: ' + ligaPed],
+        ['Seguimiento', 'Hola ' + n + ', ¿pudiste ver la cotización de tu mesa (#' + p.folio + ')? Si quieres ajustamos medidas, piedra o base. Aquí la ves: ' + ligaPed],
         ['Cita con muestras', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Para que elijas con calma, te visitamos con muestras reales de las piedras y medimos tu espacio. Estamos disponibles cuando gustes, ¿qué día te acomoda?'],
         ['Directo', n + ', ¿avanzamos con tu mesa? Con el anticipo empezamos a fabricarla. ¿Te paso los datos para el depósito?'],
         ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Damos seguimiento a la cotización de su mesa (#' + p.folio + '). Quedamos a sus órdenes para cualquier ajuste o para agendar una visita con muestras.']];
       if (precio) return [
-        ['Cotización', 'Hola ' + n + ' 👋 soy ' + yoN + ' de DKAS. Te mando la cotización de tu mesa:\n' + lista + '\n\nTotal: ' + pesos(precio) + '\nAnticipo para empezar (50%): ' + pesos(ant) + '\nAquí la ves y la aceptas: ' + ligaPed + '\n\n' + citaTxt],
+        ['Cotización', 'Hola ' + n + ', esta es la cotización de tu mesa:\n' + lista + '\n\nTotal: ' + pesos(precio) + '\nAnticipo para empezar (50%): ' + pesos(ant) + '\nAquí la ves y la aceptas: ' + ligaPed + '\n\n' + citaTxt],
         ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Le compartimos la cotización de su mesa:\n' + lista + '\n\nTotal: ' + pesos(precio) + ' · anticipo del 50%: ' + pesos(ant) + '.\nPuede verla y aceptarla aquí: ' + ligaPed + '\nCon gusto le visitamos con muestras de las piedras para medir su espacio.']];
       return [
+        ['Directo', 'Hola ' + n + ', este es el pedido que me llegó:\n' + lista + '\n\nTe mando el plano; dime si está correcto y cuándo podemos vernos para personalizarlo más y darte el mejor servicio posible. 🙌'],
         ['Esto es lo que escogiste', 'Hola ' + n + ', ¿cómo estás? 😊 Soy ' + yoN + ' de DKAS. Esta es la mesa que escogiste:\n' + lista + '\n\n¿Es correcto? Si quieres ajustamos algo y te preparo tu cotización.'],
         ['Cita con muestras', 'Hola ' + n + ', soy ' + yoN + ' de DKAS 👋 Recibí tu mesa (' + D.piedra(m.piedra).nombre + ', base ' + baseDe(p) + '). Para recomendarte la medida ideal, te visitamos con muestras reales de las piedras y medimos tu espacio. Estamos disponibles cuando gustes, ¿qué día te acomoda?'],
-        ['Directo', n + ', esta es tu mesa:\n' + lista + '\n¿Te la cotizo así o le cambiamos algo?'],
         ['Formal', 'Buen día, ' + n + '. Le saluda ' + yoN + ', de DKAS. Recibimos su solicitud:\n' + lista + '\n\nEn breve le compartimos la cotización formal. Si lo prefiere, le visitamos con muestras de las piedras para medir su espacio.']]; };
     const tile = (img, t, sub) => '<div class="cr-t"><img src="' + img + '" alt=""><div><small>' + t + '</small><b>' + esc(sub) + '</b></div></div>';
     v.innerHTML = '<div class="vm-caja"><button class="vm-x" aria-label="Cerrar">×</button><div class="vm-foto"><img id="cr-foto" alt=""></div><div class="vm-tx">'

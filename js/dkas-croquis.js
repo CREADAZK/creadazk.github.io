@@ -208,8 +208,8 @@ ${parts.join('\n')}
   // el SVG pasado a JPEG (para descargar o mandar por WhatsApp)
   function png(m, info, q) {
     return new Promise((ok, bad) => {
-      const im = new Image(), s = svg(m, info);
-      im.onload = () => { const cv = document.createElement('canvas'); cv.width = 1600; cv.height = 1130; const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 1600, 1130); x.drawImage(im, 0, 0); cv.toBlob(ok, 'image/jpeg', q || 0.9); };
+      const im = new Image(), cli = info && info.plano, s = cli ? plano(m, info) : svg(m, info), H = cli ? 900 : 1130; // plano: la versión para el cliente
+      im.onload = () => { const cv = document.createElement('canvas'); cv.width = 1600; cv.height = H; const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 1600, H); x.drawImage(im, 0, 0); cv.toBlob(ok, 'image/jpeg', q || 0.9); };
       im.onerror = bad; im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
     });
   }

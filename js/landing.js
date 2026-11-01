@@ -245,6 +245,42 @@
         if (nuevo.tel !== yo.tel || nuevo.nombre !== yo.nombre) { A.save('dazk-yo', nuevo); registra(); }
       }, 900);
     });
+    // mensajes que DKAS le mandó a este visitante desde el panel: salen al entrar y, con la página abierta, en menos de un minuto
+    const msj = $('#msj'); let msjAct = null;
+    function verMsj(id, m) {
+      msjAct = id; const yo = A.load('dazk-yo', {}), n = (yo.nombre || '').split(' ')[0];
+      $('#msj-t').textContent = 'Hola' + (n ? ' ' + n : '') + ' 👋';
+      $('#msj-im').hidden = !m.img; if (m.img) $('#msj-img').src = m.img;
+      $('#msj-mesa').hidden = !m.mesa; $('#msj-mesa').textContent = m.mesa || '';
+      $('#msj-precio').hidden = !m.precio; if (m.precio) $('#msj-precio').textContent = 'Precio: $' + Number(m.precio).toLocaleString('es-MX') + ' MXN';
+      const cq = $('#msj-cq'); cq.hidden = true; cq.innerHTML = '';
+      if (m.cod && window.DKAS_CQ) try { const p = m.cod.split('.'), mm = D.normalizar({ uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5], H: +p[6] || undefined }); cq.innerHTML = DKAS_CQ.plano(mm, { cliente: yo.nombre || '' }) + '<ul>' + D.resumen(mm).map(z => '<li><span>' + z[0] + '</span><b>' + z[1] + '</b></li>').join('') + '</ul>'; cq.hidden = false; } catch (e) {}
+      $('#msj-tx').textContent = m.texto; $('#msj-por').textContent = '— ' + (m.por || 'DKAS') + ', DKAS';
+      $('#msj-pide').hidden = !!m.resp; $('#msj-ok').hidden = !m.resp; $('#msj-e').hidden = true;
+      if (yo.tel && !$('#msj-w').value) $('#msj-w').value = yo.tel;
+      const w = $('#msj-wa'); w.href = w.href.split('?')[0] + '?text=' + encodeURIComponent('Hola DKAS, soy ' + (yo.nombre || '') + '. Recibí su mensaje' + (m.mesa ? ' sobre la mesa «' + m.mesa + '»' : '') + '.');
+      msj.hidden = false; document.body.style.overflow = 'hidden';
+      if (!m.visto) A.verMensaje(v, id).catch(() => {});
+    }
+    const cerrarMsj = () => { msj.hidden = true; document.body.style.overflow = ''; };
+    $('#msj-x').onclick = cerrarMsj; $('#msj-c').onclick = cerrarMsj; msj.onclick = e => { if (e.target === msj) cerrarMsj(); };
+    $('#msj-b').onclick = async () => {
+      const t = $('#msj-r').value.trim(), w = $('#msj-w').value.replace(/\D/g, ''), err = $('#msj-e'), b = $('#msj-b');
+      if (!t && !w) { err.textContent = 'Escribe tu respuesta o tu WhatsApp.'; err.hidden = false; return; }
+      if (w && (w.length < 10 || w.length > 13)) { err.textContent = 'Revisa tu WhatsApp (10 dígitos).'; err.hidden = false; return; }
+      b.disabled = true;
+      try {
+        await A.responderMensaje(v, msjAct, Object.assign({ texto: (t || 'Mi WhatsApp: ' + w).slice(0, 600) }, w ? { tel: w } : {}));
+        if (w) { const yo = A.load('dazk-yo', {}); yo.tel = w; A.save('dazk-yo', yo); registra(); }
+        $('#msj-pide').hidden = true; $('#msj-ok').hidden = false;
+      } catch (e) { err.textContent = e.message; err.hidden = false; } finally { b.disabled = false; }
+    };
+    async function buscaMsj() {
+      if (staff || !msj.hidden || !$('#bienv').hidden) return;
+      try { const l = Object.entries(await A.mensajesDe(v)).sort((a, b) => a[1].creado - b[1].creado), nuevo = l.filter(([, m]) => !m.visto).pop(); if (nuevo) verMsj(nuevo[0], nuevo[1]); } catch (e) {}
+    }
+    setTimeout(buscaMsj, 2500); setInterval(() => { if (!document.hidden) buscaMsj(); }, 45000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) buscaMsj(); });
     window.DKAS_VISITA = (p, f) => { paso = Math.max(paso, p); if (f) folio = f; registra(); }; // crea-ui avisa: 2 = armó su mesa, 3 = la mandó
     addEventListener('hashchange', () => setTimeout(registra, 300));
     const caja = $('#bienv');

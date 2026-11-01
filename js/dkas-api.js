@@ -43,6 +43,8 @@
     return Object.assign({ nombre, apellido }, tel ? { tel } : {}, despacho ? { despacho } : {});
   }
 
+  // the name shown to clients and the team is never an email: the owner's address becomes Zury; anyone else, the part before the @
+  const nombreLimpio = n => { n = String(n || '').trim(); if (!/@/.test(n)) return n; const yo = n.toLowerCase().split('@')[0]; return yo === OWNER.split('@')[0] ? 'Zury' : yo; };
   // ---------- Firebase ----------
   const TS = { '.sv': 'timestamp' };
   let ses = load('dazk-ses', null), yoCache = null;
@@ -137,17 +139,17 @@
     async yo() {
       if (!ses) return null;
       // the panel account has no admins/ entry; each device keeps the name of whoever uses it
-      if (ses.uid === PANEL_UID) return { uid: ses.uid, email: ses.email, key: 'panel', duenio: false, panel: true, nombre: load('dazk-nombre', '') };
+      if (ses.uid === PANEL_UID) return { uid: ses.uid, email: ses.email, key: 'panel', duenio: false, panel: true, nombre: nombreLimpio(load('dazk-nombre', '')) };
       if (!yoCache) {
         const k = ekey(ses.email), duenio = ses.email.toLowerCase() === OWNER;
         const s = await db('admins/' + k, 'GET', undefined, true).catch(e => { if (denied(e)) return false; throw e; });
-        yoCache = s === false ? null : (s || duenio) ? { uid: ses.uid, email: ses.email, key: k, duenio, nombre: s ? s.nombre : '' } : null;
+        yoCache = s === false ? null : (s || duenio) ? { uid: ses.uid, email: ses.email, key: k, duenio, nombre: s ? nombreLimpio(s.nombre) : duenio ? 'Zury' : '' } : null;
       }
       return yoCache;
     },
     // the owner's own name (asked once, it signs the history)
     async ponerNombre(nombre) {
-      const me = await this.yo(); nombre = String(nombre || '').trim().slice(0, 60); if (nombre.length < 2) throw new Error('Escribe tu nombre.');
+      const me = await this.yo(); nombre = String(nombre || '').trim().slice(0, 60); if (nombre.length < 2) throw new Error('Escribe tu nombre.'); if (/@/.test(nombre)) throw new Error('Escribe tu nombre, no tu correo.');
       if (me.panel) return save('dazk-nombre', nombre);
       await db('admins/' + me.key, 'PUT', { nombre, email: me.email.toLowerCase(), agregado: TS }, true); yoCache = null;
     },
@@ -229,6 +231,12 @@
     async escritos() { return (await db('seguimiento', 'GET', undefined, true)) || {}; },
     async marcarEscrito(v, si) { const me = await this.yo(); await db('seguimiento/' + v, si ? 'PUT' : 'DELETE', si ? { escrito: Date.now(), por: String(me.nombre || '').slice(0, 60) } : undefined, true); },
     async visitasDesde(ts) { const q = '?orderBy=' + encodeURIComponent('"ult"') + '&startAt=' + ts + '&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}); },
+    // mensajes de DKAS a un visitante que no dejó WhatsApp: le salen en la página cuando vuelve
+    async mandarMensaje(v, x) { const me = await this.yo(), id = Date.now().toString(36) + rnd().slice(0, 6); await db('mensajes/' + v + '/' + id, 'PUT', Object.assign({}, x, { por: String(me.nombre || 'DKAS').slice(0, 60), creado: Date.now() }), true); return id; },
+    async mensajesTodos() { return (await db('mensajes', 'GET', undefined, true)) || {}; },
+    async mensajesDe(v) { return (await db('mensajes/' + v)) || {}; },
+    async verMensaje(v, m) { await db('mensajes/' + v + '/' + m + '/visto', 'PUT', TS); },
+    async responderMensaje(v, m, x) { await db('mensajes/' + v + '/' + m + '/resp', 'PUT', Object.assign({}, x, { creado: TS })); },
     // la agenda del equipo: pendientes con fecha (solo staff)
     async agenda() { return Object.entries((await db('agenda', 'GET', undefined, true)) || {}).map(([id, x]) => Object.assign({ id }, x)); },
     async guardarTarea(id, x) { await db('agenda/' + id, 'PUT', x, true); },
@@ -288,6 +296,11 @@
     async guardarFicha(id, key, data, nota) { edit(x => x.id === id, (p, ev) => { p.fichas = p.fichas || {}; p.fichas[key] = data; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'nota', texto: nota, interno: true }); }); },
     async visita(id, data, primera) { const d = load('dazk-demo-visitas', {}); d[id] = Object.assign({}, d[id], primera ? { t: Date.now() } : {}, { ult: Date.now() }, data); save('dazk-demo-visitas', d); },
     async escritos() { return load('dazk-demo-seg', {}); },
+    async mandarMensaje(v, x) { const d = load('dazk-demo-msj', {}), id = Date.now().toString(36) + rnd().slice(0, 6); (d[v] = d[v] || {})[id] = Object.assign({}, x, { por: (who() || {}).nombre || 'DKAS', creado: Date.now() }); save('dazk-demo-msj', d); return id; },
+    async mensajesTodos() { return load('dazk-demo-msj', {}); },
+    async mensajesDe(v) { return load('dazk-demo-msj', {})[v] || {}; },
+    async verMensaje(v, m) { const d = load('dazk-demo-msj', {}); if (d[v] && d[v][m]) { d[v][m].visto = Date.now(); save('dazk-demo-msj', d); } },
+    async responderMensaje(v, m, x) { const d = load('dazk-demo-msj', {}); if (d[v] && d[v][m]) { d[v][m].resp = Object.assign({}, x, { creado: Date.now() }); save('dazk-demo-msj', d); } },
     async marcarEscrito(v, si) { const d = load('dazk-demo-seg', {}); if (si) d[v] = { escrito: Date.now(), por: (who() || {}).nombre || '' }; else delete d[v]; save('dazk-demo-seg', d); },
     async visitasDesde(ts) { return Object.values(load('dazk-demo-visitas', {})).filter(x => (x.ult || x.t) >= ts); },
     async agenda() { return Object.entries(load('dazk-demo-agenda', {})).map(([id, x]) => Object.assign({ id }, x)); },

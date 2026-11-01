@@ -596,7 +596,7 @@
     l.slice().sort((a, b) => (a.ult || a.t) - (b.ult || b.t)).forEach(x => { const k = x.v || x.t; const a = per[k] = per[k] || { k: String(k), nombre: '', veces: 0, primera: x.t, ult: 0, disp: x.disp, origen: x.origen, max: 0, folio: 0, tel: '', interes: '', ints: [], vs: [], diseno: '' };
       a.veces++; a.primera = Math.min(a.primera, x.t); a.ult = Math.max(a.ult, x.ult || x.t); if (x.nombre) a.nombre = x.nombre; a.max = Math.max(a.max, x.paso || 0); if (x.folio) a.folio = x.folio; if (x.tel) a.tel = x.tel; if (x.interes) { a.interes = x.interes; if (!a.ints.includes(x.interes)) a.ints.push(x.interes); } if (x.diseno) a.diseno = x.diseno; a.vs.push(x); });
     // su WhatsApp: el que dejó en la página o, si no, el de su pedido o su solicitud de acceso con el mismo nombre
-    const [sols, seg] = await Promise.all([A.solicitudes().catch(() => []), A.escritos().catch(() => ({}))]), llave = s => String(s || '').trim().toLowerCase();
+    const [sols, seg, msjs] = await Promise.all([A.solicitudes().catch(() => []), A.escritos().catch(() => ({})), A.mensajesTodos().catch(() => ({}))]), llave = s => String(s || '').trim().toLowerCase();
     const telDe = {}; todos.forEach(p => { if (p.tel) telDe[llave(p.nombre)] = p.tel; }); sols.forEach(s => { if (s.tel) { telDe[llave(s.nombre)] = telDe[llave(s.nombre)] || s.tel; telDe[llave(s.nombre + ' ' + (s.apellido === '(web)' ? '' : s.apellido || ''))] = s.tel; } });
     Object.values(per).forEach(g => { if (!g.tel && g.nombre) g.tel = telDe[llave(g.nombre)] || '';
       g.sol = sols.filter(x => (g.tel && x.tel === g.tel) || (g.nombre && llave(x.nombre) === llave(g.nombre))).sort((a, b) => b.creado - a.creado)[0] || null; });
@@ -604,7 +604,7 @@
     const FI = window.DKAS_INTERES || {}, mesaDe = t => FI[String(t).replace(/^(Quiero una así|Crear mi mesa en): /, '').replace(/^Crear mi mesa en /, 'Piedra ')] || null;
     const QUE = t => /^Quiero una así/.test(t) ? 'Tocó «Quiero una así» en' : /^Crear mi mesa/.test(t) ? 'Tocó «Crear mi mesa» con' : 'Vio';
     const tarj = t => { const m = mesaDe(t), n = String(t).replace(/^(Quiero una así|Crear mi mesa en): ?/, '').replace(/^Crear mi mesa en /, '');
-      return '<div class="v-int">' + (m ? '<img src="' + m.img + '" alt="" loading="lazy">' : '') + '<div><small>' + QUE(t) + '</small><b>' + esc(n) + '</b>' + (m && m.d ? '<span>' + esc(m.d) + '</span>' : '') + '</div></div>'; };
+      return '<div class="v-int" data-t="' + esc(t) + '" role="button">' + (m ? '<img src="' + m.img + '" alt="" loading="lazy">' : '') + '<div><small>' + QUE(t) + '</small><b>' + esc(n) + '</b>' + (m && m.d ? '<span>' + esc(m.d) + '</span>' : '') + '</div></div>'; };
     const SITIO = 'https://dkas.mx/';
     const mesaCod = cod => { try { const [u, f, L, W, b, p] = cod.split('.'); const pi = D.PIEDRAS.find(z => z.id === p); return [pi && pi.nombre, D.BASES[b] && 'Base ' + D.BASES[b].nombre, D.redonda(f) ? L + ' cm' : L + ' × ' + W + ' cm', D.USOS[u] && D.USOS[u].nombre].filter(Boolean).join(' · '); } catch (e) { return ''; } };
     const hora = t => new Date(t).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' });
@@ -621,12 +621,27 @@
         if (x.folio) ev.push([x.ult || x.t, '<b>Mandó su pedido #' + x.folio + '</b>' + (todos.find(p => p.folio === x.folio) ? ' <a class="lnk" href="#p=' + todos.find(p => p.folio === x.folio).id + '">abrir →</a>' : '')]);
       });
       if (g.sol) { ev.push([g.sol.creado, 'Pidió acceso para diseñar en 3D']); if (g.sol.decidido) ev.push([g.sol.decidido, g.sol.estado === 'aprobada' ? 'Le aprobaste el acceso' : 'Se le negó el acceso']); else if (g.sol.estado === 'pendiente') ev.push([Date.now(), '<b class="pend">Espera que le aprueben el acceso</b> <a class="lnk" href="#accesos">aprobar →</a>']); }
+      msjsDe(g).forEach(m => { ev.push([m.creado, 'Le mandaste un mensaje' + (m.precio ? ' con precio ' + pesos(m.precio) : '') + ' (' + esc(m.por || '') + ')']); if (m.visto) ev.push([m.visto, 'Vio tu mensaje']); if (m.resp) ev.push([m.resp.creado, '<b>Te contestó:</b> ' + esc(m.resp.texto) + (m.resp.tel ? ' · WhatsApp ' + esc(m.resp.tel) : '')]); });
       ev.sort((a, b) => a[0] - b[0]);
       let ult = '', html = '';
       ev.forEach(([t, txt, card]) => { const d = dia(t); if (d !== ult) { html += '<li class="h-dia">' + d + '</li>'; ult = d; } html += '<li' + (card ? ' class="h-card"' : '') + '><time>' + (card ? '' : hora(t)) + '</time><div>' + txt + '</div></li>'; });
       return '<ol class="hist">' + html + '</ol>';
     }
     main.onclick = async e => {
+      const vi = e.target.closest('.v-int, [data-croquis]');
+      if (vi) { const k = vi.dataset.croquis || ((vi.closest('.lead') || {}).dataset || {}).k || ((vi.closest('.vis-p') || {}).id || '').replace(/^vp-/, ''), g = gente.find(z => z.k === k); if (g) visorMesa(g, vi.dataset.t || g.interes, !!vi.dataset.croquis && !!g.diseno); return; }
+      const ab = e.target.closest('[data-escribe]'), en = e.target.closest('[data-enviar]');
+      if (ab) { const f = main.querySelector('[data-form="' + ab.dataset.escribe + '"]'); f.hidden = !f.hidden; if (!f.hidden) f.querySelector('textarea').focus(); return; }
+      if (en) {
+        const k = en.dataset.enviar, f = en.closest('.l-form'), texto = f.querySelector('textarea').value.trim(), precio = num(f.querySelector('input').value), g = gente.find(z => z.k === k);
+        if (!texto) return alerta('Escribe el mensaje.');
+        const mm = g && g.interes && mesaDe(g.interes), x = { texto: texto.slice(0, 1200) }; if (precio) x.precio = precio;
+        if (g && g.interes) { x.mesa = String(g.interes).replace(/^(Quiero una así|Crear mi mesa en): ?/, '').replace(/^Crear mi mesa en /, '').slice(0, 80); if (mm && mm.img) x.img = mm.img; }
+        en.disabled = true;
+        try { const id = await A.mandarMensaje(k, x); (msjs[k] = msjs[k] || {})[id] = Object.assign({ creado: Date.now(), por: me.nombre }, x); if (!seg[k]) { await A.marcarEscrito(k, true).catch(() => {}); seg[k] = { escrito: Date.now(), por: me.nombre }; } toast('Mensaje enviado'); visitasPinta(); }
+        catch (x) { en.disabled = false; alerta(x.message); }
+        return;
+      }
       const w = e.target.closest('[data-escribir]'), m = e.target.closest('[data-marca]'), v = e.target.closest('[data-ver]');
       if (v) { e.preventDefault(); const el = document.getElementById('vp-' + v.dataset.ver); if (el) { const d = el.querySelector('details'); if (d) d.open = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.classList.add('brilla'); setTimeout(() => el.classList.remove('brilla'), 1600); } return; }
       const k = (w && w.dataset.escribir) || (m && m.dataset.marca); if (!k) return;
@@ -644,15 +659,61 @@
     const botonWA = g => g.tel ? '<a class="btn chico wa-v" target="_blank" rel="noopener" href="https://wa.me/' + A.waNum(g.tel) + '?text=' + encodeURIComponent(msjWA(g)) + '">WhatsApp</a>' : '<small class="sin-tel">sin WhatsApp</small>';
     const PASO = ['Vio la página', 'Abrió el 3D', 'Armó su mesa', 'Mandó su diseño'];
     const cuando = t => { const d = new Date(t); return d.toDateString() === hoy ? 'hoy ' + d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }) : A.fecha(t); };
+    const msjsDe = g => Object.entries(msjs[g.k] || {}).map(([id, m]) => Object.assign({ id }, m)).sort((a, b) => a.creado - b.creado);
+    function visorMesa(g, t, suya) {
+      const mm = t && mesaDe(t), base = mm && mm.m, cod = suya || (g.diseno && (!t || /^Crear mi mesa/.test(t))) ? g.diseno : '';
+      let m, exacta = false;
+      if (cod) { const p = cod.split('.'); m = D.normalizar({ uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5], H: +p[6] || undefined, color: p[7] || 'negro' }); exacta = true; }
+      else if (base) { const n = base.uso === 'centro' || base.uso === 'periquera' || base.forma === 'square' || base.forma === 'round' ? 4 : 6; m = D.normalizar(Object.assign({}, base, D.tamanoPara(base.uso, base.forma, n))); }
+      if (!m) return;
+      const codigo = [m.uso, m.forma, m.L, m.W, m.base, m.piedra, m.H].join('.'), foto = mm && mm.img ? mm.img.replace(/-m\.jpg$/, '.jpg') : 'img/piedras/' + m.piedra + '.jpg';
+      const info = { cliente: g.nombre, plano: true }, nombreT = t ? String(t).replace(/^(Quiero una así|Crear mi mesa en): ?/, '').replace(/^Crear mi mesa en /, '') : D.titulo(m);
+      const v = document.createElement('div'); v.className = 'vm'; v.innerHTML = '<div class="vm-caja"><button class="vm-x" aria-label="Cerrar">×</button>'
+        + '<a href="' + foto + '" target="_blank" rel="noopener" class="vm-foto"><img src="' + foto + '" alt=""><span>Tocar para ver en grande</span></a>'
+        + '<div class="vm-tx"><p class="vm-et">' + (exacta ? 'Lo que armó ' + esc(g.nombre) + ' en 3D · medidas exactas' : 'Le gustó a ' + esc(g.nombre) + ' · medidas sugeridas') + '</p><h2>' + esc(nombreT) + '</h2>'
+        + (exacta ? '' : '<p class="vm-nota">No armó su mesa: estas son las medidas estándar para ' + (D.personas(m) || '') + ' personas. Ajústalas con el cliente.</p>')
+        + '<div class="vm-cq" role="button" title="Ver en grande">' + CQ.plano(m, info) + '<span>Tocar para ver en grande</span></div>'
+        + '<ul class="vm-med">' + D.resumen(m).map(([k, x]) => '<li><span>' + esc(k) + '</span><b>' + esc(x) + '</b></li>').join('') + '</ul>'
+        + '<div class="vm-bot">' + (g.tel ? '<button class="btn verde" data-vm="wa">Mandar por WhatsApp</button>' : '') + (/^[0-9a-f]{32}$/.test(g.k) ? '<button class="btn ' + (g.tel ? '' : 'oro') + '" data-vm="app">Mandar por la app</button>' : '') + '<button class="btn" data-vm="bajar">Descargar croquis</button></div>'
+        + '<div class="vm-app" hidden><textarea rows="4" maxlength="1200">' + esc('Hola ' + (g.nombre || '').split(' ')[0] + ', te mando el croquis de tu mesa «' + nombreT + '» con las medidas. ' + (exacta ? 'Es tal como la armaste.' : 'Son medidas estándar; las ajustamos a tu espacio.') + ' ¿Qué te parece?') + '</textarea><div class="l-fila"><input inputmode="decimal" placeholder="Precio (opcional)"><button class="btn negro" data-vm="enviar">Enviar</button></div></div>'
+        + '</div></div>';
+      document.body.appendChild(v); document.body.style.overflow = 'hidden';
+      const cerrar = () => { v.remove(); document.body.style.overflow = ''; };
+      const png = () => CQ.png(m, info), archivo = async () => new File([await png()], 'croquis-' + (g.nombre || 'mesa').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.jpg', { type: 'image/jpeg' });
+      v.onclick = async e => {
+        if (e.target === v || e.target.closest('.vm-x')) return cerrar();
+        if (e.target.closest('.vm-cq')) { const w = window.open('', '_blank'); const u = URL.createObjectURL(await png()); if (w) w.location = u; else location.href = u; return; }
+        const b = e.target.closest('[data-vm]'); if (!b) return; const q = b.dataset.vm;
+        if (q === 'bajar') return bajar(await png(), 'croquis-' + (g.nombre || 'mesa') + '.jpg');
+        if (q === 'wa') { const fs = [await archivo()]; try { const fb = await (await fetch(foto)).blob(); fs.unshift(new File([fb], 'mesa.jpg', { type: 'image/jpeg' })); } catch (x) {}
+          await compartir(fs, 'Hola ' + (g.nombre || '').split(' ')[0] + ', soy ' + yoN + ' de DKAS. Te mando el croquis de tu mesa «' + nombreT + '»: ' + D.resumen(m).map(z => z[0] + ' ' + z[1]).join(' · ') + '. ¿Qué te parece?', A.waNum(g.tel));
+          if (!seg[g.k]) { A.marcarEscrito(g.k, true).then(() => { seg[g.k] = { escrito: Date.now(), por: me.nombre }; }).catch(() => {}); } return; }
+        if (q === 'app') { const a = v.querySelector('.vm-app'); a.hidden = !a.hidden; if (!a.hidden) a.querySelector('textarea').focus(); return; }
+        if (q === 'enviar') {
+          const a = v.querySelector('.vm-app'), texto = a.querySelector('textarea').value.trim(), precio = num(a.querySelector('input').value); if (!texto) return alerta('Escribe el mensaje.');
+          const x = { texto: texto.slice(0, 1200), mesa: nombreT.slice(0, 80), cod: codigo }; if (precio) x.precio = precio; if (mm && mm.img) x.img = mm.img;
+          b.disabled = true;
+          try { const id = await A.mandarMensaje(g.k, x); (msjs[g.k] = msjs[g.k] || {})[id] = Object.assign({ creado: Date.now(), por: me.nombre }, x); if (!seg[g.k]) { await A.marcarEscrito(g.k, true).catch(() => {}); seg[g.k] = { escrito: Date.now(), por: me.nombre }; } toast('Croquis enviado por la app'); cerrar(); visitasPinta(); }
+          catch (x) { b.disabled = false; alerta(x.message); }
+        }
+      };
+    }
     const visitasPinta = () => {
-    const atender = gente.filter(esLead).filter(g => Date.now() - g.ult < 30 * 864e5).sort((a, b) => (seg[a.k] ? 2 : a.tel ? 0 : 1) - (seg[b.k] ? 2 : b.tel ? 0 : 1) || b.ult - a.ult);
-    const faltan = atender.filter(g => !seg[g.k]); ponerBadgeVis(faltan.filter(g => g.tel).length);
+    const sinLeer = g => msjsDe(g).some(m => m.resp && !(seg[g.k] && seg[g.k].escrito > m.resp.creado)), pri = g => sinLeer(g) ? -1 : seg[g.k] ? 2 : g.tel ? 0 : 1;
+    const atender = gente.filter(esLead).filter(g => Date.now() - g.ult < 30 * 864e5).sort((a, b) => pri(a) - pri(b) || b.ult - a.ult);
+    const faltan = atender.filter(g => !seg[g.k] || sinLeer(g)); ponerBadgeVis(faltan.filter(g => g.tel).length);
     const resumenLead = g => g.max >= 2 ? 'Armó su mesa y no la mandó' : g.ints.some(t => /^Quiero una así/.test(t)) ? 'Abrió la cotización y no la mandó' : g.sol ? (g.sol.estado === 'pendiente' ? 'Espera acceso al 3D' : 'Pidió acceso al 3D') : g.max >= 1 ? 'Abrió el 3D' : 'Le interesó algo';
+    const estMsj = g => msjsDe(g).map(m => '<div class="l-msj"><small>Le mandaste' + (m.precio ? ' · ' + pesos(m.precio) : '') + ' · ' + cuando(m.creado) + ' · ' + (m.resp ? '<b class="ok">contestó</b>' : m.visto ? '<b>lo vio ' + cuando(m.visto) + '</b>' : 'todavía no lo ve') + '</small><p>' + esc(m.texto) + '</p>'
+      + (m.resp ? '<p class="l-resp"><small>' + esc(g.nombre) + ' · ' + cuando(m.resp.creado) + '</small>' + esc(m.resp.texto) + (m.resp.tel ? '<br><a class="btn chico wa-v" target="_blank" rel="noopener" href="https://wa.me/' + A.waNum(m.resp.tel) + '">WhatsApp ' + esc(m.resp.tel) + '</a>' : '') + '</p>' : '') + '</div>').join('');
+    const msjBase = g => { const n = (g.nombre || '').split(' ')[0], mm = g.interes && mesaDe(g.interes), t = g.interes ? String(g.interes).replace(/^(Quiero una así|Crear mi mesa en): ?/, '').replace(/^Crear mi mesa en /, '') : '';
+      return 'Hola' + (n ? ' ' + n : '') + ', soy ' + yoN + ' de DKAS. ' + (t ? 'Vi que te gustó ' + (/^Quiero una así/.test(g.interes) ? 'la mesa «' + t + '»' : t) + (mm && mm.d ? ' (' + mm.d.split(' · ').slice(0, 2).join(', ') + ')' : '') + '. ' : g.max >= 2 ? 'Vi que armaste tu mesa en 3D. ' : '') + 'Con gusto te la cotizo a tu medida. ¿Para cuántas personas la buscas? Si me dejas tu WhatsApp te mando fotos y croquis.'; };
+    const formMsj = g => '<div class="l-form" data-form="' + esc(g.k) + '" hidden><textarea rows="5" maxlength="1200">' + esc(msjBase(g)) + '</textarea><div class="l-fila"><input inputmode="decimal" placeholder="Precio (opcional)"><button class="btn negro chico" data-enviar="' + esc(g.k) + '">Enviar</button></div><small>Le aparece en dkas.mx en cuanto vuelva a entrar (o en menos de un minuto si la tiene abierta).</small></div>';
     const tarjLead = g => '<div class="lead' + (seg[g.k] ? ' hecho' : '') + '" data-k="' + esc(g.k) + '"><div class="l-cab"><div><b>' + esc(g.nombre) + '</b><small>' + resumenLead(g) + ' · ' + cuando(g.ult) + '</small></div>'
       + (seg[g.k] ? '<span class="l-ok">✓ Le escribió ' + esc(seg[g.k].por || '') + ' ' + cuando(seg[g.k].escrito) + '</span>' : g.tel ? '' : '<span class="l-sin">No dejó WhatsApp</span>') + '</div>'
-      + (g.interes ? tarj(g.interes) : '')
-      + '<div class="l-bot">' + (g.tel ? '<a class="btn chico wa-v" data-escribir="' + esc(g.k) + '" target="_blank" rel="noopener" href="https://wa.me/' + A.waNum(g.tel) + '?text=' + encodeURIComponent(msjWA(g)) + '">WhatsApp</a>' : '')
-      + (g.tel ? '<button class="btn chico" data-marca="' + esc(g.k) + '">' + (seg[g.k] ? 'Deshacer' : 'Ya le escribí') + '</button>' : '') + '<a class="lnk" href="#vp-' + esc(g.k) + '" data-ver="' + esc(g.k) + '">qué hizo ↓</a></div></div>';
+      + (g.interes ? tarj(g.interes) : '') + estMsj(g)
+      + ((g.diseno || (g.interes && mesaDe(g.interes))) ? '<button class="btn chico l-cq" data-croquis="' + esc(g.k) + '">📐 ' + (g.diseno ? 'Su mesa con medidas' : 'Foto y croquis') + '</button>' : '')
+      + '<div class="l-bot">' + (/^[0-9a-f]{32}$/.test(g.k) ? '<button class="btn chico' + (g.tel ? '' : ' oro') + '" data-escribe="' + esc(g.k) + '">' + (msjsDe(g).length ? 'Otro mensaje' : g.tel ? 'Cotizar en la app' : 'Mandarle cotización') + '</button>' : '') + (g.tel ? '<a class="btn chico wa-v" data-escribir="' + esc(g.k) + '" target="_blank" rel="noopener" href="https://wa.me/' + A.waNum(g.tel) + '?text=' + encodeURIComponent(msjWA(g)) + '">WhatsApp</a>' : '')
+      + (g.tel ? '<button class="btn chico" data-marca="' + esc(g.k) + '">' + (seg[g.k] ? 'Deshacer' : 'Ya le escribí') + '</button>' : '') + '<a class="lnk" href="#vp-' + esc(g.k) + '" data-ver="' + esc(g.k) + '">qué hizo ↓</a></div>' + (/^[0-9a-f]{32}$/.test(g.k) ? formMsj(g) : '') + '</div>';
     main.innerHTML = '<h1>Visitas</h1><p class="sub">Quién ha entrado a dkas.mx. Al entrar se les pide su nombre y la página los recuerda.</p>'
       + (atender.length ? '<h3 class="l-tit">Por atender <i>' + faltan.length + '</i></h3><p class="sub l-sub">Les interesó algo y no mandaron pedido. Escríbeles: al tocar WhatsApp queda marcado.</p><div class="leads">' + atender.map(tarjLead).join('') + '</div><h3 class="l-tit">Todas las visitas</h3>' : '')
       + '<div class="resumen-g"><div><b>' + gente.length + '</b><span>personas</span></div><div><b>' + gente.filter(g => new Date(g.ult).toDateString() === hoy).length + '</b><span>hoy</span></div><div><b>' + gente.filter(g => g.folio).length + '</b><span>mandaron pedido</span></div></div>'
@@ -799,6 +860,14 @@
       });
       A.save(LK, { ts: Date.now(), vis: ya });
       if (nuevos.length) { nuevos.slice(0, 3).forEach(n => avisar(n[0], n[1], '#visitas', true)); toast(nuevos[0][0] + (nuevos.length > 1 ? ' y ' + (nuevos.length - 1) + ' más' : '')); sonido(); const b = $('#nb-vis'); if (b) { b.textContent = (+b.textContent || 0) + nuevos.length; b.hidden = false; } }
+    } catch (e) {}
+    // respuestas de clientes a los mensajes de la app
+    try {
+      const todosM = await A.mensajesTodos(), RK = 'dkas-resp', antes = A.load(RK, null), ya = {}, nuevos = [];
+      Object.entries(todosM).forEach(([v, ms]) => Object.entries(ms || {}).forEach(([id, m]) => { if (m.resp) { ya[id] = 1; if (antes && !antes[id]) nuevos.push(m); } if (m.visto && antes && !antes['v' + id]) nuevos.push({ visto: 1, mesa: m.mesa }); if (m.visto) ya['v' + id] = 1; }));
+      A.save(RK, ya);
+      nuevos.filter(m => m.resp).forEach(m => avisar('Te contestaron en la app', m.resp.texto.slice(0, 120), '#visitas', true));
+      if (nuevos.some(m => m.resp)) { sonido(); toast('Un cliente te contestó · ve a Visitas'); }
     } catch (e) {}
     // agenda: avisa cuando llega la hora de un pendiente (una vez por pendiente)
     try {

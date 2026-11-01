@@ -314,7 +314,34 @@ img.sin{min-height:52px}
 .l-bot{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}.l-bot .btn{min-height:40px}.l-bot .wa-v{margin:0}.l-bot .lnk{margin-left:auto;font-size:13px}
 .lead .wa-v{display:inline-flex;align-items:center;background:#25d366;border-color:#25d366;color:#fff}
 .vis-p.brilla{background:#fbf3e4;transition:background .4s}
+
+.l-msj{margin-top:10px;padding:10px 12px;border-radius:10px;background:#f6f2ea;border:1px solid var(--linea)}
+.l-msj small{display:block;color:var(--gris);font-size:12px}.l-msj small b{color:var(--ambar)}.l-msj small b.ok{color:var(--verde)}
+.l-msj p{font-size:13.5px;margin-top:4px;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.l-msj .l-resp{display:block;-webkit-line-clamp:unset;background:#eaf6ee;border-radius:8px;padding:8px 10px;margin-top:8px;color:var(--tinta);font-weight:500}
+.l-resp .wa-v{display:inline-flex;margin-top:6px;background:#25d366;border-color:#25d366;color:#fff}
+.l-form{margin-top:12px;display:grid;gap:8px}.l-form textarea{font-size:15px;line-height:1.45}
+.l-fila{display:flex;gap:8px}.l-fila input{flex:1;min-width:0}.l-fila .btn{min-height:44px;padding:0 20px}
+.l-form small{color:var(--gris);font-size:12px}
+
+/* visor de la mesa: foto grande, croquis y medidas */
+.v-int[data-t]{cursor:pointer}.v-int[data-t]:active{transform:scale(.99)}
+.l-cq{margin-top:10px;width:100%}
+.vm{position:fixed;inset:0;z-index:90;background:rgba(10,9,8,.7);display:flex;align-items:flex-end;justify-content:center}
+.vm-caja{position:relative;width:100%;max-width:760px;max-height:94vh;overflow:auto;background:var(--bg);border-radius:18px 18px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+@media (min-width:800px){.vm{align-items:center}.vm-caja{border-radius:18px}}
+.vm-x{position:sticky;top:10px;float:right;margin:10px 10px -50px 0;z-index:2;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.92);font-size:24px;box-shadow:var(--sombra)}
+.vm-foto{display:block;position:relative}.vm-foto img{width:100%;max-height:52vh;object-fit:cover}
+.vm-foto span{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:4px 10px;border-radius:20px}
+.vm-tx{padding:18px}.vm-et{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--oro);font-weight:600}
+.vm-tx h2{font-size:24px;margin:4px 0 8px}.vm-nota{font-size:13.5px;color:var(--ambar);margin-bottom:10px}
+.vm-cq{background:#fff;border:1px solid var(--linea);border-radius:12px;padding:8px;margin:10px 0}.vm-cq svg{display:block;width:100%;height:auto}
+.vm-med{list-style:none;padding:0;margin:0 0 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.vm-med li{background:var(--card);border:1px solid var(--linea);border-radius:10px;padding:8px 10px}.vm-med span{display:block;font-size:11.5px;color:var(--gris)}.vm-med b{font-size:14px}
+.vm-bot{display:grid;gap:8px}.vm-bot .btn{min-height:48px}
+.vm-app{display:grid;gap:8px;margin-top:12px}
+.vm-cq{position:relative;cursor:zoom-in}.vm-cq span{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:4px 10px;border-radius:20px}
 </style></head><body>
 <header class="top"><a href="#"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#" data-sec="log">Pedidos<span class="lg"> y logística</span></a><a href="#taller" data-sec="taller">Taller<span class="lg"> y creación</span></a><a href="#bases" data-sec="bases">Diseñar<span class="lg"> bases</span></a><a href="#agenda" data-sec="agenda">Agenda<i class="badge" id="nb-age" hidden></i></a><a href="#visitas" data-sec="visitas">Visitas<i class="badge" id="nb-vis" hidden></i></a><a href="#accesos" data-sec="accesos">Accesos<i class="badge" id="nb-acc" hidden></i></a><a href="#precios" data-sec="precios">Precios</a><a href="#" id="salir">Salir</a></nav></header>
 <div id="avisos" class="avisos" hidden></div><main id="m"></main><div id="toast" hidden></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=7b4997caaf"></script><script src="js/dkas-api.js?v=f09e6c6189"></script><script src="js/dkas-croquis.js?v=ab948a527e"></script><script src="js/disena.js?v=cbae2a2d2d"></script><script src="js/panel-interes.js?v=7288b2f826"></script><script src="js/panel.js?v=2e41b862c5"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=7b4997caaf"></script><script src="js/dkas-api.js?v=7b78448969"></script><script src="js/dkas-croquis.js?v=e72aa8050e"></script><script src="js/disena.js?v=cbae2a2d2d"></script><script src="js/panel-interes.js?v=544f3e0416"></script><script src="js/panel.js?v=f437bd5618"></script></body></html>

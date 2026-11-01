@@ -23,28 +23,29 @@
     const cab = '<p class="et">Acceso privado</p><h2>Diseñador 3D <em>DKAS.</em></h2>';
     if (estado === 'pendiente') {
       caja.innerHTML = '<div class="acc-w">' + cab + '<div class="acc-est"><span class="pulso"></span><div><b>Solicitud enviada, ' + esc(s.nombre) + '.</b><p>La estamos revisando. En cuanto la aprobemos, esta página se abre sola en este dispositivo.</p></div></div>'
-        + '<a class="btn" href="' + waTxt(s.nombre + ' ' + s.apellido) + '" target="_blank" rel="noopener">¿Prisa? Escríbenos por WhatsApp</a>' + lista + '</div>';
+        + '<a class="btn" href="' + waTxt((s.nombre + ' ' + (s.apellido === '(web)' ? '' : s.apellido || '')).trim()) + '" target="_blank" rel="noopener">¿Prisa? Escríbenos por WhatsApp</a>' + lista + '</div>';
       return;
     }
     caja.innerHTML = '<div class="acc-w">' + cab
       + (estado === 'rechazada' ? '<div class="acc-est no"><div><b>No pudimos aprobar tu solicitud.</b><p>Escríbenos por WhatsApp y lo vemos contigo, o envía otra solicitud.</p></div></div>'
         : '<p class="sub">El configurador 3D, con medidas, ficha técnica y archivos para tu proyecto, es exclusivo para clientes y arquitectos de DKAS. Déjanos tus datos y te damos acceso.</p>')
-      + '<form id="acc-f" class="acc-f"><div class="f2"><label>Nombre<input id="acc-nom" required minlength="2" maxlength="60" autocomplete="given-name"></label>'
-      + '<label>Apellido<input id="acc-ape" required minlength="2" maxlength="60" autocomplete="family-name"></label>'
-      + '<label>WhatsApp <small>(opcional)</small><input id="acc-tel" inputmode="tel" maxlength="16" autocomplete="tel" placeholder="10 dígitos"></label>'
-      + '<label>Despacho o empresa <small>(opcional)</small><input id="acc-des" maxlength="120" autocomplete="organization"></label></div>'
+      + '<form id="acc-f" class="acc-f"><div class="f2"><label>Nombre<input id="acc-nom" required minlength="2" maxlength="60" autocomplete="name" placeholder="Tu nombre"></label>'
+      + '<label>WhatsApp<input id="acc-tel" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="10 dígitos"></label></div>'
       + '<p class="err" id="acc-err" hidden></p><button class="btn oro form-btn" id="acc-b">Solicitar acceso</button></form>'
       + lista + '<p class="nota">¿Te mandamos un link de acceso? Ábrelo y entras directo.</p></div>';
-    const yo = A.load('dazk-yo', {}); if (yo.nombre && !$('#acc-nom').value) { const [n, ...ap] = yo.nombre.split(' '); $('#acc-nom').value = n; if (ap.length) $('#acc-ape').value = ap.join(' '); }
-    if (yo.tel) $('#acc-tel').value = yo.tel; if (yo.despacho) $('#acc-des').value = yo.despacho;
+    const yo = A.load('dazk-yo', {}); if (yo.nombre && !$('#acc-nom').value) $('#acc-nom').value = yo.nombre;
+    if (yo.tel) $('#acc-tel').value = yo.tel;
     $('#acc-f').onsubmit = async e => {
       e.preventDefault(); const b = $('#acc-b'), err = $('#acc-err'); err.hidden = true; b.disabled = true; b.textContent = 'Enviando…';
       try {
-        const id = A.rnd(), s = { nombre: $('#acc-nom').value, apellido: $('#acc-ape').value, tel: $('#acc-tel').value, despacho: $('#acc-des').value };
+        // un solo campo de nombre: la base de datos pide apellido, así que se toma del nombre completo o va "(web)"
+        const [n0, ...ap] = $('#acc-nom').value.trim().split(/\s+/), tel = $('#acc-tel').value.replace(/\D/g, '');
+        if (tel.length < 10) throw new Error('Escribe tu WhatsApp a 10 dígitos para mandarte el acceso.');
+        const id = A.rnd(), s = { nombre: n0 || '', apellido: ap.join(' ') || '(web)', tel, despacho: '' };
         await A.solicitarAcceso(id, s);
-        mio = { tipo: 'sol', id, nombre: s.nombre.trim() + ' ' + s.apellido.trim() }; A.save('dkas-acceso', mio);
+        mio = { tipo: 'sol', id, nombre: (s.nombre + ' ' + (s.apellido === '(web)' ? '' : s.apellido)).trim() }; A.save('dkas-acceso', mio);
         A.save('dazk-yo', Object.assign(A.load('dazk-yo', {}), { nombre: mio.nombre }, s.tel.trim() ? { tel: s.tel.trim() } : {}, s.despacho.trim() ? { despacho: s.despacho.trim() } : {}));
-        pintar('pendiente', { nombre: s.nombre.trim(), apellido: s.apellido.trim() }); revisar();
+        pintar('pendiente', { nombre: s.nombre.trim(), apellido: s.apellido === '(web)' ? '' : s.apellido }); revisar();
       } catch (x) { err.textContent = x.message; err.hidden = false; b.disabled = false; b.textContent = 'Solicitar acceso'; }
     };
   }

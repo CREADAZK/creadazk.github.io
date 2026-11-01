@@ -614,7 +614,7 @@
     let sol, acc; try { [sol, acc] = await Promise.all([A.solicitudes(), A.accesos()]); } catch (e) { main.innerHTML = '<h1>Accesos al 3D</h1><p class="err">' + esc(e.message) + '</p>'; return; }
     const pend = sol.filter(s => s.estado === 'pendiente'), resto = sol.filter(s => s.estado !== 'pendiente'), hoy = new Date().toDateString();
     const cuando = t => { const d = new Date(t); return d.toDateString() === hoy ? 'hoy ' + d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }) : A.fecha(t); };
-    const quien = s => esc(s.nombre + ' ' + s.apellido);
+    const quien = s => esc((s.nombre + ' ' + (s.apellido === '(web)' ? '' : s.apellido || '')).trim());
     const avisar = s => s.tel ? '<a class="btn chico" target="_blank" rel="noopener" href="https://wa.me/' + A.waNum(s.tel) + '?text=' + encodeURIComponent('Hola ' + s.nombre + ', ya tienes acceso al diseñador 3D de DKAS. Entra aquí desde el mismo teléfono o computadora: https://dkas.mx/#app') + '">Avisarle por WhatsApp</a>' : '';
     const datos = s => '<div><b>' + quien(s) + '</b><small>' + esc([s.despacho, s.tel, 'pidió ' + cuando(s.creado)].filter(Boolean).join(' · ')) + '</small></div>';
     main.innerHTML = '<h1>Accesos al 3D</h1><p class="sub">El diseñador 3D de dkas.mx es privado. Solo entra quien apruebes aquí o quien abra un link que generes.</p>'

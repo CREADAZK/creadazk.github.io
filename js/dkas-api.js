@@ -36,11 +36,11 @@
 
   // a request for access to the 3D designer: first and last name are required
   function solicitud(s) {
-    const t = x => String(x || '').trim().replace(/\s+/g, ' '), nombre = t(s.nombre).slice(0, 60), apellido = t(s.apellido).slice(0, 60), tel = digits(s.tel), despacho = t(s.despacho).slice(0, 120);
+    const t = x => String(x || '').trim().replace(/\s+/g, ' '), nombre = t(s.nombre).slice(0, 60), apellido = t(s.apellido).slice(0, 60), tel = digits(s.tel), despacho = t(s.despacho).slice(0, 120), quiere = t(s.quiere).slice(0, 80);
     if (nombre.length < 2) throw new Error('Escribe tu nombre.');
     if (apellido.length < 2) throw new Error('Escribe tu apellido.');
-    if (tel && (tel.length < 10 || tel.length > 13)) throw new Error('Revisa tu WhatsApp (10 dígitos) o déjalo vacío.');
-    return Object.assign({ nombre, apellido }, tel ? { tel } : {}, despacho ? { despacho } : {});
+    if (tel.length < 10 || tel.length > 13) throw new Error('Escribe tu WhatsApp a 10 dígitos: ahí te avisamos y te mandamos tu cotización.');
+    return Object.assign({ nombre, apellido, tel }, despacho ? { despacho } : {}, quiere ? { quiere } : {});
   }
 
   // the name shown to clients and the team is never an email: the owner's address becomes Zury; anyone else, the part before the @
@@ -237,6 +237,10 @@
     async mensajesDe(v) { return (await db('mensajes/' + v)) || {}; },
     async verMensaje(v, m) { await db('mensajes/' + v + '/' + m + '/visto', 'PUT', TS); },
     async responderMensaje(v, m, x) { await db('mensajes/' + v + '/' + m + '/resp', 'PUT', Object.assign({}, x, { creado: TS })); },
+    // la mesa que el cliente está armando: se guarda sola (disenos/<id de su solicitud o link>), aunque no la envíe
+    async verDiseno(s) { return db('disenos/' + s); },
+    async guardarDiseno(s, x) { await db('disenos/' + s, 'PATCH', Object.assign({}, x, { actualizado: TS })); },
+    async disenos() { return (await db('disenos', 'GET', undefined, true)) || {}; },
     // la agenda del equipo: pendientes con fecha (solo staff)
     async agenda() { return Object.entries((await db('agenda', 'GET', undefined, true)) || {}).map(([id, x]) => Object.assign({ id }, x)); },
     async guardarTarea(id, x) { await db('agenda/' + id, 'PUT', x, true); },
@@ -303,6 +307,9 @@
     async responderMensaje(v, m, x) { const d = load('dazk-demo-msj', {}); if (d[v] && d[v][m]) { d[v][m].resp = Object.assign({}, x, { creado: Date.now() }); save('dazk-demo-msj', d); } },
     async marcarEscrito(v, si) { const d = load('dazk-demo-seg', {}); if (si) d[v] = { escrito: Date.now(), por: (who() || {}).nombre || '' }; else delete d[v]; save('dazk-demo-seg', d); },
     async visitasDesde(ts) { return Object.values(load('dazk-demo-visitas', {})).filter(x => (x.ult || x.t) >= ts); },
+    async verDiseno(s) { return load('dazk-demo-dis', {})[s] || null; },
+    async guardarDiseno(s, x) { const d = load('dazk-demo-dis', {}); d[s] = Object.assign({}, d[s], x, { actualizado: Date.now() }); save('dazk-demo-dis', d); },
+    async disenos() { return load('dazk-demo-dis', {}); },
     async agenda() { return Object.entries(load('dazk-demo-agenda', {})).map(([id, x]) => Object.assign({ id }, x)); },
     async guardarTarea(id, x) { const d = load('dazk-demo-agenda', {}); d[id] = x; save('dazk-demo-agenda', d); },
     async borrarTarea(id) { const d = load('dazk-demo-agenda', {}); delete d[id]; save('dazk-demo-agenda', d); },

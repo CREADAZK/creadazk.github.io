@@ -10,68 +10,28 @@
   function disenar(cambios, paso) {
     if (cambios && (cambios.modelo || cambios.piedra)) interesa(cambios.modelo ? 'Modelo ' + ((D.MODELOS.find(m => m.id === cambios.modelo) || {}).nombre || cambios.modelo) : 'Piedra ' + D.piedra(cambios.piedra).nombre);
     try { if (window.DKAS_PONER) window.DKAS_PONER(cambios, paso); } catch (e) {}
-    cerrarVisor(); cerrarCoti();
+    cerrarVisor();
     if (location.hash !== '#app') location.hash = '#app'; else scrollTo({ top: 0, behavior: 'smooth' });
     if (!document.body.classList.contains('con-acceso')) setTimeout(() => { const n = $('#acc-nom'), t = $('#acc-tel'), yo = A.load('dazk-yo', {});
       if (n && yo.nombre && (!n.value || yo.nombre.startsWith(n.value))) n.value = yo.nombre; if (t && yo.tel && !t.value) t.value = yo.tel; const f = n && !n.value ? n : t && !t.value ? t : null; if (f) f.focus({ preventScroll: true }); }, 400);
   }
 
-  // ---------- mini cotización por WhatsApp ("Quiero una así") ----------
-  const coti = $('#coti');
-  let cotX = null, cotP = 6;
-  function cotizar(x) {
-    interesa('Quiero una así: ' + (x.t || 'mesa de la página'));
-    { const w = $('#coti-wa'); if (w) w.href = w.href.split('?')[0] + '?text=' + encodeURIComponent('Hola DKAS, me interesa una mesa como «' + (x.t || 'la de su página') + '»' + (x.p ? ' en ' + D.piedra(x.p).nombre : '') + '. ¿Me pasan precio?'); }
-    cotX = x; cotP =x.u === 'centro' || x.u === 'periquera' ? 4 : x.f === 'square' || x.f === 'round' ? 4 : 6;
-    $('#coti-img').src = x.img || ''; $('#coti-img').alt = x.t || 'Mesa DKAS'; $('#coti-img').hidden = !x.img;
-    $('#coti-t').textContent = x.t || 'Una mesa así';
-    $('#coti-d').textContent = [x.p && D.piedra(x.p).nombre, x.b && D.BASES[x.b] && 'Base ' + D.BASES[x.b].nombre, x.f && D.FORMAS[x.f]].filter(Boolean).join(' · ');
-    $$('#coti-p button').forEach(b => b.classList.toggle('on', +b.dataset.n === cotP));
-    $('#coti-pide').hidden = false; $('#coti-ok').hidden = true; $('#coti-e').hidden = true;
-    const yo = A.load('dazk-yo', {}); if (yo.nombre && !$('#coti-n').value) $('#coti-n').value = yo.nombre; if (yo.tel && !$('#coti-w').value) $('#coti-w').value = yo.tel;
-    cerrarVisor(); coti.hidden = false; document.body.style.overflow = 'hidden';
-    setTimeout(() => { const n = $('#coti-n'); if (!n.value) n.focus(); }, 60);
-  }
-  function cerrarCoti() { if (!coti || coti.hidden) return; coti.hidden = true; document.body.style.overflow = ''; }
-  if (coti) {
-    $('#coti-x').onclick = cerrarCoti;
-    coti.addEventListener('mousedown', e => { if (e.target === coti) cerrarCoti(); });
-    addEventListener('keydown', e => { if (e.key === 'Escape') cerrarCoti(); });
-    $('#coti-p').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; cotP = +b.dataset.n; $$('#coti-p button').forEach(z => z.classList.toggle('on', z === b)); });
-    // la solicitud llega al panel como pedido nuevo (con folio), igual que los que salen del diseñador
-    $('#coti-f').onsubmit = async e => {
-      e.preventDefault(); const x = cotX || {}, nombre = $('#coti-n').value.trim(), tel = $('#coti-w').value.trim(), b = $('#coti-b'), err = $('#coti-e');
-      const specs = [['Pidió', 'Quiero una así: ' + (x.t || 'mesa de la página')]];
-      if (x.p) specs.push(['Piedra', D.piedra(x.p).nombre]); if (x.b && D.BASES[x.b]) specs.push(['Base', D.BASES[x.b].nombre]); if (x.f && D.FORMAS[x.f]) specs.push(['Forma', D.FORMAS[x.f]]);
-      specs.push(['Personas', cotP >= 10 ? '10 o más' : String(cotP)]);
-      const foto = /^https:\/\/(dkas\.mx|creadazk\.github\.io)\//.test(x.img || '') ? x.img.replace(/-m\.jpg$/, '.jpg') : '';
-      const it = Object.assign({ tipo: 'mesa', titulo: 'Quiero una así · ' + (x.t || 'Mesa DKAS'), cantidad: 1, specs }, x.u ? { uso: x.u } : {}, foto ? { link: foto } : {});
-      err.hidden = true; b.disabled = true; b.textContent = 'Enviando…';
-      try {
-        const r = await A.crearPedido({ nombre, tel, notas: 'Solicitud de cotización desde la página (botón «Quiero una así»).', items: [it], canal: A.load('dazk-canal', '') });
-        A.save('dazk-pedidos', [{ folio: r.folio, token: r.token, fecha: new Date().toISOString() }].concat(A.load('dazk-pedidos', [])));
-        A.save('dazk-yo', Object.assign(A.load('dazk-yo', {}), { nombre, tel }));
-        $('#coti-fol').textContent = '#' + r.folio; $('#coti-seg').href = A.seguimiento(r.token);
-        $('#coti-pide').hidden = true; $('#coti-ok').hidden = false;
-        if (window.DKAS_VISITA) try { DKAS_VISITA(3, r.folio); } catch (y) {}
-      } catch (y) { err.textContent = y.message || 'No se pudo enviar. Intenta de nuevo.'; err.hidden = false; }
-      b.disabled = false; b.textContent = 'Solicitar cotización';
-    };
-    $('#coti-crea').onclick = () => crearMia(cotX || {});
-  }
   // "Crear mi mesa": abre el diseñador con esa piedra, base y forma; sin acceso, ahí mismo pide acceso y el admin lo aprueba
   function crearMia(x) {
     const cambios = Object.assign({}, x.u ? { uso: x.u } : {}, x.f ? { forma: x.f } : {}, x.u && x.f ? D.tamanoPara(x.u, x.f, x.u === 'comedor' ? 8 : 4) : {}, x.p ? { piedra: x.p } : {}, x.b ? { base: x.b } : {});
-    disenar(cambios, 1); if (x.p) interesa('Crear mi mesa en ' + D.piedra(x.p).nombre);
+    window.DKAS_QUIERE = 'Quiero una así: ' + (x.t || (x.p ? 'mesa en ' + D.piedra(x.p).nombre : 'mesa de la página')); interesa(DKAS_QUIERE);
+    disenar(cambios, 1); repintaAcceso();
   }
-  // todos los "Quiero una así" de la página (revista, proyectos y galería) abren la mini cotización; "Crear mi mesa" lleva al diseñador
+  // el formulario de acceso se vuelve a pintar para decir qué mesa quiere (sin borrar lo que ya escribió)
+  function repintaAcceso() { if (document.body.classList.contains('con-acceso')) return; const p = document.querySelector('#acceso .sub'); if (p && window.DKAS_QUIERE) p.textContent = 'Te gustó «' + DKAS_QUIERE.replace(/^Quiero una así: /, '') + '». Para diseñarla a tu medida déjanos tu nombre y tu WhatsApp. Te damos acceso y un asesor te acompaña con tu cotización.'; }
+  // todos los "Quiero una así" y "Crear mi mesa" llevan al diseñador con esa mesa; sin acceso, primero la solicitud (nombre y WhatsApp)
   document.addEventListener('click', e => {
     const c = e.target.closest('[data-crea]');
     if (c) { e.preventDefault(); e.stopPropagation(); return crearMia(JSON.parse(c.dataset.crea)); }
     const b = e.target.closest('[data-v]'); if (!b) return;
     e.preventDefault(); e.stopPropagation();
-    const x = JSON.parse(b.dataset.v), caja = b.closest('article, figure, .sl'), im = caja && caja.querySelector('img'), h = caja && caja.querySelector('h3');
-    cotizar(Object.assign({}, x, { t: h ? h.textContent.trim() : '', img: im ? (im.currentSrc || im.src) : '' }));
+    const x = JSON.parse(b.dataset.v), caja = b.closest('article, figure, .sl'), h = caja && caja.querySelector('h3');
+    crearMia(Object.assign({}, x, { t: h ? h.textContent.trim() : '' }));
   }, true);
 
   // ---------- menú del celular ----------
@@ -147,10 +107,9 @@
   let x0 = null;
   visor.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
   visor.addEventListener('touchend', e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) mover(dx < 0 ? 1 : -1); x0 = null; });
-  $('#vi-crea').onclick = () => { const x = lista[vi]; crearMia({ p: x.p, u: x.u, f: x.f, b: x.b }); };
   $('#vi-btn').onclick = () => {
     const x = lista[vi];
-    if (x.p) return cotizar({ p: x.p, u: x.u, f: x.f, b: x.b, t: x.t, img: $('#vi-img').src });
+    if (x.p) return crearMia({ p: x.p, u: x.u, f: x.f, b: x.b, t: x.t });
     const cambios = Object.assign({ uso: x.u, forma: x.f }, D.tamanoPara(x.u, x.f, x.u === 'comedor' ? 8 : 4));
     if (x.p) cambios.piedra = x.p;
     disenar(cambios, 1);
@@ -235,52 +194,6 @@
       const s = JSON.stringify(d); if (s === enviado) return; enviado = s;
       A.visita(id, d, primera).catch(() => {}); primera = false;
     }
-    // si escribe su WhatsApp en "Quiero una así" o en la solicitud del 3D y se sale sin enviar, el panel ya lo tiene para darle seguimiento
-    let tGuarda = 0;
-    document.addEventListener('input', e => {
-      if (!e.target.matches || !e.target.matches('#coti-w, #acc-tel, #coti-n, #acc-nom')) return;
-      clearTimeout(tGuarda); tGuarda = setTimeout(() => {
-        const yo = A.load('dazk-yo', {}), w = (($('#coti-w') || {}).value || ($('#acc-tel') || {}).value || '').replace(/D/g, ''), n = (($('#coti-n') || {}).value || ($('#acc-nom') || {}).value || '').trim();
-        const nuevo = Object.assign({}, yo); if (/^[0-9]{10,13}$/.test(w)) nuevo.tel = w; if (n.length >= 2 && !yo.nombre) nuevo.nombre = n.slice(0, 80);
-        if (nuevo.tel !== yo.tel || nuevo.nombre !== yo.nombre) { A.save('dazk-yo', nuevo); registra(); }
-      }, 900);
-    });
-    // mensajes que DKAS le mandó a este visitante desde el panel: salen al entrar y, con la página abierta, en menos de un minuto
-    const msj = $('#msj'); let msjAct = null;
-    function verMsj(id, m) {
-      msjAct = id; const yo = A.load('dazk-yo', {}), n = (yo.nombre || '').split(' ')[0];
-      $('#msj-t').textContent = 'Hola' + (n ? ' ' + n : '') + ' 👋';
-      $('#msj-im').hidden = !m.img; if (m.img) $('#msj-img').src = m.img;
-      $('#msj-mesa').hidden = !m.mesa; $('#msj-mesa').textContent = m.mesa || '';
-      $('#msj-precio').hidden = !m.precio; if (m.precio) $('#msj-precio').textContent = 'Precio: $' + Number(m.precio).toLocaleString('es-MX') + ' MXN';
-      const cq = $('#msj-cq'); cq.hidden = true; cq.innerHTML = '';
-      if (m.cod && window.DKAS_CQ) try { const p = m.cod.split('.'), mm = D.normalizar({ uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5], H: +p[6] || undefined }); cq.innerHTML = DKAS_CQ.plano(mm, { cliente: yo.nombre || '' }) + '<ul>' + D.resumen(mm).map(z => '<li><span>' + z[0] + '</span><b>' + z[1] + '</b></li>').join('') + '</ul>'; cq.hidden = false; } catch (e) {}
-      $('#msj-tx').textContent = m.texto; $('#msj-por').textContent = '— ' + (m.por || 'DKAS') + ', DKAS';
-      $('#msj-pide').hidden = !!m.resp; $('#msj-ok').hidden = !m.resp; $('#msj-e').hidden = true;
-      if (yo.tel && !$('#msj-w').value) $('#msj-w').value = yo.tel;
-      const w = $('#msj-wa'); w.href = w.href.split('?')[0] + '?text=' + encodeURIComponent('Hola DKAS, soy ' + (yo.nombre || '') + '. Recibí su mensaje' + (m.mesa ? ' sobre la mesa «' + m.mesa + '»' : '') + '.');
-      msj.hidden = false; document.body.style.overflow = 'hidden';
-      if (!m.visto) A.verMensaje(v, id).catch(() => {});
-    }
-    const cerrarMsj = () => { msj.hidden = true; document.body.style.overflow = ''; };
-    $('#msj-x').onclick = cerrarMsj; $('#msj-c').onclick = cerrarMsj; msj.onclick = e => { if (e.target === msj) cerrarMsj(); };
-    $('#msj-b').onclick = async () => {
-      const t = $('#msj-r').value.trim(), w = $('#msj-w').value.replace(/\D/g, ''), err = $('#msj-e'), b = $('#msj-b');
-      if (!t && !w) { err.textContent = 'Escribe tu respuesta o tu WhatsApp.'; err.hidden = false; return; }
-      if (w && (w.length < 10 || w.length > 13)) { err.textContent = 'Revisa tu WhatsApp (10 dígitos).'; err.hidden = false; return; }
-      b.disabled = true;
-      try {
-        await A.responderMensaje(v, msjAct, Object.assign({ texto: (t || 'Mi WhatsApp: ' + w).slice(0, 600) }, w ? { tel: w } : {}));
-        if (w) { const yo = A.load('dazk-yo', {}); yo.tel = w; A.save('dazk-yo', yo); registra(); }
-        $('#msj-pide').hidden = true; $('#msj-ok').hidden = false;
-      } catch (e) { err.textContent = e.message; err.hidden = false; } finally { b.disabled = false; }
-    };
-    async function buscaMsj() {
-      if (staff || !msj.hidden || !$('#bienv').hidden) return;
-      try { const l = Object.entries(await A.mensajesDe(v)).sort((a, b) => a[1].creado - b[1].creado), nuevo = l.filter(([, m]) => !m.visto).pop(); if (nuevo) verMsj(nuevo[0], nuevo[1]); } catch (e) {}
-    }
-    setTimeout(buscaMsj, 2500); setInterval(() => { if (!document.hidden) buscaMsj(); }, 45000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) buscaMsj(); });
     window.DKAS_VISITA = (p, f) => { paso = Math.max(paso, p); if (f) folio = f; registra(); }; // crea-ui avisa: 2 = armó su mesa, 3 = la mandó
     addEventListener('hashchange', () => setTimeout(registra, 300));
     const caja = $('#bienv');

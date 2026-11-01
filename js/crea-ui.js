@@ -19,6 +19,7 @@
 
   let st = D.normalizar(Object.assign({ uso: 'comedor', forma: 'rect', base: 'patas', piedra: 'statuario' }, D.tamanoPara('comedor', 'rect', 8)));
   let paso = 0, enviado = null;
+  let guardadoCod = '', guardaT = 0, recuperado = false, miEnvio = null;
   const enlace = (location.hash.match(/d=([a-z0-9.\-]+)/) || [])[1];
   if (enlace && deCodigo(enlace)) { st = D.normalizar(deCodigo(enlace)); paso = 4; }
 
@@ -30,7 +31,7 @@
     if ((cambios.uso && cambios.uso !== st.uso || cambios.modelo) && !cambios.H) cambios = Object.assign({}, cambios, { H: D.USOS[cambios.uso || st.uso].H });
     st = D.normalizar(Object.assign({}, st, cambios));
     if (!cambios.modelo && st.modelo && (prev.L !== st.L || prev.W !== st.W || prev.H !== st.H || prev.forma !== st.forma || prev.base !== st.base || prev.uso !== st.uso)) delete st.modelo;
-    V.mostrar(st); pintar();
+    V.mostrar(st); pintar(); guardaSola();
     if (saltar != null) ir(saltar);
   }
 
@@ -118,7 +119,7 @@
     if (paso >= 3 && window.DKAS_VISITA) DKAS_VISITA(2); // para el panel: ya armó su mesa
     $$('.paso').forEach((p, k) => { p.hidden = k !== paso; });
     if (paso === 4 && !enviado) setTimeout(foto, 60);
-    pintar(); if (ir.listo) { const y = $('#app').getBoundingClientRect().top + scrollY - 62; if (Math.abs(scrollY - y) > 4 && (innerWidth < 980 || scrollY < y)) scrollTo({ top: y, behavior: 'smooth' }); }
+    pintar(); aviso(); if (ir.listo) { const y = $('#app').getBoundingClientRect().top + scrollY - 62; if (Math.abs(scrollY - y) > 4 && (innerWidth < 980 || scrollY < y)) scrollTo({ top: y, behavior: 'smooth' }); }
     ir.listo = true;
   }
   function foto() { const l = V.listo(); (l || Promise.resolve()).then(() => { $('#p5img').src = V.foto(1200, 800); pintarLista(); }); }
@@ -144,7 +145,7 @@
     const k = el.dataset.dim, x = parseFloat(el.value); if (!k || !(x > 0)) return;
     const c = { [k]: Math.round(x) }; if (k === 'L' && D.redonda(st.forma)) c.W = c.L;
     const antes = [st.L, st.W, st.H].join();
-    st = D.normalizar(Object.assign({}, st, c)); delete st.modelo; V.mostrar(st); vivo();
+    st = D.normalizar(Object.assign({}, st, c)); delete st.modelo; V.mostrar(st); vivo(); guardaSola();
     if (final && (st[k] !== Math.round(x) || [st.L, st.W, st.H].join() !== antes)) pintar();
   }
   document.addEventListener('input', e => { if (!e.target.dataset.dim) return; clearTimeout(medidaEscrita.t); medidaEscrita.t = setTimeout(() => medidaEscrita(e.target), 450); });
@@ -224,6 +225,7 @@
         if (t.length > 1) b.textContent = 'Enviando ' + (i + 1) + ' de ' + t.length + '…';
         const conj = t.length > 1 ? [['Pedido conjunto', 'Diseño ' + (i + 1) + ' de ' + t.length + ' · ' + piezas(t) + ' mesas' + (proyecto ? ' · ' + proyecto : '')]] : [];
         const it = { tipo: 'mesa', titulo: D.titulo(x.m), cantidad: x.cant, uso: x.m.uso, specs: D.resumen(x.m).concat(extra, conj, [['Código', cod]]), link: SITE + '#d=' + cod };
+        if ($('#tel').value.replace(/\D/g, '').length < 10) throw new Error('Escribe tu WhatsApp a 10 dígitos: ahí te mandamos tu cotización.');
         const r = await A.crearPedido({ nombre: $('#nombre').value, tel: $('#tel').value, notas: $('#notas').value, items: [it], canal: A.load('dazk-canal', '') });
         const img = x.actual ? await chica($('#p5img').src || V.foto(1200, 800)) : x.img;
         try { if (img) await A.guardarFoto(r.token, img); } catch (y) { console.warn('foto', y); }
@@ -233,15 +235,17 @@
       }
       A.save('dazk-yo', Object.assign(A.load('dazk-yo', {}), { nombre: $('#nombre').value.trim(), tel: $('#tel').value.trim(), correo: $('#correo').value.trim(), despacho: $('#despacho').value.trim() }));
       enviados = hechos; enviado = hechos[0]; lista = []; guardaLista();
+      if (accId()) { try { await A.guardarDiseno(accId(), { cod: codigo(st), titulo: D.titulo(st), enviado: { folio: enviado.folio, token: enviado.token } }); } catch (y) {} aviso(); }
       if (window.DKAS_VISITA) DKAS_VISITA(3, enviado.folio);
       $('#form').hidden = true; $('#lista').hidden = true; $('#listo').hidden = false;
       $('#folio').textContent = hechos.map(h => '#' + h.folio).join(' · ');
+      miEnvio = enviado;
       $('#seguir').href = hechos.length === 1 ? A.seguimiento(enviado.token) : 'pedido.html'; $('#seguir').textContent = hechos.length === 1 ? 'Ver mi pedido' : 'Ver mis pedidos';
     } catch (x) {
       err.textContent = x.message + (hechos.length ? ' Ya se enviaron ' + hechos.length + ' de ' + t.length + ' (folio ' + hechos.map(h => '#' + h.folio).join(', ') + '); toca Enviar otra vez para mandar las que faltan.' : '');
       err.hidden = false; pintarLista();
     }
-    b.disabled = false; b.textContent = 'Enviar y cotizar';
+    b.disabled = false; b.textContent = 'Enviar mi mesa';
   });
   // compartir las fotos de las mesas por WhatsApp (en celular manda las imágenes; en compu abre el chat con el texto)
   $('#mandar').addEventListener('click', async () => {
@@ -322,6 +326,34 @@
     if (enlace && deCodigo(enlace)) st = D.normalizar(deCodigo(enlace));
     V.mostrar(st); pintar();
   }).catch(() => {});
+  // ---------- su mesa se guarda sola en el sistema (el panel la ve en Clientes) y la recupera al volver ----------
+  function accId() { return !window.DKAS_STAFF && window.DKAS_ACC_ID; }
+  function aviso() {
+    const el = $('#aviso-env'); if (!el) return;
+    if (enviado || miEnvio) { const f = enviado || miEnvio; el.className = 'aviso-env ok'; el.innerHTML = '<b>✓ Tu mesa ya está enviada' + (f.folio ? ' · #' + f.folio : '') + '.</b> Un asesor la revisa y te escribe por WhatsApp. <a href="' + A.seguimiento(f.token) + '">Ver mi pedido</a>'; el.hidden = !accId(); return; }
+    el.className = 'aviso-env'; el.innerHTML = '<b>Tu mesa se guarda sola, pero todavía no la envías.</b> Envíala para que un asesor la revise y te cotice como debe ser. <button type="button" data-ir="4">Enviar mi mesa →</button>';
+    el.hidden = !accId();
+  }
+  function guardaSola() {
+    if (!accId() || enviado) return; clearTimeout(guardaT);
+    guardaT = setTimeout(async () => {
+      const cod = codigo(st); if (cod === guardadoCod) return;
+      let img = ''; try { await V.listo(); img = await chica(V.foto(720, 480), 480); } catch (e) {}
+      const x = { cod, titulo: D.titulo(st) }; if (img && img.length < 190000) x.img = img;
+      try { await A.guardarDiseno(accId(), x); guardadoCod = cod; } catch (e) {}
+    }, 2500);
+  }
+  async function recuperar() {
+    if (!accId() || recuperado) return; recuperado = true;
+    try {
+      const d = await A.verDiseno(accId()); if (!d) return guardaSola();
+      if (d.enviado) miEnvio = d.enviado;
+      if (d.cod && deCodigo(d.cod) && !enlace) { st = D.normalizar(deCodigo(d.cod)); guardadoCod = d.cod; V.mostrar(st); ir(d.enviado ? 0 : 4); }
+    } catch (e) {}
+    aviso();
+  }
+  document.addEventListener('dkas-acceso', () => { aviso(); recuperar(); });
+  if (window.DKAS_ACC_ID) { aviso(); recuperar(); }
   // la página principal manda aquí lo que el cliente eligió (un modelo, una piedra o una foto)
   window.DKAS_PONER = (cambios, p) => set(cambios || {}, p);
   window.DKAS_ST = () => st; window.DKAS_COD = () => codigo(st); window.DKAS_V = V; // pruebas y fotos de los modelos

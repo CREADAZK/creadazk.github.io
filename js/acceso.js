@@ -9,6 +9,7 @@
   let espera = null;
 
   function abrir() {
+    window.DKAS_ACC_ID = mio && mio.id; document.dispatchEvent(new Event('dkas-acceso'));
     document.body.classList.add('con-acceso'); clearTimeout(espera);
     // el 3D se midió escondido: que se vuelva a acomodar
     setTimeout(() => dispatchEvent(new Event('resize')), 50);
@@ -28,7 +29,7 @@
     }
     caja.innerHTML = '<div class="acc-w">' + cab
       + (estado === 'rechazada' ? '<div class="acc-est no"><div><b>No pudimos aprobar tu solicitud.</b><p>Escríbenos por WhatsApp y lo vemos contigo, o envía otra solicitud.</p></div></div>'
-        : '<p class="sub">El configurador 3D, con medidas, ficha técnica y archivos para tu proyecto, es exclusivo para clientes y arquitectos de DKAS. Déjanos tus datos y te damos acceso.</p>')
+        : '<p class="sub">' + (window.DKAS_QUIERE && /^Quiero una así: /.test(DKAS_QUIERE) ? 'Te gustó «' + esc(DKAS_QUIERE.replace(/^Quiero una así: /, '')) + '». ' : '') + 'Para diseñar tu mesa en 3D déjanos tu nombre y tu WhatsApp. Te damos acceso y un asesor te acompaña con tu cotización.</p>')
       + '<form id="acc-f" class="acc-f"><div class="f2"><label>Nombre<input id="acc-nom" required minlength="2" maxlength="60" autocomplete="name" placeholder="Tu nombre"></label>'
       + '<label>WhatsApp<input id="acc-tel" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="10 dígitos"></label></div>'
       + '<p class="err" id="acc-err" hidden></p><button class="btn oro form-btn" id="acc-b">Solicitar acceso</button></form>'
@@ -41,7 +42,7 @@
         // un solo campo de nombre: la base de datos pide apellido, así que se toma del nombre completo o va "(web)"
         const [n0, ...ap] = $('#acc-nom').value.trim().split(/\s+/), tel = $('#acc-tel').value.replace(/\D/g, '');
         if (tel.length < 10) throw new Error('Escribe tu WhatsApp a 10 dígitos para mandarte el acceso.');
-        const id = A.rnd(), s = { nombre: n0 || '', apellido: ap.join(' ') || '(web)', tel, despacho: '' };
+        const id = A.rnd(), s = { nombre: n0 || '', apellido: ap.join(' ') || '(web)', tel, despacho: '', quiere: String(window.DKAS_QUIERE || 'Diseñar su mesa en 3D').slice(0, 80) };
         await A.solicitarAcceso(id, s);
         mio = { tipo: 'sol', id, nombre: (s.nombre + ' ' + (s.apellido === '(web)' ? '' : s.apellido)).trim() }; A.save('dkas-acceso', mio);
         A.save('dazk-yo', Object.assign(A.load('dazk-yo', {}), { nombre: mio.nombre }, s.tel.trim() ? { tel: s.tel.trim() } : {}, s.despacho.trim() ? { despacho: s.despacho.trim() } : {}));
@@ -75,7 +76,7 @@
   }
 
   (async function () {
-    if (staff) return abrir();
+    if (staff) { window.DKAS_STAFF = true; return abrir(); }
     // link especial: ?acceso=<token>
     const q = new URLSearchParams(location.search), t = (q.get('acceso') || '').toLowerCase();
     if (/^[0-9a-f]{32}$/.test(t)) {

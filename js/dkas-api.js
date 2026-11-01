@@ -225,6 +225,10 @@
     async cambiarAcceso(t, activo) { await db('accesos/' + t + '/activo', 'PUT', !!activo, true); },
     async guardarBase(id, b) { await db('catalogo/bases/' + id, 'PUT', b, true); },
     async borrarBase(id) { await db('catalogo/bases/' + id, 'DELETE', undefined, true); },
+    // a quién ya se le escribió por WhatsApp (por visitante), y visitas con actividad desde una hora (para avisar)
+    async escritos() { return (await db('seguimiento', 'GET', undefined, true)) || {}; },
+    async marcarEscrito(v, si) { const me = await this.yo(); await db('seguimiento/' + v, si ? 'PUT' : 'DELETE', si ? { escrito: Date.now(), por: String(me.nombre || '').slice(0, 60) } : undefined, true); },
+    async visitasDesde(ts) { const q = '?orderBy=' + encodeURIComponent('"ult"') + '&startAt=' + ts + '&auth=' + await idToken(); return Object.values((await jfetch(FB.db + '/visitas.json' + q)) || {}); },
     // la agenda del equipo: pendientes con fecha (solo staff)
     async agenda() { return Object.entries((await db('agenda', 'GET', undefined, true)) || {}).map(([id, x]) => Object.assign({ id }, x)); },
     async guardarTarea(id, x) { await db('agenda/' + id, 'PUT', x, true); },
@@ -283,6 +287,9 @@
     async staffMensaje(id, texto, interno) { edit(x => x.id === id, (p, ev) => ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: interno ? 'nota' : 'mensaje', texto, interno: !!interno })); },
     async guardarFicha(id, key, data, nota) { edit(x => x.id === id, (p, ev) => { p.fichas = p.fichas || {}; p.fichas[key] = data; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'nota', texto: nota, interno: true }); }); },
     async visita(id, data, primera) { const d = load('dazk-demo-visitas', {}); d[id] = Object.assign({}, d[id], primera ? { t: Date.now() } : {}, { ult: Date.now() }, data); save('dazk-demo-visitas', d); },
+    async escritos() { return load('dazk-demo-seg', {}); },
+    async marcarEscrito(v, si) { const d = load('dazk-demo-seg', {}); if (si) d[v] = { escrito: Date.now(), por: (who() || {}).nombre || '' }; else delete d[v]; save('dazk-demo-seg', d); },
+    async visitasDesde(ts) { return Object.values(load('dazk-demo-visitas', {})).filter(x => (x.ult || x.t) >= ts); },
     async agenda() { return Object.entries(load('dazk-demo-agenda', {})).map(([id, x]) => Object.assign({ id }, x)); },
     async guardarTarea(id, x) { const d = load('dazk-demo-agenda', {}); d[id] = x; save('dazk-demo-agenda', d); },
     async borrarTarea(id) { const d = load('dazk-demo-agenda', {}); delete d[id]; save('dazk-demo-agenda', d); },

@@ -586,15 +586,17 @@
   function chica(url) { return new Promise(ok => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = 1000; c.height = Math.round(1000 * im.height / im.width); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', 0.8)); }; im.src = url; }); }
 
   // ---------- quién ha entrado a la página de clientes (dan su nombre al entrar y la página los recuerda) ----------
+  const esLead = g => g.nombre && !g.folio && (g.ints.length || g.max >= 1 || g.sol || g.tel);
+  function ponerBadgeVis(n) { const b = $('#nb-vis'); if (b) { b.textContent = n; b.hidden = !n; } }
   async function visitas() {
     main.innerHTML = '<h1>Visitas</h1><p class="sub">Cargando…</p>';
     let l; try { l = await A.visitas(); } catch (e) { main.innerHTML = '<h1>Visitas</h1><p class="err">' + esc(e.message) + '</p>'; return; }
     // una fila por persona (mismo navegador = misma persona)
     const per = {};
-    l.slice().sort((a, b) => (a.ult || a.t) - (b.ult || b.t)).forEach(x => { const k = x.v || x.t; const a = per[k] = per[k] || { nombre: '', veces: 0, primera: x.t, ult: 0, disp: x.disp, origen: x.origen, max: 0, folio: 0, tel: '', interes: '', ints: [], vs: [], diseno: '' };
+    l.slice().sort((a, b) => (a.ult || a.t) - (b.ult || b.t)).forEach(x => { const k = x.v || x.t; const a = per[k] = per[k] || { k: String(k), nombre: '', veces: 0, primera: x.t, ult: 0, disp: x.disp, origen: x.origen, max: 0, folio: 0, tel: '', interes: '', ints: [], vs: [], diseno: '' };
       a.veces++; a.primera = Math.min(a.primera, x.t); a.ult = Math.max(a.ult, x.ult || x.t); if (x.nombre) a.nombre = x.nombre; a.max = Math.max(a.max, x.paso || 0); if (x.folio) a.folio = x.folio; if (x.tel) a.tel = x.tel; if (x.interes) { a.interes = x.interes; if (!a.ints.includes(x.interes)) a.ints.push(x.interes); } if (x.diseno) a.diseno = x.diseno; a.vs.push(x); });
     // su WhatsApp: el que dejó en la página o, si no, el de su pedido o su solicitud de acceso con el mismo nombre
-    const sols = await A.solicitudes().catch(() => []), llave = s => String(s || '').trim().toLowerCase();
+    const [sols, seg] = await Promise.all([A.solicitudes().catch(() => []), A.escritos().catch(() => ({}))]), llave = s => String(s || '').trim().toLowerCase();
     const telDe = {}; todos.forEach(p => { if (p.tel) telDe[llave(p.nombre)] = p.tel; }); sols.forEach(s => { if (s.tel) { telDe[llave(s.nombre)] = telDe[llave(s.nombre)] || s.tel; telDe[llave(s.nombre + ' ' + (s.apellido === '(web)' ? '' : s.apellido || ''))] = s.tel; } });
     Object.values(per).forEach(g => { if (!g.tel && g.nombre) g.tel = telDe[llave(g.nombre)] || '';
       g.sol = sols.filter(x => (g.tel && x.tel === g.tel) || (g.nombre && llave(x.nombre) === llave(g.nombre))).sort((a, b) => b.creado - a.creado)[0] || null; });
@@ -624,6 +626,13 @@
       ev.forEach(([t, txt, card]) => { const d = dia(t); if (d !== ult) { html += '<li class="h-dia">' + d + '</li>'; ult = d; } html += '<li' + (card ? ' class="h-card"' : '') + '><time>' + (card ? '' : hora(t)) + '</time><div>' + txt + '</div></li>'; });
       return '<ol class="hist">' + html + '</ol>';
     }
+    main.onclick = async e => {
+      const w = e.target.closest('[data-escribir]'), m = e.target.closest('[data-marca]'), v = e.target.closest('[data-ver]');
+      if (v) { e.preventDefault(); const el = document.getElementById('vp-' + v.dataset.ver); if (el) { const d = el.querySelector('details'); if (d) d.open = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.classList.add('brilla'); setTimeout(() => el.classList.remove('brilla'), 1600); } return; }
+      const k = (w && w.dataset.escribir) || (m && m.dataset.marca); if (!k) return;
+      const si = w ? true : !seg[k]; if (w && seg[k]) return;
+      try { await A.marcarEscrito(k, si); if (si) seg[k] = { escrito: Date.now(), por: (me && me.nombre) || '' }; else delete seg[k]; if (!w) visitasPinta(); else setTimeout(visitasPinta, 400); } catch (x) { alerta(x.message); }
+    };
     const ESOL = { pendiente: 'Pidió acceso al 3D · <b class="pend">por aprobar</b>', aprobada: 'Pidió acceso al 3D · <b>aprobado</b>', rechazada: 'Pidió acceso al 3D · rechazado' };
     const gente = Object.values(per).sort((a, b) => b.ult - a.ult), hoy = new Date().toDateString();
     const yoN = String((me && me.nombre) || 'DKAS').split(' ')[0];
@@ -635,10 +644,22 @@
     const botonWA = g => g.tel ? '<a class="btn chico wa-v" target="_blank" rel="noopener" href="https://wa.me/' + A.waNum(g.tel) + '?text=' + encodeURIComponent(msjWA(g)) + '">WhatsApp</a>' : '<small class="sin-tel">sin WhatsApp</small>';
     const PASO = ['Vio la página', 'Abrió el 3D', 'Armó su mesa', 'Mandó su diseño'];
     const cuando = t => { const d = new Date(t); return d.toDateString() === hoy ? 'hoy ' + d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }) : A.fecha(t); };
+    const visitasPinta = () => {
+    const atender = gente.filter(esLead).filter(g => Date.now() - g.ult < 30 * 864e5).sort((a, b) => (seg[a.k] ? 2 : a.tel ? 0 : 1) - (seg[b.k] ? 2 : b.tel ? 0 : 1) || b.ult - a.ult);
+    const faltan = atender.filter(g => !seg[g.k]); ponerBadgeVis(faltan.filter(g => g.tel).length);
+    const resumenLead = g => g.max >= 2 ? 'Armó su mesa y no la mandó' : g.ints.some(t => /^Quiero una así/.test(t)) ? 'Abrió la cotización y no la mandó' : g.sol ? (g.sol.estado === 'pendiente' ? 'Espera acceso al 3D' : 'Pidió acceso al 3D') : g.max >= 1 ? 'Abrió el 3D' : 'Le interesó algo';
+    const tarjLead = g => '<div class="lead' + (seg[g.k] ? ' hecho' : '') + '" data-k="' + esc(g.k) + '"><div class="l-cab"><div><b>' + esc(g.nombre) + '</b><small>' + resumenLead(g) + ' · ' + cuando(g.ult) + '</small></div>'
+      + (seg[g.k] ? '<span class="l-ok">✓ Le escribió ' + esc(seg[g.k].por || '') + ' ' + cuando(seg[g.k].escrito) + '</span>' : g.tel ? '' : '<span class="l-sin">No dejó WhatsApp</span>') + '</div>'
+      + (g.interes ? tarj(g.interes) : '')
+      + '<div class="l-bot">' + (g.tel ? '<a class="btn chico wa-v" data-escribir="' + esc(g.k) + '" target="_blank" rel="noopener" href="https://wa.me/' + A.waNum(g.tel) + '?text=' + encodeURIComponent(msjWA(g)) + '">WhatsApp</a>' : '')
+      + (g.tel ? '<button class="btn chico" data-marca="' + esc(g.k) + '">' + (seg[g.k] ? 'Deshacer' : 'Ya le escribí') + '</button>' : '') + '<a class="lnk" href="#vp-' + esc(g.k) + '" data-ver="' + esc(g.k) + '">qué hizo ↓</a></div></div>';
     main.innerHTML = '<h1>Visitas</h1><p class="sub">Quién ha entrado a dkas.mx. Al entrar se les pide su nombre y la página los recuerda.</p>'
+      + (atender.length ? '<h3 class="l-tit">Por atender <i>' + faltan.length + '</i></h3><p class="sub l-sub">Les interesó algo y no mandaron pedido. Escríbeles: al tocar WhatsApp queda marcado.</p><div class="leads">' + atender.map(tarjLead).join('') + '</div><h3 class="l-tit">Todas las visitas</h3>' : '')
       + '<div class="resumen-g"><div><b>' + gente.length + '</b><span>personas</span></div><div><b>' + gente.filter(g => new Date(g.ult).toDateString() === hoy).length + '</b><span>hoy</span></div><div><b>' + gente.filter(g => g.folio).length + '</b><span>mandaron pedido</span></div></div>'
-      + '<div class="sec">' + (gente.length ? gente.map(g => '<div class="vis-p"><div class="fila vis"><div><b>' + esc(g.nombre || 'Sin nombre') + '</b><small>' + esc([g.disp, g.origen].filter(Boolean).join(' · ')) + '</small>' + (g.sol ? '<small class="v-sol">' + (ESOL[g.sol.estado] || 'Pidió acceso al 3D') + ' · ' + cuando(g.sol.creado) + '</small>' : '') + '</div>'
+      + '<div class="sec">' + (gente.length ? gente.map(g => '<div class="vis-p" id="vp-' + esc(g.k) + '"><div class="fila vis"><div><b>' + esc(g.nombre || 'Sin nombre') + '</b><small>' + esc([g.disp, g.origen].filter(Boolean).join(' · ')) + '</small>' + (g.sol ? '<small class="v-sol">' + (ESOL[g.sol.estado] || 'Pidió acceso al 3D') + ' · ' + cuando(g.sol.creado) + '</small>' : '') + '</div>'
         + '<div><span>' + (g.folio ? 'Mandó pedido #' + g.folio : PASO[Math.min(2, g.max)]) + '</span><small>' + g.veces + (g.veces === 1 ? ' visita' : ' visitas') + ' · última ' + cuando(g.ult) + '</small>' + (g.nombre ? botonWA(g) : '') + '</div></div>' + ((g.nombre && (g.ints.length || g.max || g.sol || g.folio)) ? '<div class="q-hizo"><p class="et-h">Qué hizo</p>' + historia(g) + '</div>' : '<details class="q-hizo"><summary>Qué hizo</summary>' + historia(g) + '</details>') + '</div>').join('') : '<p class="sub">Todavía nadie.</p>') + '</div>';
+    };
+    visitasPinta();
   }
 
   // ---------- agenda: los pendientes del equipo, con fecha y en orden ----------
@@ -761,6 +782,23 @@
       }
       A.save(AV_K, ahora);
       const b = $('#nb-acc'); if (b) { b.textContent = pend.length; b.hidden = !pend.length; }
+    } catch (e) {}
+    // clientes interesados que no mandaron pedido: avisa una vez por cada cosa nueva que hagan
+    try {
+      const LK = 'dkas-leads', antes = A.load(LK, null), desde = antes ? antes.ts : Date.now() - 6 * 36e5;
+      const vs = await A.visitasDesde(desde - 60000), ya = (antes && antes.vis) || {}, nuevos = [];
+      vs.forEach(x => {
+        if (!x.nombre || x.folio) return;
+        const firma = (x.tel ? 'w' : '') + (x.paso >= 2 ? 'm' : '') + (/^Quiero una así/.test(x.interes || '') ? 'q' : '');
+        if (!firma || ya[x.v] === firma) return;
+        const prev = ya[x.v] || ''; ya[x.v] = firma; if (!antes) return;
+        const t = String(x.interes || '').replace(/^(Quiero una así|Crear mi mesa en): ?/, '').replace(/^Crear mi mesa en /, '');
+        if (firma.includes('w') && !prev.includes('w')) nuevos.push([x.nombre + ' dejó su WhatsApp', t ? 'Le interesó: ' + t : 'Escríbele']);
+        else if (firma.includes('m') && !prev.includes('m')) nuevos.push([x.nombre + ' armó su mesa en 3D', 'No la ha mandado']);
+        else if (firma.includes('q') && !prev.includes('q')) nuevos.push([x.nombre + ' quiere precio', t + ' · abrió la cotización']);
+      });
+      A.save(LK, { ts: Date.now(), vis: ya });
+      if (nuevos.length) { nuevos.slice(0, 3).forEach(n => avisar(n[0], n[1], '#visitas', true)); toast(nuevos[0][0] + (nuevos.length > 1 ? ' y ' + (nuevos.length - 1) + ' más' : '')); sonido(); const b = $('#nb-vis'); if (b) { b.textContent = (+b.textContent || 0) + nuevos.length; b.hidden = false; } }
     } catch (e) {}
     // agenda: avisa cuando llega la hora de un pendiente (una vez por pendiente)
     try {

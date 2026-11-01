@@ -21,6 +21,7 @@
   let cotX = null, cotP = 6;
   function cotizar(x) {
     interesa('Quiero una así: ' + (x.t || 'mesa de la página'));
+    { const w = $('#coti-wa'); if (w) w.href = w.href.split('?')[0] + '?text=' + encodeURIComponent('Hola DKAS, me interesa una mesa como «' + (x.t || 'la de su página') + '»' + (x.p ? ' en ' + D.piedra(x.p).nombre : '') + '. ¿Me pasan precio?'); }
     cotX = x; cotP =x.u === 'centro' || x.u === 'periquera' ? 4 : x.f === 'square' || x.f === 'round' ? 4 : 6;
     $('#coti-img').src = x.img || ''; $('#coti-img').alt = x.t || 'Mesa DKAS'; $('#coti-img').hidden = !x.img;
     $('#coti-t').textContent = x.t || 'Una mesa así';

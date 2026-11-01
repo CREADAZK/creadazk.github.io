@@ -129,12 +129,13 @@
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : h === '#agenda' ? 'agenda' : h === '#clientes' || h === '#accesos' ? 'clientes' : h === '#accesos' ? 'accesos' : 'log';
+    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : h === '#agenda' ? 'agenda' : h === '#clientes' || h === '#accesos' || /^#prop=/.test(h) ? 'clientes' : h === '#accesos' ? 'accesos' : 'log';
     if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
     $$('#top-nav a[data-sec]').forEach(a => { a.classList.toggle('on', a.dataset.sec === sec); if (a.dataset.sec === sec && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'center' }); });
     if (h === '#precios') return precios();
     main.onclick = null; contarSolicitudes(); if (h !== '#agenda') { editando = null; contarAgenda(); }
     if (h === '#clientes') return clientes();
+    if (/^#prop=[0-9a-f]{32}$/.test(h)) return propuesta(h.slice(6));
     if (h === '#agenda') return agenda();
     if (h === '#visitas') return visitas();
     if (h === '#accesos') return accesos();
@@ -404,7 +405,7 @@
   function foto3d(m) {
     if (!window.DKAS3D) return Promise.resolve(null);
     if (!visor) { const d = document.createElement('div'); d.style.cssText = 'position:fixed;left:-2000px;top:0;width:600px;height:400px'; document.body.appendChild(d); visor = DKAS3D.crear(d, { tex: 'tex/piedras/1k/', fondo: 0xf3f1ed }); }
-    return Promise.resolve(visor.mostrar(m)).then(() => visor.foto(1200, 800)).catch(() => null);
+    return Promise.resolve(visor.mostrar(m)).then(() => visor.listo && visor.listo()).then(() => visor.foto(1200, 800)).catch(() => null);
   }
   const fotoMesa = async p => (ficha(p).m ? await foto3d(mesaDe(p)) : null) || (await A.verFoto(p.token).catch(() => null)) || await foto3d(mesaDe(p));
 
@@ -767,15 +768,16 @@
       };
     }
     const quiereCard = c => { const m = FI[sinPref(c.quiere)]; if (!c.quiere || /^Link|^Diseñar/.test(c.quiere)) return ''; return '<div class="v-int">' + (m ? '<img src="' + m.img + '" alt="" loading="lazy">' : '') + '<div><small>Quiere una así</small><b>' + esc(sinPref(c.quiere)) + '</b>' + (m && m.d ? '<span>' + esc(m.d) + '</span>' : '') + '</div></div>'; };
-    const mesaCard = c => c.d ? '<button class="c-mesa" data-mesa="' + c.k + '">' + (c.d.img ? '<img src="' + c.d.img + '" alt="">' : '<span class="ph"></span>') + '<div><small>' + (c.p ? 'Su mesa enviada' : 'Su mesa (guardada ' + cuando(c.d.actualizado) + ')') + '</small><b>' + esc(c.d.titulo || 'Mesa') + '</b><span>Ver con plano y medidas →</span></div></button>' : '';
+    const mesaCard = c => c.d ? '<button class="c-mesa" data-mesa="' + c.k + '">' + (c.d.img ? '<img src="' + c.d.img + '" alt="">' : '<span class="ph"></span>') + '<div><small>' + (c.p ? 'Su mesa enviada' : c.d.prop ? 'Propuesta que le mandó ' + esc(c.d.por || '') + ' · ' + cuando(c.d.prop) : 'Su mesa (guardada ' + cuando(c.d.actualizado) + ')') + '</small><b>' + esc(c.d.titulo || 'Mesa') + '</b><span>Ver con plano y medidas →</span></div></button>' : '';
     const ficha = c => '<div class="lead cli e-' + c.etapa + (seg[c.k] && c.etapa !== 'aprobar' ? ' hecho' : '') + '"><div class="l-cab"><div><b>' + esc(c.nombre) + '</b><small>' + (c.tel ? esc(c.tel) + ' · ' : '') + 'pidió ' + cuando(c.creado) + (c.decidido ? ' · ' + (c.estado === 'aprobada' ? 'aprobó ' : 'rechazó ') + esc(c.por || '') + ' ' + cuando(c.decidido) : '') + '</small></div>'
       + (seg[c.k] && c.etapa !== 'aprobar' ? '<span class="l-ok">✓ Le escribió ' + esc(seg[c.k].por || '') + ' ' + cuando(seg[c.k].escrito) + '</span>' : '') + '</div>'
       + (c.d ? mesaCard(c) : quiereCard(c))
       + (c.p ? '<a class="c-ped" href="#p=' + (c.p.id || '') + '">Pedido #' + c.p.folio + ' · ' + esc(A.estado(c.p.estado)) + ' →</a>' : '')
       + '<div class="l-bot">' + (c.etapa === 'aprobar' ? '<button class="btn verde chico" data-dec="' + c.k + '|aprobada">Aprobar</button><button class="btn chico" data-dec="' + c.k + '|rechazada">Rechazar</button>' : '')
-      + (c.etapa !== 'rech' ? wa(c) : '') + (c.etapa !== 'aprobar' && c.etapa !== 'rech' && c.tel ? '<button class="btn chico" data-marca="' + c.k + '">' + (seg[c.k] ? 'Deshacer' : 'Ya le escribí') + '</button>' : '') + '</div></div>';
+      + (c.etapa !== 'rech' ? wa(c) : '') + (c.etapa !== 'rech' && c.etapa !== 'aprobar' && /^[0-9a-f]{32}$/.test(c.k) ? '<a class="btn chico oro" href="#prop=' + c.k + '">' + (c.d && c.d.prop ? 'Cambiar su mesa' : 'Armarle su mesa') + '</a>' : '') + (c.etapa !== 'aprobar' && c.etapa !== 'rech' && c.tel ? '<button class="btn chico" data-marca="' + c.k + '">' + (seg[c.k] ? 'Deshacer' : 'Ya le escribí') + '</button>' : '') + '</div></div>';
     const de = e => lista.filter(c => c.etapa === e).sort((a, b) => (seg[a.k] ? 1 : 0) - (seg[b.k] ? 1 : 0) || b.ult - a.ult);
     main.innerHTML = '<div class="cab"><div><h1>Clientes</h1><p class="sub">Cada cliente pide acceso con su WhatsApp, tú lo apruebas, diseña su mesa (se guarda sola) y la envía. Aquí ves en qué paso va cada uno.</p></div></div>'
+      + '<details class="c-nuevo"><summary>+ Cliente que me escribió por WhatsApp</summary><p class="sub">Lo registras aquí y le armas su mesa tú, sin que entre a la página.</p><div class="acc-nuevo"><input id="cn-nom" placeholder="Nombre" maxlength="60"><input id="cn-tel" inputmode="tel" placeholder="WhatsApp (10 dígitos)" maxlength="16"><button class="btn negro" id="cn-ok">Armarle su mesa</button></div></details>'
       + '<div class="resumen-g">' + ETAPAS.map(([e, t], i) => '<a class="rg ' + ['mal', 'ambar', '', 'gris'][i] + '" href="#c-' + e + '"><b>' + de(e).length + '</b><span>' + t + '</span></a>').join('') + '</div>'
       + ETAPAS.map(([e, t, sub]) => '<h3 class="l-tit" id="c-' + e + '">' + t + ' <i>' + de(e).length + '</i></h3>' + (de(e).length ? '<p class="sub l-sub">' + sub + '</p><div class="leads">' + de(e).map(ficha).join('') + '</div>' : '<p class="sub l-sub">Nadie por ahora.</p>')).join('')
       + (de('rech').length ? '<details class="c-rech"><summary>Rechazados (' + de('rech').length + ')</summary><div class="leads">' + de('rech').map(ficha).join('') + '</div></details>' : '')
@@ -783,6 +785,8 @@
     main.onclick = async e => {
       const d = e.target.closest('[data-dec]'), w = e.target.closest('[data-escrito]'), mk = e.target.closest('[data-marca]'), ms = e.target.closest('[data-mesa]');
       if (ms) { const c = lista.find(z => z.k === ms.dataset.mesa); if (c) verMesa(c, msj(c)); return; }
+      if (e.target.closest('#cn-ok')) { const [n0, ...ap] = $('#cn-nom').value.trim().split(/\s+/), id = A.rnd(), b0 = e.target.closest('#cn-ok'); b0.disabled = true;
+        try { await A.solicitarAcceso(id, { nombre: n0 || '', apellido: ap.join(' ') || '(web)', tel: $('#cn-tel').value, quiere: 'Escribió por WhatsApp' }); await A.decidirSolicitud(id, 'aprobada'); location.hash = '#prop=' + id; } catch (x) { b0.disabled = false; alerta(x.message); } return; }
       const wo = e.target.closest('[data-wa-op]'); if (wo) { const c = lista.find(z => z.k === wo.dataset.waOp); if (c) elegirMensaje(c); return; }
       if (d) { const [id, est] = d.dataset.dec.split('|'); if (est === 'rechazada' && !confirm('¿Rechazar esta solicitud?')) return; d.disabled = true;
         try { await A.decidirSolicitud(id, est); toast(est === 'aprobada' ? 'Aprobado: ya puede diseñar. Avísale por WhatsApp.' : 'Rechazada'); contarSolicitudes(true); clientes(); } catch (x) { d.disabled = false; alerta(x.message); } return; }
@@ -812,6 +816,81 @@
       await compartir(fs, texto + '\n\n' + D.resumen(m).filter(z => z[0] !== 'Fabricación').map(z => z[0] + ': ' + z[1]).join('\n'), A.waNum(c.tel));
       A.marcarEscrito(c.k, true).catch(() => {});
     };
+  }
+
+  // ---------- Armarle su mesa: tú escoges piedra, base, color y medidas; se la mandas por WhatsApp para que diga sí o no ----------
+  async function propuesta(k) {
+    main.innerHTML = '<p class="cargando">Cargando…</p>';
+    let sols, d; try { [sols, d] = await Promise.all([A.solicitudes(), A.verDiseno(k).catch(() => null)]); } catch (e) { main.innerHTML = '<p class="err">' + esc(e.message) + '</p>'; return; }
+    const x = sols.find(z => z.id === k); if (!x) { main.innerHTML = '<a class="volver" href="#clientes">← Clientes</a><p class="err">No encontramos a ese cliente.</p>'; return; }
+    const c = { k, nombre: (x.nombre + ' ' + (x.apellido === '(web)' ? '' : x.apellido || '')).trim(), tel: x.tel || '', quiere: x.quiere || '' }, n1 = c.nombre.split(' ')[0], yoN = String(me.nombre || 'Zury').split(' ')[0];
+    const deCod = cod => { const p = String(cod).split('.'); return { uso: p[0], forma: p[1], L: +p[2], W: +p[3], base: p[4], piedra: p[5], H: +p[6] || undefined, color: p[7] || 'negro' }; };
+    const FI = window.DKAS_INTERES || {}, gusto = FI[String(c.quiere).replace(/^Quiero una así: /, '')];
+    let m = d && d.cod ? D.normalizar(deCod(d.cod)) : gusto && gusto.m ? D.normalizar(Object.assign({}, gusto.m, D.tamanoPara(gusto.m.uso, gusto.m.forma, gusto.m.uso === 'comedor' ? 8 : 4))) : D.normalizar(Object.assign({ uso: 'comedor', forma: 'rect', base: 'patas', piedra: 'statuario' }, D.tamanoPara('comedor', 'rect', 8)));
+    const codDe = m => [m.uso, m.forma, m.L, m.W, m.base, m.piedra, m.H].concat(m.color && m.color !== 'negro' ? [m.color] : []).join('.');
+    const lineas = m => { const n = D.personas(m), col = D.COLORES.find(z => z.id === (m.color || 'negro'));
+      return ['Mesa de ' + D.USOS[m.uso].nombre.toLowerCase() + ' ' + D.FORMAS[m.forma].toLowerCase() + ' · ' + D.medida(m) + (n ? ' (' + n + ' personas)' : ''), 'Piedra ' + D.piedra(m.piedra).nombre, 'Base ' + D.BASES[m.base].nombre + ', color ' + (col ? col.nombre.toLowerCase() : 'negro mate'), 'Altura ' + m.H + ' cm']; };
+    const texto = m => 'Hola ' + n1 + ', soy ' + yoN + ' de DKAS 👋 Te armé esta mesa con lo que me comentaste:\n' + lineas(m).map(z => '• ' + z).join('\n') + '\n\n¿Es lo que buscas? Respóndeme sí, o dime qué le cambiamos y te preparo tu cotización.';
+    const chip = (attr, v, t, on) => '<button class="pp-chip' + (on ? ' on' : '') + '" data-' + attr + '="' + v + '">' + t + '</button>';
+    const pinta = () => {
+      const red = D.redonda(m.forma), ops = D.opcionesPersonas(m.uso, m.forma), n = D.personas(m);
+      main.innerHTML = '<a class="volver" href="#clientes">← Clientes</a><h1>Mesa para ' + esc(c.nombre) + '</h1><p class="sub">' + (c.quiere ? esc(c.quiere) + ' · ' : '') + esc(c.tel) + '</p>'
+        + '<div class="pp"><div class="pp-ver"><div class="pp-img"><img id="pp-img" alt=""><span id="pp-carga">Preparando la foto…</span></div><p class="pp-tit">' + esc(D.titulo(m)) + '</p><ul class="pp-lin">' + lineas(m).map(z => '<li>' + esc(z) + '</li>').join('') + '</ul></div>'
+        + '<div class="pp-ctl"><h3>¿Para qué?</h3><div class="pp-chips">' + Object.keys(D.USOS).map(u => chip('uso', u, D.USOS[u].nombre, m.uso === u)).join('') + '</div>'
+        + '<h3>Forma</h3><div class="pp-chips">' + D.formasDe(m.uso).map(f => chip('forma', f, D.FORMAS[f], m.forma === f)).join('') + '</div>'
+        + (ops.length ? '<h3>Personas</h3><div class="pp-chips">' + ops.map(p => chip('pers', p, p, n === p)).join('') + '</div>' : '')
+        + '<h3>Medidas (cm)</h3><div class="pp-med"><label>' + (red ? 'Diámetro' : 'Largo') + '<input type="number" data-dim="L" value="' + m.L + '"></label>' + (red ? '' : '<label>Ancho<input type="number" data-dim="W" value="' + m.W + '"></label>') + '<label>Altura<input type="number" data-dim="H" value="' + m.H + '"></label></div>'
+        + '<h3>Piedra</h3><div class="pp-fotos">' + D.PIEDRAS.map(p => '<button class="pp-f' + (m.piedra === p.id ? ' on' : '') + '" data-piedra="' + p.id + '"><img src="img/piedras/' + p.id + '.jpg" alt="" loading="lazy"><span>' + p.nombre + '</span></button>').join('') + '</div>'
+        + '<h3>Base</h3><div class="pp-fotos">' + D.basesPara(m).map(b => '<button class="pp-f' + (m.base === b ? ' on' : '') + '" data-base="' + b + '"><img src="' + (D.BASES[b].foto || 'img/bases/' + b + '.jpg') + '" alt="" loading="lazy"><span>' + D.BASES[b].nombre + '</span></button>').join('') + '</div>'
+        + '<h3>Color de la base</h3><div class="pp-chips">' + D.COLORES.map(k2 => '<button class="pp-chip pp-col' + ((m.color || 'negro') === k2.id ? ' on' : '') + '" data-color="' + k2.id + '"><i style="background:' + k2.hex + '"></i>' + k2.nombre + '</button>').join('') + '</div></div></div>'
+        + '<div class="pp-bot"><button class="btn verde grande" id="pp-wa">Mandársela por WhatsApp</button><button class="btn" id="pp-guarda">Solo guardar en su ficha</button><button class="btn oro" id="pp-si">Dijo que sí: crear pedido</button></div>';
+      foto();
+    };
+    let fotoUrl = null, tFoto = 0;
+    function foto() { const im = $('#pp-img'), sp = $('#pp-carga'); clearTimeout(tFoto); if (sp) sp.hidden = false;
+      tFoto = setTimeout(async () => { const u = await foto3d(m); if (u && $('#pp-img')) { fotoUrl = u; $('#pp-img').src = u; if ($('#pp-carga')) $('#pp-carga').hidden = true; } }, 250); }
+    const cambia = cm => { if ((cm.uso && cm.uso !== m.uso) && !cm.H) cm.H = D.USOS[cm.uso].H; m = D.normalizar(Object.assign({}, m, cm)); if (!D.basesPara(m).includes(m.base)) m.base = D.basesPara(m)[0]; pinta(); };
+    // la imagen que se manda: foto, datos y plano en una sola hoja
+    async function hoja() {
+      const fu = fotoUrl || await foto3d(m), cq = await CQ.png(m, { cliente: c.nombre, plano: true });
+      const ld = s2 => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = s2; });
+      const [f, p, logo] = await Promise.all([fu ? ld(fu) : null, ld(URL.createObjectURL(cq)), ld('img/dkas-claro.png')]);
+      const Wd = 1200, lin = lineas(m), Hp = p ? Math.round(Wd * p.height / p.width) : 0, Hd = 120 + (f ? 800 : 0) + 70 + lin.length * 48 + 40 + Hp + 30;
+      const cv = document.createElement('canvas'); cv.width = Wd; cv.height = Hd; const g = cv.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0, 0, Wd, Hd); g.fillStyle = '#14110e'; g.fillRect(0, 0, Wd, 120);
+      if (logo) g.drawImage(logo, 40, 30, 60 * logo.width / logo.height, 60);
+      g.fillStyle = '#c2a273'; g.font = '600 30px Arial'; g.textAlign = 'right'; g.fillText('Propuesta para ' + c.nombre, Wd - 40, 72); g.textAlign = 'left';
+      let y = 120; if (f) { g.drawImage(f, 0, y, Wd, 800); y += 800; }
+      g.fillStyle = '#14110e'; g.font = '700 38px Arial'; g.fillText(D.titulo(m), 40, y + 60); y += 70;
+      g.font = '30px Arial'; g.fillStyle = '#3d3a35'; lin.forEach(z => { y += 48; g.fillText('• ' + z, 40, y); }); y += 40;
+      if (p) g.drawImage(p, 0, y, Wd, Hp);
+      return new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.88));
+    }
+    async function guardar(extra) { const img = fotoUrl ? await chica(fotoUrl).catch(() => null) : null;
+      const x2 = Object.assign({ cod: codDe(m), titulo: D.titulo(m), por: String(me.nombre || 'DKAS').slice(0, 60), prop: Date.now() }, extra || {});
+      if (img) { const cv = await new Promise(ok => { const i = new Image(); i.onload = () => { const q = document.createElement('canvas'); q.width = 480; q.height = 320; q.getContext('2d').drawImage(i, 0, 0, 480, 320); ok(q.toDataURL('image/jpeg', 0.7)); }; i.src = img; }); x2.img = cv; }
+      await A.guardarDiseno(k, x2); }
+    pinta();
+    main.onclick = async e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.uso) { const f = D.formasDe(b.dataset.uso).includes(m.forma) ? m.forma : D.formasDe(b.dataset.uso)[0], o = D.opcionesPersonas(b.dataset.uso, f); return cambia(Object.assign({ uso: b.dataset.uso, forma: f }, o.length ? D.tamanoPara(b.dataset.uso, f, o[Math.floor(o.length / 2)]) : {})); }
+      if (b.dataset.forma) { const n = D.personas(m); return cambia(Object.assign({ forma: b.dataset.forma }, n ? D.tamanoPara(m.uso, b.dataset.forma, n) : {})); }
+      if (b.dataset.pers) return cambia(D.tamanoPara(m.uso, m.forma, +b.dataset.pers));
+      if (b.dataset.piedra) return cambia({ piedra: b.dataset.piedra });
+      if (b.dataset.base) return cambia({ base: b.dataset.base });
+      if (b.dataset.color) return cambia({ color: b.dataset.color });
+      if (b.id === 'pp-guarda') { b.disabled = true; try { await guardar(); toast('Guardada en su ficha. Si entra a dkas.mx, la ve así.'); } catch (x) { alerta(x.message); } b.disabled = false; return; }
+      if (b.id === 'pp-wa') { b.disabled = true; b.textContent = 'Preparando…';
+        try { const blob = await hoja(); await guardar(); A.marcarEscrito(k, true).catch(() => {});
+          await compartir([new File([blob], 'mesa-' + n1.toLowerCase() + '.jpg', { type: 'image/jpeg' })], texto(m), A.waNum(c.tel)); }
+        catch (x) { alerta(x.message); } b.disabled = false; b.textContent = 'Mandársela por WhatsApp'; return; }
+      if (b.id === 'pp-si') { if (!confirm('¿' + c.nombre + ' dijo que sí? Se crea su pedido con esta mesa.')) return; b.disabled = true;
+        try { const cod = codDe(m), r2 = await A.crearPedido({ nombre: c.nombre, tel: c.tel, items: [{ tipo: 'mesa', titulo: D.titulo(m), cantidad: 1, uso: m.uso, specs: D.resumen(m).concat([['Código', cod]]), link: SITE + '#d=' + cod }] }, true);
+          if (fotoUrl) { try { await A.guardarFoto(r2.token, await chica(fotoUrl), true); } catch (x) {} }
+          await guardar({ enviado: { folio: r2.folio, token: r2.token } }); await recargar(); const p = todos.find(q => q.token === r2.token); toast('Pedido #' + r2.folio + ' creado'); location.hash = p ? '#p=' + p.id : '';
+        } catch (x) { b.disabled = false; alerta(x.message); } }
+    };
+    main.onchange = e => { const k2 = e.target.dataset.dim; if (!k2) return; const v = Math.round(+e.target.value); if (!(v > 0)) return; const cm = { [k2]: v }; if (k2 === 'L' && D.redonda(m.forma)) cm.W = v; cambia(cm); };
   }
 
   // ---------- accesos al diseñador 3D: solicitudes por aprobar y links de acceso directo ----------

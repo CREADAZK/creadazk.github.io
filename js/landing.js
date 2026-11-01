@@ -222,16 +222,28 @@
     let v = A.load('dazk-v', null); if (!v) { v = A.rnd(); A.save('dazk-v', v); }
     const id = A.rnd(), w = Math.min(screen.width, screen.height), ref = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : '';
     const origen = A.canal(new URLSearchParams(location.search).get('c') || (!ref || ref === location.hostname ? 'directo' : ref)) || 'directo';
-    let primera = true, enviado = '', paso = 0, folio = 0;
+    let primera = true, enviado = '', paso = 0, folio = 0; const vio = [];
     function registra() {
       if (staff) return; // el taller viendo su propia página no cuenta
       const yo = A.load('dazk-yo', {}), n = (yo.nombre || '').slice(0, 80), tel = String(yo.tel || '').replace(/\D/g, ''), interes = String(window.DKAS_INT || '').slice(0, 80);
+      if (interes && vio[vio.length - 1] !== interes) vio.push(interes);
+      let diseno = ''; try { if (paso >= 2 && window.DKAS_COD) diseno = String(DKAS_COD()).toLowerCase(); } catch (e) {}
       if (document.body.dataset.p === 'crea') paso = Math.max(paso, 1);
       if (window.DKAS_ST && DKAS_ST().modelo) paso = Math.max(paso, 1);
-      const d = Object.assign({ v, disp: w < 600 ? 'celular' : w < 1000 ? 'tablet' : 'computadora', origen, paso }, n ? { nombre: n } : {}, folio ? { folio } : {}, /^[0-9]{10,13}$/.test(tel) ? { tel } : {}, interes ? { interes } : {});
+      const d = Object.assign({ v, disp: w < 600 ? 'celular' : w < 1000 ? 'tablet' : 'computadora', origen, paso }, n ? { nombre: n } : {}, folio ? { folio } : {}, /^[0-9]{10,13}$/.test(tel) ? { tel } : {}, interes ? { interes } : {}, vio.length > 1 ? { vio: vio.join(' | ').slice(-400) } : {}, /^[a-z0-9.-]{3,80}$/.test(diseno) ? { diseno } : {});
       const s = JSON.stringify(d); if (s === enviado) return; enviado = s;
       A.visita(id, d, primera).catch(() => {}); primera = false;
     }
+    // si escribe su WhatsApp en "Quiero una así" o en la solicitud del 3D y se sale sin enviar, el panel ya lo tiene para darle seguimiento
+    let tGuarda = 0;
+    document.addEventListener('input', e => {
+      if (!e.target.matches || !e.target.matches('#coti-w, #acc-tel, #coti-n, #acc-nom')) return;
+      clearTimeout(tGuarda); tGuarda = setTimeout(() => {
+        const yo = A.load('dazk-yo', {}), w = (($('#coti-w') || {}).value || ($('#acc-tel') || {}).value || '').replace(/D/g, ''), n = (($('#coti-n') || {}).value || ($('#acc-nom') || {}).value || '').trim();
+        const nuevo = Object.assign({}, yo); if (/^[0-9]{10,13}$/.test(w)) nuevo.tel = w; if (n.length >= 2 && !yo.nombre) nuevo.nombre = n.slice(0, 80);
+        if (nuevo.tel !== yo.tel || nuevo.nombre !== yo.nombre) { A.save('dazk-yo', nuevo); registra(); }
+      }, 900);
+    });
     window.DKAS_VISITA = (p, f) => { paso = Math.max(paso, p); if (f) folio = f; registra(); }; // crea-ui avisa: 2 = armó su mesa, 3 = la mandó
     addEventListener('hashchange', () => setTimeout(registra, 300));
     const caja = $('#bienv');

@@ -324,5 +324,5 @@
   }).catch(() => {});
   // la página principal manda aquí lo que el cliente eligió (un modelo, una piedra o una foto)
   window.DKAS_PONER = (cambios, p) => set(cambios || {}, p);
-  window.DKAS_ST = () => st; window.DKAS_V = V; // pruebas y fotos de los modelos
+  window.DKAS_ST = () => st; window.DKAS_COD = () => codigo(st); window.DKAS_V = V; // pruebas y fotos de los modelos
 })();

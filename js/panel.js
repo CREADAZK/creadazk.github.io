@@ -591,25 +591,54 @@
     let l; try { l = await A.visitas(); } catch (e) { main.innerHTML = '<h1>Visitas</h1><p class="err">' + esc(e.message) + '</p>'; return; }
     // una fila por persona (mismo navegador = misma persona)
     const per = {};
-    l.slice().sort((a, b) => (a.ult || a.t) - (b.ult || b.t)).forEach(x => { const k = x.v || x.t; const a = per[k] = per[k] || { nombre: '', veces: 0, primera: x.t, ult: 0, disp: x.disp, origen: x.origen, max: 0, folio: 0, tel: '', interes: '' };
-      a.veces++; a.primera = Math.min(a.primera, x.t); a.ult = Math.max(a.ult, x.ult || x.t); if (x.nombre) a.nombre = x.nombre; a.max = Math.max(a.max, x.paso || 0); if (x.folio) a.folio = x.folio; if (x.tel) a.tel = x.tel; if (x.interes) a.interes = x.interes; });
+    l.slice().sort((a, b) => (a.ult || a.t) - (b.ult || b.t)).forEach(x => { const k = x.v || x.t; const a = per[k] = per[k] || { nombre: '', veces: 0, primera: x.t, ult: 0, disp: x.disp, origen: x.origen, max: 0, folio: 0, tel: '', interes: '', ints: [], vs: [], diseno: '' };
+      a.veces++; a.primera = Math.min(a.primera, x.t); a.ult = Math.max(a.ult, x.ult || x.t); if (x.nombre) a.nombre = x.nombre; a.max = Math.max(a.max, x.paso || 0); if (x.folio) a.folio = x.folio; if (x.tel) a.tel = x.tel; if (x.interes) { a.interes = x.interes; if (!a.ints.includes(x.interes)) a.ints.push(x.interes); } if (x.diseno) a.diseno = x.diseno; a.vs.push(x); });
     // su WhatsApp: el que dejó en la página o, si no, el de su pedido o su solicitud de acceso con el mismo nombre
     const sols = await A.solicitudes().catch(() => []), llave = s => String(s || '').trim().toLowerCase();
     const telDe = {}; todos.forEach(p => { if (p.tel) telDe[llave(p.nombre)] = p.tel; }); sols.forEach(s => { if (s.tel) { telDe[llave(s.nombre)] = telDe[llave(s.nombre)] || s.tel; telDe[llave(s.nombre + ' ' + (s.apellido === '(web)' ? '' : s.apellido || ''))] = s.tel; } });
-    Object.values(per).forEach(g => { if (!g.tel && g.nombre) g.tel = telDe[llave(g.nombre)] || ''; });
+    Object.values(per).forEach(g => { if (!g.tel && g.nombre) g.tel = telDe[llave(g.nombre)] || '';
+      g.sol = sols.filter(x => (g.tel && x.tel === g.tel) || (g.nombre && llave(x.nombre) === llave(g.nombre))).sort((a, b) => b.creado - a.creado)[0] || null; });
+    // la mesa que le gustó: foto y ficha (de la Revista, Proyectos o la piedra)
+    const FI = window.DKAS_INTERES || {}, mesaDe = t => FI[String(t).replace(/^(Quiero una así|Crear mi mesa en): /, '').replace(/^Crear mi mesa en /, 'Piedra ')] || null;
+    const QUE = t => /^Quiero una así/.test(t) ? 'Tocó «Quiero una así» en' : /^Crear mi mesa/.test(t) ? 'Tocó «Crear mi mesa» con' : 'Vio';
+    const tarj = t => { const m = mesaDe(t), n = String(t).replace(/^(Quiero una así|Crear mi mesa en): ?/, '').replace(/^Crear mi mesa en /, '');
+      return '<div class="v-int">' + (m ? '<img src="' + m.img + '" alt="" loading="lazy">' : '') + '<div><small>' + QUE(t) + '</small><b>' + esc(n) + '</b>' + (m && m.d ? '<span>' + esc(m.d) + '</span>' : '') + '</div></div>'; };
+    const SITIO = 'https://dkas.mx/';
+    const mesaCod = cod => { try { const [u, f, L, W, b, p] = cod.split('.'); const pi = D.PIEDRAS.find(z => z.id === p); return [pi && pi.nombre, D.BASES[b] && 'Base ' + D.BASES[b].nombre, D.redonda(f) ? L + ' cm' : L + ' × ' + W + ' cm', D.USOS[u] && D.USOS[u].nombre].filter(Boolean).join(' · '); } catch (e) { return ''; } };
+    const hora = t => new Date(t).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' });
+    const dia = t => { const d = new Date(t); return d.toDateString() === hoy ? 'Hoy' : d.toDateString() === new Date(Date.now() - 864e5).toDateString() ? 'Ayer' : d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }); };
+    function historia(g) {
+      const ev = [];
+      g.vs.forEach(x => {
+        ev.push([x.t, 'Entró a la página' + (x.origen && x.origen !== 'directo' ? ' desde ' + x.origen : '') + (x.disp ? ' · ' + x.disp : '')]);
+        const vio = x.vio ? x.vio.split(' | ') : x.interes ? [x.interes] : [];
+        vio.forEach(t => ev.push([x.t + 1, tarj(t), 1]));
+        if (vio.some(t => /^Quiero una así/.test(t)) && !x.folio && !g.folio) ev.push([x.t + 1, '<b class="pend">Abrió la cotización pero no la mandó</b>', 1]);
+        if (x.paso >= 1 && !g.vs.some(z => z !== x && z.t < x.t && z.paso >= 1) && !vio.some(t => /^Crear mi mesa/.test(t))) ev.push([x.t + 2, 'Abrió el diseñador 3D']);
+        if (x.paso >= 2) ev.push([x.ult || x.t, 'Armó su mesa en 3D' + (x.diseno ? ': <b>' + esc(mesaCod(x.diseno)) + '</b> <a class="lnk" target="_blank" rel="noopener" href="' + SITIO + '#d=' + encodeURIComponent(x.diseno) + '">ver su mesa →</a>' : '')]);
+        if (x.folio) ev.push([x.ult || x.t, '<b>Mandó su pedido #' + x.folio + '</b>' + (todos.find(p => p.folio === x.folio) ? ' <a class="lnk" href="#p=' + todos.find(p => p.folio === x.folio).id + '">abrir →</a>' : '')]);
+      });
+      if (g.sol) { ev.push([g.sol.creado, 'Pidió acceso para diseñar en 3D']); if (g.sol.decidido) ev.push([g.sol.decidido, g.sol.estado === 'aprobada' ? 'Le aprobaste el acceso' : 'Se le negó el acceso']); else if (g.sol.estado === 'pendiente') ev.push([Date.now(), '<b class="pend">Espera que le aprueben el acceso</b> <a class="lnk" href="#accesos">aprobar →</a>']); }
+      ev.sort((a, b) => a[0] - b[0]);
+      let ult = '', html = '';
+      ev.forEach(([t, txt, card]) => { const d = dia(t); if (d !== ult) { html += '<li class="h-dia">' + d + '</li>'; ult = d; } html += '<li' + (card ? ' class="h-card"' : '') + '><time>' + (card ? '' : hora(t)) + '</time><div>' + txt + '</div></li>'; });
+      return '<ol class="hist">' + html + '</ol>';
+    }
+    const ESOL = { pendiente: 'Pidió acceso al 3D · <b class="pend">por aprobar</b>', aprobada: 'Pidió acceso al 3D · <b>aprobado</b>', rechazada: 'Pidió acceso al 3D · rechazado' };
     const gente = Object.values(per).sort((a, b) => b.ult - a.ult), hoy = new Date().toDateString();
     const yoN = String((me && me.nombre) || 'DKAS').split(' ')[0];
     const msjWA = g => { const n = (g.nombre || '').split(' ')[0];
+      const m = g.interes && mesaDe(g.interes), cual = m && m.d ? ' (' + m.d.split(' · ').slice(0, 2).join(', ') + ')' : '';
       const que = g.folio ? 'Vi que nos mandaste tu pedido #' + g.folio + '. ¿Tienes alguna duda?' : g.max >= 2 ? 'Vi que armaste tu mesa en nuestro diseñador 3D' + (g.interes ? ' (' + g.interes + ')' : '') + '. ¿Te ayudo a terminarla o te paso la cotización?'
-        : 'Vi que estuviste viendo ' + (g.interes ? g.interes.replace(/^Quiero una así: /, 'la mesa «') + (/^Quiero una así: /.test(g.interes) ? '»' : '') : 'nuestras mesas de piedra') + ' en dkas.mx. ¿Qué te interesó? ¿En qué te puedo ayudar?';
+        : 'Vi que estuviste viendo ' + (g.interes ? g.interes.replace(/^Quiero una así: /, 'la mesa «') + (/^Quiero una así: /.test(g.interes) ? '»' + cual : '') : 'nuestras mesas de piedra') + ' en dkas.mx. ¿Qué te interesó? ¿En qué te puedo ayudar?';
       return 'Hola' + (n ? ' ' + n : '') + ', soy ' + yoN + ' de DKAS 👋\n' + que; };
     const botonWA = g => g.tel ? '<a class="btn chico wa-v" target="_blank" rel="noopener" href="https://wa.me/' + A.waNum(g.tel) + '?text=' + encodeURIComponent(msjWA(g)) + '">WhatsApp</a>' : '<small class="sin-tel">sin WhatsApp</small>';
     const PASO = ['Vio la página', 'Abrió el 3D', 'Armó su mesa', 'Mandó su diseño'];
     const cuando = t => { const d = new Date(t); return d.toDateString() === hoy ? 'hoy ' + d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }) : A.fecha(t); };
     main.innerHTML = '<h1>Visitas</h1><p class="sub">Quién ha entrado a dkas.mx. Al entrar se les pide su nombre y la página los recuerda.</p>'
       + '<div class="resumen-g"><div><b>' + gente.length + '</b><span>personas</span></div><div><b>' + gente.filter(g => new Date(g.ult).toDateString() === hoy).length + '</b><span>hoy</span></div><div><b>' + gente.filter(g => g.folio).length + '</b><span>mandaron pedido</span></div></div>'
-      + '<div class="sec">' + (gente.length ? gente.map(g => '<div class="fila vis"><div><b>' + esc(g.nombre || 'Sin nombre') + '</b><small>' + esc([g.disp, g.origen].filter(Boolean).join(' · ')) + '</small>' + (g.interes ? '<small class="int">Le interesó: ' + esc(g.interes) + '</small>' : '') + '</div>'
-        + '<div><span>' + (g.folio ? 'Mandó pedido #' + g.folio : PASO[Math.min(2, g.max)]) + '</span><small>' + g.veces + (g.veces === 1 ? ' visita' : ' visitas') + ' · última ' + cuando(g.ult) + '</small>' + (g.nombre ? botonWA(g) : '') + '</div></div>').join('') : '<p class="sub">Todavía nadie.</p>') + '</div>';
+      + '<div class="sec">' + (gente.length ? gente.map(g => '<div class="vis-p"><div class="fila vis"><div><b>' + esc(g.nombre || 'Sin nombre') + '</b><small>' + esc([g.disp, g.origen].filter(Boolean).join(' · ')) + '</small>' + (g.sol ? '<small class="v-sol">' + (ESOL[g.sol.estado] || 'Pidió acceso al 3D') + ' · ' + cuando(g.sol.creado) + '</small>' : '') + '</div>'
+        + '<div><span>' + (g.folio ? 'Mandó pedido #' + g.folio : PASO[Math.min(2, g.max)]) + '</span><small>' + g.veces + (g.veces === 1 ? ' visita' : ' visitas') + ' · última ' + cuando(g.ult) + '</small>' + (g.nombre ? botonWA(g) : '') + '</div></div>' + ((g.nombre && (g.ints.length || g.max || g.sol || g.folio)) ? '<div class="q-hizo"><p class="et-h">Qué hizo</p>' + historia(g) + '</div>' : '<details class="q-hizo"><summary>Qué hizo</summary>' + historia(g) + '</details>') + '</div>').join('') : '<p class="sub">Todavía nadie.</p>') + '</div>';
   }
 
   // ---------- agenda: los pendientes del equipo, con fecha y en orden ----------

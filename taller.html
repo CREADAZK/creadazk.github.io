@@ -252,7 +252,7 @@ img.sin{min-height:52px}
 /* avisos (nov 2026) */
 .avisos{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px 16px;background:#2a2219;color:#f2eee7;font-size:14px;line-height:1.4}
 .avisos[hidden]{display:none}.avisos span{flex:1 1 240px}
-.vis .wa-v{display:inline-block;margin-top:8px;background:#25d366;border-color:#25d366;color:#fff}
+.vis .wa-v{display:inline-flex;min-height:40px;margin-top:8px;background:#25d366;border-color:#25d366;color:#fff}
 .vis .sin-tel{display:block;margin-top:6px;opacity:.6}
 .vis .int{display:block;margin-top:4px;color:#8f7043}
 
@@ -282,7 +282,26 @@ img.sin{min-height:52px}
 .ag-vacio{padding:24px 0;text-align:center}
 @media (max-width:600px){.ag-campos{grid-template-columns:1fr 1fr}.ag-urg{grid-column:1/-1;min-height:32px}.tarea .acc{flex-direction:column;gap:2px;align-items:flex-end}}
 @media (max-width:640px){.top img{height:22px}.top>a{flex:none}.top nav{flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.top nav::-webkit-scrollbar{display:none}.top nav a{flex:none;white-space:nowrap}}
+
+/* visitas: la mesa que le gustó */
+.v-int{display:flex;gap:10px;align-items:center;margin-top:8px;padding:6px;border:1px solid var(--linea);border-radius:10px;background:var(--suave);max-width:340px}
+.v-int img{width:64px;height:48px;object-fit:cover;border-radius:7px;flex:none;background:#e9e5de}
+.v-int div{min-width:0;line-height:1.3}.v-int small{display:block;margin:0;font-size:11.5px;color:var(--oro)}.v-int b{display:block;font-size:14px}
+.v-int span{display:block;font-size:12px;color:var(--gris)}
+.vis .v-sol{display:block;margin-top:6px;color:var(--tinta);opacity:.85}.vis .v-sol b{color:var(--verde)}.vis .v-sol b.pend{color:var(--ambar)}
+@media (max-width:640px){.fila.vis{flex-direction:column;align-items:stretch}.fila.vis>div:last-child{text-align:left}.v-int{max-width:none}}
+/* visitas: qué hizo cada persona, paso a paso */
+.vis-p{border-top:1px solid var(--linea)}.vis-p:first-child{border-top:0}.vis-p .fila.vis{border-top:0}
+.q-hizo{padding:0 16px 16px}.q-hizo summary{cursor:pointer;color:var(--oro);font-size:13.5px;padding:4px 0}
+.q-hizo .et-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gris2);font-weight:600;margin:0 0 6px}
+.hist{list-style:none;padding:0;margin:0;border-left:2px solid var(--linea);margin-left:6px}
+.hist li{display:flex;gap:10px;padding:5px 0 5px 14px;position:relative;font-size:14px;line-height:1.4}
+.hist li::before{content:'';position:absolute;left:-6px;top:11px;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid var(--oro2)}
+.hist li.h-dia{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gris);padding-top:10px}.hist li.h-dia::before{display:none}
+.hist li.h-card::before{display:none}
+.hist time{flex:none;width:62px;color:var(--gris);font-size:12.5px;padding-top:1px}
+.hist li>div{min-width:0;flex:1}.hist .v-int{margin-top:0}.hist .lnk{font-size:13px;margin-left:4px}.hist b.pend{color:var(--ambar)}
 </style></head><body>
 <header class="top"><a href="#"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#" data-sec="log">Pedidos<span class="lg"> y logística</span></a><a href="#taller" data-sec="taller">Taller<span class="lg"> y creación</span></a><a href="#bases" data-sec="bases">Diseñar<span class="lg"> bases</span></a><a href="#agenda" data-sec="agenda">Agenda<i class="badge" id="nb-age" hidden></i></a><a href="#visitas" data-sec="visitas">Visitas</a><a href="#accesos" data-sec="accesos">Accesos<i class="badge" id="nb-acc" hidden></i></a><a href="#precios" data-sec="precios">Precios</a><a href="#" id="salir">Salir</a></nav></header>
 <div id="avisos" class="avisos" hidden></div><main id="m"></main><div id="toast" hidden></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=7b4997caaf"></script><script src="js/dkas-api.js?v=8dd7ced50b"></script><script src="js/dkas-croquis.js?v=ab948a527e"></script><script src="js/disena.js?v=cbae2a2d2d"></script><script src="js/panel.js?v=dfe5f0b135"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=7b4997caaf"></script><script src="js/dkas-api.js?v=8dd7ced50b"></script><script src="js/dkas-croquis.js?v=ab948a527e"></script><script src="js/disena.js?v=cbae2a2d2d"></script><script src="js/panel-interes.js?v=7288b2f826"></script><script src="js/panel.js?v=de3971744d"></script></body></html>

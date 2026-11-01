@@ -115,9 +115,9 @@
   }, 'image/png');
 
   // ---------- pantallas: cada sección se abre sola (con el #) ----------
-  const PANT = { inicio: ['.hero', '#accesos', '.sellos'], crea: ['#disena', '#acceso', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
+  const PANT = { inicio: ['.hero', '#accesos', '.sellos', '#revista'], crea: ['#disena', '#acceso', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
     bases: ['#bases'], proyectos: ['#proyectos'], arquitectos: ['#arquitectos'], como: ['#casa', '#como', '#preguntas'], contacto: ['#contacto'] };
-  const ALIAS = { app: 'crea', disena: 'crea', casa: 'como', preguntas: 'como', porque: 'piedras', espacios: 'proyectos' };
+  const ALIAS = { app: 'crea', disena: 'crea', casa: 'como', preguntas: 'como', porque: 'piedras', espacios: 'proyectos', revista: 'inicio' };
   const ORDEN = ['inicio', 'crea', 'coleccion', 'piedras', 'bases', 'proyectos', 'arquitectos', 'como', 'contacto'];
   const NOMBRE = { inicio: 'Inicio', crea: 'Crea tu mesa', coleccion: 'Colección', piedras: 'Piedras', bases: 'Bases', proyectos: 'Proyectos', arquitectos: 'Arquitectos', como: 'Nosotros', contacto: 'Contacto' };
   const HREF = p => p === 'crea' ? '#app' : p === 'inicio' ? '#' : '#' + p;
@@ -136,8 +136,10 @@
     const bar = $('#bar'); if (bar) bar.hidden = p !== 'crea'; // la barra Atrás/Siguiente solo en Crea tu mesa
     const ver = new Set(PANT[p].map(s => typeof s === 'string' ? $(s) : s));
     todas.concat($$('.sig-pant')).forEach(el => { el.hidden = !ver.has(el); });
-    $$('.top nav .ln').forEach(a => a.classList.toggle('on', a.getAttribute('href') === HREF(p)));
-    scrollTo(0, 0); setTimeout(() => scrollTo(0, 0), 0); requestAnimationFrame(() => scrollTo(0, 0)); // el navegador salta al # después
+    $$('.top nav .ln').forEach(a => a.classList.toggle('on', a.getAttribute('href') === (h === 'revista' ? '#revista' : HREF(p))));
+    // la revista vive en la pantalla de inicio: su link baja hasta ella; lo demás abre arriba
+    const sube = () => h === 'revista' ? $('#revista').scrollIntoView() : scrollTo(0, 0);
+    sube(); setTimeout(sube, 0); requestAnimationFrame(sube); // el navegador salta al # después
     ver.forEach(el => el.querySelectorAll && el.querySelectorAll('.rv').forEach(x => x.classList.add('in')));
     verFlota();
   }

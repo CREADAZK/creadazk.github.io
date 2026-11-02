@@ -9,18 +9,18 @@
   try { const c = q.get('c'), ref = document.referrer ? new URL(document.referrer).hostname : ''; if (!A.load('dazk-canal', '')) A.save('dazk-canal', A.canal(c || (nomQ ? 'whatsapp' : !ref || ref === location.hostname ? 'directo' : ref)) || 'directo'); } catch (e) {}
 
   const box = $('#cz'), res = $('#cz-res');
-  let m = null, ruta = [], i = 0, origen = '', ayuda = false, enviado = null, otraP = null, otraB = null;
+  let m = null, modSel = null, ruta = [], i = 0, origen = '', ayuda = false, enviado = null, otraP = null, otraB = null;
   const tamano = (uso, forma, n) => { const o = D.opcionesPersonas(uso, forma); return o.length ? D.tamanoPara(uso, forma, n && o.includes(n) ? n : o[Math.floor(o.length / 2)]) : (() => { const l = D.limites(uso, forma, 0).L; return { L: Math.round((l[0] + l[1]) / 20) * 10, W: null }; })(); };
   const nueva = (uso, forma) => D.normalizar(Object.assign({ uso, forma, base: D.basesPara({ uso, forma, L: 200, W: 100 })[0] || 'patas', piedra: 'statuario' }, tamano(uso, forma, uso === 'comedor' ? 8 : 4)));
 
   // ---------- de dónde viene ----------
   const mod = D.MODELOS.find(x => x.id === q.get('m'));
-  if (mod) { m = D.normalizar(Object.assign({}, mod, { modelo: mod.id })); origen = 'Modelo ' + mod.nombre; ruta = ['personas', 'piedra', 'base', 'datos']; }
+  if (mod) { modSel = mod; m = D.normalizar(Object.assign({}, mod, { modelo: mod.id })); origen = 'Modelo ' + mod.nombre; ruta = ['personas', 'piedra', 'base', 'revisa', 'datos']; }
   else if (q.get('u') && D.USOS[q.get('u')]) {
     const u = q.get('u'), f = D.formasDe(u).includes(q.get('f')) ? q.get('f') : D.formasDe(u)[0];
     m = D.normalizar(Object.assign({ uso: u, forma: f, base: q.get('b') || 'patas', piedra: D.PIEDRAS.some(p => p.id === q.get('p')) ? q.get('p') : 'statuario' }, tamano(u, f, u === 'comedor' ? 8 : 4)));
-    origen = 'Quiero una así: ' + (q.get('t') || 'foto de la página').slice(0, 60); ruta = ['personas', 'piedra', 'base', 'datos'];
-  } else ruta = ['inicio', 'uso', 'personas', 'forma', 'piedra', 'base', 'datos'];
+    origen = 'Quiero una así: ' + (q.get('t') || 'foto de la página').slice(0, 60); ruta = ['personas', 'piedra', 'base', 'revisa', 'datos'];
+  } else ruta = ['inicio', 'uso', 'personas', 'forma', 'piedra', 'base', 'revisa', 'datos'];
 
   const svgForma = f => '<svg viewBox="0 0 64 64" class="ico">' + { rect: '<rect x="6" y="16" width="52" height="32" rx="1.5"/>', ovcuad: '<rect x="6" y="16" width="52" height="32" rx="12"/>', oval: '<ellipse cx="32" cy="32" rx="27" ry="16"/>', square: '<rect x="14" y="14" width="36" height="36" rx="1.5"/>', round: '<circle cx="32" cy="32" r="19"/>' }[f] + '</svg>';
   const USO_TXT = { comedor: ['Comedor', 'Para comer en casa'], centro: ['Mesa de centro', 'Para la sala'], periquera: ['Barra o periquera', 'Alta, para cocina o terraza'] };
@@ -38,7 +38,7 @@
         : [['Chica', l[0]], ['Mediana', Math.round((l[0] + l[1]) / 20) * 10], ['Grande', l[1]]].map(([t, L]) => '<button class="cz-chip' + (m.L === L ? ' on' : '') + '" data-tam="' + L + '">' + t + '<small>' + L + ' cm</small></button>').join('');
       return tit(o.length ? 'Tamaño' : 'Tamaño', o.length ? '¿Para cuántas <em>personas?</em>' : '¿De qué <em>tamaño?</em>', 'La medida sale sola. Si ya tienes una medida exacta, escríbela abajo.')
         + '<div class="cz-chips">' + tams + '</div><p class="cz-med">Ahorita: <b>' + esc(D.medida(m)) + '</b></p>'
-        + '<details class="cz-exacta"' + (o.length ? '' : '') + '><summary>Tengo una medida exacta</summary><div class="cz-dims"><label>' + (D.redonda(m.forma) ? 'Diámetro' : 'Largo') + '<input type="number" inputmode="numeric" data-dim="L" value="' + m.L + '"><em>cm</em></label>'
+        + '<details class="cz-exacta cz-mia"><summary><b>📏 Poner mis propias medidas</b><small>¿Ya mediste tu espacio? Escribe el largo y ancho exactos</small></summary><div class="cz-dims"><label>' + (D.redonda(m.forma) ? 'Diámetro' : 'Largo') + '<input type="number" inputmode="numeric" data-dim="L" value="' + m.L + '"><em>cm</em></label>'
         + (D.redonda(m.forma) ? '' : '<label>Ancho<input type="number" inputmode="numeric" data-dim="W" value="' + m.W + '"><em>cm</em></label>') + '</div></details>' + sig(); },
     forma: () => tit('Forma', '¿Qué <em>forma?</em>') + '<div class="cz-ops cz-formas">' + D.formasDe(m.uso).map(f => '<button class="cz-op' + (m.forma === f ? ' on' : '') + '" data-forma="' + f + '">' + svgForma(f) + '<b>' + D.FORMAS[f] + '</b></button>').join('') + '</div>',
     piedra: () => tit('Piedra', 'Escoge tu <em>piedra.</em>', 'Fotos reales de cada placa.') + '<div class="cz-fotos">' + D.PIEDRAS.map(p => '<button class="' + (!ayuda && m.piedra === p.id ? 'on' : '') + '" data-piedra="' + p.id + '"><img src="img/piedras/' + p.id + '.jpg" alt="" loading="lazy"><b>' + p.nombre + '</b></button>').join('') + '</div>'
@@ -49,6 +49,14 @@
       + '<button class="cz-otra' + (otraB != null ? ' on' : '') + '" data-otrab><b>Otra base</b><small>¿Te imaginas otra? Cuéntanos o dibújala</small></button>'
       + (otraB != null ? '<div class="cz-otra-f"><textarea id="cz-ob" rows="2" maxlength="110" placeholder="Ej. de madera, en forma de arco, una sola pata al centro…">' + esc(otraB) + '</textarea><a class="lnk-g" href="./#app">¿Prefieres dibujarla tú? Pide acceso al diseñador 3D →</a></div>' : '')
       + '<h2 class="cz-h2">Color de la base</h2><div class="cz-chips">' + D.COLORES.map(k => '<button class="cz-chip cz-col' + ((m.color || 'negro') === k.id ? ' on' : '') + '" data-color="' + k.id + '"><i style="background:' + k.hex + '"></i>' + k.nombre + '</button>').join('') + '</div>' + sig('Listo'),
+    revisa: () => { const CQ = window.DKAS_CQ, foto = modSel && modSel.base === m.base && modSel.forma === m.forma ? 'img/modelos/' + modSel.id + '.jpg' : undefined;
+      const avisos = [otraP ? 'La piedra del dibujo es de ejemplo: tú pediste <b>' + esc(otraP) + '</b>.' : ayuda ? 'La piedra del dibujo es de ejemplo: te ayudamos a elegirla.' : '', otraB ? 'La base del dibujo es de ejemplo: tú pediste <b>' + esc(otraB) + '</b>.' : ''].filter(Boolean);
+      return tit('Revisa tu mesa', '¿Así la <em>quieres?</em>', 'Revisa las medidas, la piedra y la base. Si algo no está bien, cámbialo antes de pedir tu cotización.')
+        + '<div class="cz-lam">' + (CQ ? CQ.lamina(m, { foto, titulo: 'Tu mesa' }) : '') + '</div>'
+        + (avisos.length ? '<p class="cz-aviso">' + avisos.join('<br>') + '</p>' : '')
+        + '<ul class="cz-check">' + lineas().map(z => '<li>' + esc(z) + '</li>').join('') + '<li>Altura ' + m.H + ' cm</li></ul>'
+        + '<button class="btn oro cz-sig cz-si" data-sig>✓ Sí, así la quiero</button>'
+        + '<div class="cz-cambiar"><button class="btn" data-ir="personas">Cambiar medidas</button><button class="btn" data-ir="piedra">Cambiar piedra</button><button class="btn" data-ir="base">Cambiar base</button></div>'; },
     datos: () => tit('Último paso', '¿A dónde te mandamos tu <em>cotización?</em>', 'Un asesor de DKAS revisa tu mesa y te escribe por WhatsApp. Sin compromiso.')
       + '<div class="cz-resumen"><img src="img/piedras/' + m.piedra + '.jpg" alt=""><ul>' + lineas().map(z => '<li>' + esc(z) + '</li>').join('') + '</ul></div>'
       + '<form id="cz-f"><label>Tu nombre<input id="cz-n" required minlength="2" maxlength="80" autocomplete="name" value="' + esc(nomQ || yo.nombre || '') + '"></label>'
@@ -66,7 +74,7 @@
   function pinta() {
     const p = ruta[i]; box.innerHTML = '<div class="cz-prog">' + ruta.filter(x => x !== 'inicio').map((x, k) => '<i class="' + (k < ruta.filter(z => z !== 'inicio').indexOf(p) ? 'h' : x === p ? 'on' : '') + '"></i>').join('') + '</div>' + PANTALLA[p]();
     $('#cz-atras').hidden = i === 0 || p === 'listo';
-    res.innerHTML = m && p !== 'listo' && p !== 'inicio' && p !== 'datos' ? '<span>' + esc(lineas().join(' · ')) + '</span>' : '';
+    res.innerHTML = m && p !== 'listo' && p !== 'inicio' && p !== 'datos' && p !== 'revisa' ? '<span>' + esc(lineas().join(' · ')) + '</span>' : '';
     scrollTo({ top: 0, behavior: 'smooth' });
     if (p === 'datos') $('#cz-f').onsubmit = enviar;
   }
@@ -75,7 +83,7 @@
 
   box.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.mod) { const x = D.MODELOS.find(z => z.id === b.dataset.mod); m = D.normalizar(Object.assign({}, x)); origen = 'Modelo ' + x.nombre; ruta = ['inicio', 'personas', 'piedra', 'base', 'datos']; return ir(1); }
+    if (b.dataset.mod) { const x = D.MODELOS.find(z => z.id === b.dataset.mod); modSel = x; m = D.normalizar(Object.assign({}, x)); origen = 'Modelo ' + x.nombre; ruta = ['inicio', 'personas', 'piedra', 'base', 'revisa', 'datos']; return ir(1); }
     if (b.dataset.yo != null) { m = m || nueva('comedor', 'rect'); return ir(1); }
     if (b.dataset.uso) { m = nueva(b.dataset.uso, D.formasDe(b.dataset.uso)[0]); pinta(); return setTimeout(() => ir(1), 180); }
     if (b.dataset.pers) return cambia(D.tamanoPara(m.uso, m.forma, +b.dataset.pers), true);
@@ -87,6 +95,7 @@
     if (b.dataset.ayuda != null) { ayuda = true; otraP = null; pinta(); return setTimeout(() => ir(1), 180); }
     if (b.dataset.base) { otraB = null; return cambia({ base: b.dataset.base }); }
     if (b.dataset.color) return cambia({ color: b.dataset.color });
+    if (b.dataset.ir) { const k = ruta.indexOf(b.dataset.ir); if (k >= 0) { i = k; pinta(); } return; }
     if (b.dataset.sig != null) { if (otraP === '' && ruta[i] === 'piedra') { const t = $('#cz-op'); if (t) t.focus(); return; } return ir(1); }
   });
   box.addEventListener('input', e => { if (e.target.id === 'cz-op') otraP = e.target.value.slice(0, 110); if (e.target.id === 'cz-ob') otraB = e.target.value.slice(0, 110); if (e.target.id === 'cz-op' || e.target.id === 'cz-ob') res.innerHTML = '<span>' + esc(lineas().join(' · ')) + '</span>'; });
@@ -100,7 +109,7 @@
     b.disabled = true; b.textContent = 'Enviando…';
     try {
       const cod = [m.uso, m.forma, m.L, m.W, m.base, m.piedra, m.H].concat(m.color && m.color !== 'negro' ? [m.color] : []).join('.');
-      const specs = D.resumen(m).filter(r => r[0] !== 'Fabricación' && !((ayuda || otraP) && r[0] === 'Piedra') && !(otraB && r[0] === 'Base')).concat(otraP ? [['Piedra', ('Otra: ' + otraP).slice(0, 120)]] : [], otraB ? [['Base', ('Otra: ' + otraB).slice(0, 120)]] : []).concat([['Pidió', 'Cotizador express' + (origen ? ' · ' + origen : '')]], ayuda ? [['Piedra', 'Quiere que le ayudemos a elegir']] : [], [['Código', cod]]);
+      const specs = D.resumen(m).filter(r => r[0] !== 'Fabricación' && !((ayuda || otraP) && r[0] === 'Piedra') && !(otraB && r[0] === 'Base')).concat(otraP ? [['Piedra', ('Otra: ' + otraP).slice(0, 120)]] : [], otraB ? [['Base', ('Otra: ' + otraB).slice(0, 120)]] : []).concat([['Pidió', 'Cotizador express' + (origen ? ' · ' + origen : '')], ['Confirmó', 'Revisó su plano y medidas']], ayuda ? [['Piedra', 'Quiere que le ayudemos a elegir']] : [], [['Código', cod]]);
       const r = await A.crearPedido({ nombre, tel, notas: ($('#cz-notas') || {}).value || '', items: [{ tipo: 'mesa', titulo: D.titulo(m), cantidad: 1, uso: m.uso, specs, link: SITE + '#d=' + cod }], canal: A.load('dazk-canal', '') });
       A.save('dazk-yo', Object.assign(A.load('dazk-yo', {}), { nombre, tel }));
       A.save('dazk-pedidos', [{ folio: r.folio, token: r.token, fecha: new Date().toISOString() }].concat(A.load('dazk-pedidos', [])));

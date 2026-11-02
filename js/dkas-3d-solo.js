@@ -183,8 +183,10 @@
   }
 
   // ---------- forma de la cubierta (cm, centrada) ----------
-  function forma(fm, L, W, r) {
+  function forma(fm, L, W, r, pts) {
     const sh = new T.Shape(), a = L / 2, b = W / 2;
+    // Estudio: cualquier contorno (puntos [x, z] en cm); en la figura y = -z
+    if (pts && pts.length > 2) { pts.forEach(([x, z], i) => i ? sh.lineTo(x, -z) : sh.moveTo(x, -z)); sh.closePath(); return sh; }
     if (fm === 'round') sh.absarc(0, 0, a, 0, Math.PI * 2, false);
     else if (fm === 'oval') sh.absellipse(0, 0, a, b, 0, Math.PI * 2, false);
     else {
@@ -199,8 +201,8 @@
     return sh;
   }
   // uL, uW: lo que mide la imagen en metros (la placa de 320 × 160, o la mesa entera si se arma con varias piezas)
-  function placa(fm, L, W, r, esp, bisel, uL, uW) {
-    const geo = new T.ExtrudeGeometry(forma(fm, L, W, r), { depth: esp, bevelEnabled: !!bisel, bevelThickness: bisel || 0, bevelSize: bisel || 0, bevelSegments: 3, curveSegments: 72 });
+  function placa(fm, L, W, r, esp, bisel, uL, uW, pts) {
+    const geo = new T.ExtrudeGeometry(forma(fm, L, W, r, pts), { depth: esp, bevelEnabled: !!bisel, bevelThickness: bisel || 0, bevelSize: bisel || 0, bevelSegments: 3, curveSegments: 72 });
     geo.rotateX(-Math.PI / 2); geo.scale(0.01, 0.01, 0.01);
     // la foto de la placa completa (320 × 160) se acomoda a escala: la mesa se corta del centro de la placa
     const p = geo.attributes.position, uv = geo.attributes.uv;
@@ -220,10 +222,10 @@
     return g;
   }
   // puntos sobre la orilla, repartidos parejo, con su dirección hacia afuera
-  function lugares(m) {
-    const n = D.personas(m), L = m.L, W = m.W, out = [], sep = 14;
+  function lugares(m, c) {
+    const est = c && c.estudio, n = est ? c.personas : D.personas(m), L = m.L, W = m.W, out = [], sep = 14;
     if (!n) return out;
-    if (m.forma === 'rect' || m.forma === 'square') {
+    if (!est || !(m.forma === 'libre' || (+m.r > 5 && m.forma !== 'ovcuad'))) if (m.forma === 'rect' || m.forma === 'square') {
       const k = m.forma === 'square' ? Math.max(1, Math.floor(L / D.POR_PERSONA)) : Math.floor(L / D.POR_PERSONA);
       for (let i = 0; i < k; i++) { const x = -L / 2 + L / k * (i + 0.5); out.push([x, W / 2 + sep, Math.PI], [x, -W / 2 - sep, 0]); }
       if (m.forma === 'square') for (let i = 0; i < k; i++) { const z = -W / 2 + W / k * (i + 0.5); out.push([L / 2 + sep, z, -Math.PI / 2], [-L / 2 - sep, z, Math.PI / 2]); }
@@ -231,7 +233,7 @@
       return out;
     }
     // orilla curva: se muestrea la forma y se reparte por longitud
-    const pts = forma(m.forma, L, W, D.radio(m)).getSpacedPoints(400);
+    const pts = (est ? forma('libre', L, W, 0, c.contorno) : forma(m.forma, L, W, D.radio(m))).getSpacedPoints(400);
     const acc = [0]; for (let i = 1; i < pts.length; i++) acc.push(acc[i - 1] + pts[i].distanceTo(pts[i - 1]));
     const tot = acc[acc.length - 1];
     // en la ovalada cuadrada se empieza a la mitad de un lado largo para que queden simétricas
@@ -368,12 +370,12 @@
       // la piedra se ve con el color de su foto: sin el filtro de cine (tone mapping) que la deslava, y con poco reflejo
       const K = PIEDRA_LUZ.k, cara = new T.MeshPhysicalMaterial({ map: tx.tex, color: new T.Color(K, K, K), roughness: rug, clearcoat: pul ? PIEDRA_LUZ.cc : 0.04, clearcoatRoughness: 0.2, envMapIntensity: PIEDRA_LUZ.env, toneMapped: false });
       const canto = new T.MeshStandardMaterial({ color: tx.color.clone().multiplyScalar(K), roughness: 0.45, toneMapped: false });
-      const top = new T.Mesh(placa(M.forma, M.L, M.W, D.radio(M), 1.2 - 0.3, 0.15, varias ? cm(M.L) : 0, varias ? cm(M.W) : 0), [cara, canto]); top.position.y = cm(M.H - 1.2 + 0.15); top.castShadow = top.receiveShadow = true; top.name = 'piedra';
+      const top = new T.Mesh(placa(M.forma, M.L, M.W, D.radio(M), 1.2 - 0.3, 0.15, varias ? cm(M.L) : 0, varias ? cm(M.W) : 0, c.estudio ? c.contorno : null), [cara, canto]); top.position.y = cm(M.H - 1.2 + 0.15); top.castShadow = top.receiveShadow = true; top.name = 'piedra';
       top.userData.canto = canto;
-      const mdf = new T.Mesh(placa(c.mdf.forma, c.mdf.L, c.mdf.W, c.mdf.r, 1.2, 0), mdfMat); mdf.position.y = cm(M.H - 2.5 + 0.05); mdf.castShadow = true;
+      const mdf = new T.Mesh(placa(c.mdf.forma, c.mdf.L, c.mdf.W, c.mdf.r, 1.2, 0, 0, 0, c.estudio ? c.mdf.contorno : null), mdfMat); mdf.position.y = cm(M.H - 2.5 + 0.05); mdf.castShadow = true;
       mesa.add(top, mdf);
       const g = new T.Group(); base(g, c, acero, hule); mesa.add(g);
-      if (M.uso !== 'centro') lugares(M).forEach(([x, z, a]) => { const s = silla(M.uso === 'periquera', tela, metalS); s.position.set(cm(x), 0, cm(z)); s.rotation.y = a; sillas.add(s); });
+      if (M.uso !== 'centro') lugares(M, c).forEach(([x, z, a]) => { const s = silla(M.uso === 'periquera', tela, metalS); s.position.set(cm(x), 0, cm(z)); s.rotation.y = a; sillas.add(s); });
       sillas.visible = conSillas; hacerCotas(M);
       encuadre(); pinta();
       return tx.listo;
@@ -419,7 +421,7 @@
     return {
       mostrar: construir, _mesa: () => mesa,
       vista(k) { meta = VISTAS[k] ? VISTAS[k].slice() : null; if (meta && k !== 'arriba') meta[0] += Math.round((az - meta[0]) / (2 * Math.PI)) * 2 * Math.PI; pinta(); },
-      sillas(v) { conSillas = !!v; sillas.visible = conSillas; if (actual) hacerCotas(D.normalizar(actual)); encuadre(); pinta(); },
+      sillas(v) { conSillas = !!v; sillas.visible = conSillas; if (actual) hacerCotas(actual.estudio ? D.calcular(actual).m : D.normalizar(actual)); encuadre(); pinta(); },
       cotas(v) { conCotas = !!v; cotas.visible = rejilla.visible = conCotas; pinta(); },
       // foto de la mesa (JPEG) para el pedido, el panel y WhatsApp
       // conMedidas: la foto lleva las cotas (para la ficha técnica); la del pedido sale limpia

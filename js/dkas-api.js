@@ -40,7 +40,7 @@
     if (nombre.length < 2) throw new Error('Escribe tu nombre.');
     if (apellido.length < 2) throw new Error('Escribe tu apellido.');
     if (tel.length < 10 || tel.length > 13) throw new Error('Escribe tu WhatsApp a 10 dígitos: ahí te avisamos y te mandamos tu cotización.');
-    return Object.assign({ nombre, apellido, tel }, despacho ? { despacho } : {}, quiere ? { quiere } : {});
+    return Object.assign({ nombre, apellido, tel }, despacho ? { despacho } : {}, quiere ? { quiere } : {}, /^[0-9a-f]{32}$/.test(s.v || '') ? { v: s.v } : {});
   }
 
   // the name shown to clients and the team is never an email: the owner's address becomes Zury; anyone else, the part before the @
@@ -223,6 +223,10 @@
     async solicitarAcceso(id, s) { await db('solicitudes/' + id, 'PUT', Object.assign(solicitud(s), { creado: TS, estado: 'pendiente' })); },
     async verSolicitud(id) { return db('solicitudes/' + id); },
     async verAcceso(t) { return db('accesos/' + t); },
+    // bloqueos/<id> (dispositivo, solicitud o link): el bloqueado solo ve 'No puedes entrar en este momento'
+    async bloqueo(id) { return db('bloqueos/' + id); },
+    async bloqueos() { return (await db('bloqueos', 'GET', undefined, true)) || {}; },
+    async bloquear(ids, nombre, si) { const me = await this.yo(), o = {}; ids.filter(Boolean).forEach(id => { o[id] = si ? { nombre: String(nombre || 'Sin nombre').slice(0, 80), creado: TS, por: (me && me.nombre) || 'DKAS' } : null; }); await db('bloqueos', 'PATCH', o, true); },
     async solicitudes() { return Object.entries((await db('solicitudes', 'GET', undefined, true)) || {}).map(([id, s]) => Object.assign({ id }, s)).sort((a, b) => b.creado - a.creado); },
     async decidirSolicitud(id, estado) { const me = await this.yo(); await db('solicitudes/' + id, 'PATCH', { estado, por: (me && me.nombre) || 'DKAS', decidido: TS }, true); },
     async crearAcceso(nombre) { const me = await this.yo(), t = rnd(); await db('accesos/' + t, 'PUT', { nombre: String(nombre || '').trim().slice(0, 80) || 'Sin nombre', creado: TS, activo: true, por: (me && me.nombre) || 'DKAS' }, true); return t; },
@@ -230,6 +234,10 @@
     async cambiarAcceso(t, activo) { await db('accesos/' + t + '/activo', 'PUT', !!activo, true); },
     async guardarBase(id, b) { await db('catalogo/bases/' + id, 'PUT', b, true); },
     async borrarBase(id) { await db('catalogo/bases/' + id, 'DELETE', undefined, true); },
+    // Estudio de diseño (solo el taller)
+    async estudios() { return (await db('estudio', 'GET', undefined, true)) || {}; },
+    async guardarEstudio(id, d) { const me = await this.yo(); await db('estudio/' + id, 'PUT', Object.assign({}, d, { por: String((me && me.nombre) || 'DKAS').slice(0, 60), cambiado: TS }), true); },
+    async borrarEstudio(id) { await db('estudio/' + id, 'DELETE', undefined, true); },
     // a quién ya se le escribió por WhatsApp (por visitante), y visitas con actividad desde una hora (para avisar)
     async escritos() { return (await db('seguimiento', 'GET', undefined, true)) || {}; },
     async marcarEscrito(v, si) { const me = await this.yo(); await db('seguimiento/' + v, si ? 'PUT' : 'DELETE', si ? { escrito: Date.now(), por: String(me.nombre || '').slice(0, 60) } : undefined, true); },
@@ -337,6 +345,9 @@
     async solicitarAcceso(id, s) { const d = load('dazk-demo-sol', {}); d[id] = Object.assign(solicitud(s), { creado: Date.now(), estado: 'pendiente' }); save('dazk-demo-sol', d); },
     async verSolicitud(id) { return load('dazk-demo-sol', {})[id] || null; },
     async verAcceso(t) { return load('dazk-demo-acc', {})[t] || null; },
+    async bloqueo(id) { return load('dazk-demo-bq', {})[id] || null; },
+    async bloqueos() { return load('dazk-demo-bq', {}); },
+    async bloquear(ids, nombre, si) { const d = load('dazk-demo-bq', {}); ids.filter(Boolean).forEach(id => { if (si) d[id] = { nombre, creado: Date.now(), por: 'DKAS' }; else delete d[id]; }); save('dazk-demo-bq', d); },
     async solicitudes() { return Object.entries(load('dazk-demo-sol', {})).map(([id, s]) => Object.assign({ id }, s)).sort((a, b) => b.creado - a.creado); },
     async decidirSolicitud(id, estado) { const d = load('dazk-demo-sol', {}); if (d[id]) Object.assign(d[id], { estado, por: (who() || {}).nombre || 'DKAS', decidido: Date.now() }); save('dazk-demo-sol', d); },
     async crearAcceso(nombre) { const d = load('dazk-demo-acc', {}), t = rnd(); d[t] = { nombre: String(nombre || '').trim().slice(0, 80) || 'Sin nombre', creado: Date.now(), activo: true, por: (who() || {}).nombre || 'DKAS' }; save('dazk-demo-acc', d); return t; },
@@ -344,6 +355,9 @@
     async cambiarAcceso(t, activo) { const d = load('dazk-demo-acc', {}); if (d[t]) d[t].activo = !!activo; save('dazk-demo-acc', d); },
     async guardarBase(id, b) { const d = load('dazk-demo-bases', {}); d[id] = b; save('dazk-demo-bases', d); },
     async borrarBase(id) { const d = load('dazk-demo-bases', {}); delete d[id]; save('dazk-demo-bases', d); },
+    async estudios() { return load('dazk-demo-estudio', {}); },
+    async guardarEstudio(id, d) { const x = load('dazk-demo-estudio', {}); x[id] = Object.assign({}, d, { por: (who() || {}).nombre || 'DKAS', cambiado: Date.now() }); save('dazk-demo-estudio', x); },
+    async borrarEstudio(id) { const x = load('dazk-demo-estudio', {}); delete x[id]; save('dazk-demo-estudio', x); },
     async staffEstado(id, est) { edit(x => x.id === id, (p, ev) => { p.estado = est; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: estado(est) }); }); },
   };
 

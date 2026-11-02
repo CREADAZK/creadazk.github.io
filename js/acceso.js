@@ -15,13 +15,13 @@
     setTimeout(() => dispatchEvent(new Event('resize')), 50);
   }
   function cerrar() { document.body.classList.remove('con-acceso'); }
-  const waTxt = n => 'https://wa.me/' + WA[0].num + '?text=' + encodeURIComponent('Hola DKAS, soy ' + n + '. Pedí acceso al diseñador 3D en dkas.mx.');
+  const waTxt = n => 'https://wa.me/' + WA[0].num + '?text=' + encodeURIComponent('Hola DKAS, soy ' + n + '. Pedí acceso para cotizar en dkas.mx.');
 
   // ---------- lo que ve quien todavía no tiene acceso ----------
-  const BENEFICIOS = ['Tu mesa en 3D a escala real', 'Medidas libres al centímetro', 'Factibilidad al instante', 'Ficha técnica y plano en PDF', 'Archivos DXF, OBJ y GLB', 'Verla en tu espacio desde el celular'];
+  const BENEFICIOS = ['Cotizador rápido en 1 minuto', 'Tu mesa en 3D a escala real', 'Medidas libres al centímetro', 'Factibilidad al instante', 'Ficha técnica y plano en PDF', 'Archivos DXF, OBJ y GLB', 'Verla en tu espacio desde el celular'];
   function pintar(estado, s) {
     const lista = '<ul class="acc-ben">' + BENEFICIOS.map(b => '<li>' + b + '</li>').join('') + '</ul>';
-    const cab = '<p class="et">Acceso privado</p><h2>Diseñador 3D <em>DKAS.</em></h2>';
+    const cab = '<p class="et">Acceso privado</p><h2>Cotiza y diseña <em>con DKAS.</em></h2>';
     if (estado === 'pendiente') {
       caja.innerHTML = '<div class="acc-w">' + cab + '<div class="acc-est"><span class="pulso"></span><div><b>Solicitud enviada, ' + esc(s.nombre) + '.</b><p>La estamos revisando. En cuanto la aprobemos, esta página se abre sola en este dispositivo.</p></div></div>'
         + '<a class="btn" href="' + waTxt((s.nombre + ' ' + (s.apellido === '(web)' ? '' : s.apellido || '')).trim()) + '" target="_blank" rel="noopener">¿Prisa? Escríbenos por WhatsApp</a>' + lista + '</div>';
@@ -29,20 +29,22 @@
     }
     caja.innerHTML = '<div class="acc-w">' + cab
       + (estado === 'rechazada' ? '<div class="acc-est no"><div><b>No pudimos aprobar tu solicitud.</b><p>Escríbenos por WhatsApp y lo vemos contigo, o envía otra solicitud.</p></div></div>'
-        : '<p class="sub">' + (window.DKAS_QUIERE && /^Quiero una así: /.test(DKAS_QUIERE) ? 'Te gustó «' + esc(DKAS_QUIERE.replace(/^Quiero una así: /, '')) + '». ' : '') + 'Para diseñar tu mesa en 3D déjanos tu nombre y tu WhatsApp. Te damos acceso y un asesor te acompaña con tu cotización.</p>')
-      + '<form id="acc-f" class="acc-f"><div class="f2"><label>Nombre<input id="acc-nom" required minlength="2" maxlength="60" autocomplete="name" placeholder="Tu nombre"></label>'
+        : '<p class="sub">' + (window.DKAS_QUIERE && /^Quiero una así: /.test(DKAS_QUIERE) ? 'Te gustó «' + esc(DKAS_QUIERE.replace(/^Quiero una así: /, '')) + '». ' : '') + 'Para cotizar y diseñar tu mesa necesitas acceso. Déjanos tu nombre, apellido y WhatsApp; en cuanto lo aprobemos, esta página se abre sola.</p>')
+      + '<form id="acc-f" class="acc-f"><div class="f2"><label>Nombre<input id="acc-nom" required minlength="2" maxlength="60" autocomplete="given-name" placeholder="Tu nombre"></label>'
+      + '<label>Apellido<input id="acc-ap" required minlength="2" maxlength="60" autocomplete="family-name" placeholder="Tu apellido"></label>'
       + '<label>WhatsApp<input id="acc-tel" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="10 dígitos"></label></div>'
       + '<p class="err" id="acc-err" hidden></p><button class="btn oro form-btn" id="acc-b">Solicitar acceso</button></form>'
       + lista + '<p class="nota">¿Te mandamos un link de acceso? Ábrelo y entras directo.</p></div>';
-    const yo = A.load('dazk-yo', {}); if (yo.nombre && !$('#acc-nom').value) $('#acc-nom').value = yo.nombre;
+    const yo = A.load('dazk-yo', {}); if (yo.nombre && !$('#acc-nom').value) { const [a0, ...a1] = yo.nombre.trim().split(/\s+/); $('#acc-nom').value = a0; if (a1.length) $('#acc-ap').value = a1.join(' '); }
     if (yo.tel) $('#acc-tel').value = yo.tel;
     $('#acc-f').onsubmit = async e => {
       e.preventDefault(); const b = $('#acc-b'), err = $('#acc-err'); err.hidden = true; b.disabled = true; b.textContent = 'Enviando…';
       try {
-        // un solo campo de nombre: la base de datos pide apellido, así que se toma del nombre completo o va "(web)"
-        const [n0, ...ap] = $('#acc-nom').value.trim().split(/\s+/), tel = $('#acc-tel').value.replace(/\D/g, '');
+        const n0 = $('#acc-nom').value.trim(), ap = $('#acc-ap').value.trim(), tel = $('#acc-tel').value.replace(/\D/g, '');
+        if (n0.length < 2) throw new Error('Escribe tu nombre.');
+        if (ap.length < 2) throw new Error('Escribe tu apellido.');
         if (tel.length < 10) throw new Error('Escribe tu WhatsApp a 10 dígitos para mandarte el acceso.');
-        const id = A.rnd(), s = { nombre: n0 || '', apellido: ap.join(' ') || '(web)', tel, despacho: '', quiere: String(window.DKAS_QUIERE || 'Diseñar su mesa en 3D').slice(0, 80) };
+        const id = A.rnd(), s = { nombre: n0, apellido: ap, tel, despacho: '', quiere: String(window.DKAS_QUIERE || 'Cotizar y diseñar su mesa').slice(0, 80), v: A.load('dazk-v', null) };
         await A.solicitarAcceso(id, s);
         mio = { tipo: 'sol', id, nombre: (s.nombre + ' ' + (s.apellido === '(web)' ? '' : s.apellido)).trim() }; A.save('dkas-acceso', mio);
         A.save('dazk-yo', Object.assign(A.load('dazk-yo', {}), { nombre: mio.nombre }, s.tel.trim() ? { tel: s.tel.trim() } : {}, s.despacho.trim() ? { despacho: s.despacho.trim() } : {}));

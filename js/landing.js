@@ -35,9 +35,43 @@
     if (c) { e.preventDefault(); e.stopPropagation(); return crearMia(JSON.parse(c.dataset.crea)); }
     const b = e.target.closest('[data-v]'); if (!b) return;
     e.preventDefault(); e.stopPropagation();
-    const x = JSON.parse(b.dataset.v), caja = b.closest('article, figure, .sl'), h = caja && caja.querySelector('h3');
-    crearMia(Object.assign({}, x, { t: h ? h.textContent.trim() : '' }));
+    const x = JSON.parse(b.dataset.v), caja = b.closest('article, figure, .sl'), h = caja && caja.querySelector('h3'), im = caja && caja.querySelector('img');
+    quieroUna(Object.assign({}, x, { t: h ? h.textContent.trim() : '', img: im ? (im.currentSrc || im.src || '') : '' }));
   }, true);
+
+  // ---------- "Quiero una así": lo único público además de la presentación; nombre + WhatsApp y llega al panel como pedido ----------
+  function quieroUna(x) {
+    let mo = $('#qa');
+    if (!mo) { mo = document.createElement('div'); mo.className = 'modal'; mo.id = 'qa'; document.body.appendChild(mo); }
+    const esc = A.esc, yo = A.load('dazk-yo', {}), pz = x.p ? D.piedra(x.p).nombre : '', bs = x.b && D.BASES[x.b] ? D.BASES[x.b].nombre : '';
+    const tit = x.t || (pz ? 'Mesa en ' + pz : 'Mesa DKAS');
+    mo.innerHTML = '<div class="caja qa-c"><header><b>Quiero una así</b><button class="btn chico" data-qx>Cerrar</button></header><div class="qa-b">'
+      + (x.img ? '<img class="qa-img" src="' + esc(x.img) + '" alt="">' : '')
+      + '<p class="qa-t">' + esc(tit) + '</p><p class="qa-s">' + esc([pz && 'Piedra ' + pz, bs && 'Base ' + bs].filter(Boolean).join(' · ')) + '</p>'
+      + '<form id="qa-f"><div class="f2"><label>Tu nombre<input id="qa-n" required minlength="2" maxlength="80" autocomplete="name" value="' + esc(yo.nombre || '') + '"></label>'
+      + '<label>Tu WhatsApp<input id="qa-w" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="10 dígitos" value="' + esc(yo.tel || '') + '"></label></div>'
+      + '<p class="err" id="qa-e" hidden></p><button class="btn oro form-btn" id="qa-ok">Quiero que me contacten</button></form></div></div>';
+    mo.hidden = false; document.body.style.overflow = 'hidden';
+    const cerrar = () => { mo.hidden = true; document.body.style.overflow = ''; };
+    mo.onclick = e => { if (e.target === mo || e.target.closest('[data-qx]')) cerrar(); };
+    interesa('Quiero una así: ' + tit);
+    $('#qa-f').onsubmit = async e => {
+      e.preventDefault(); const bt = $('#qa-ok'), er = $('#qa-e'); er.hidden = true;
+      const nombre = $('#qa-n').value.trim(), tel = $('#qa-w').value.replace(/\D/g, '');
+      if (nombre.length < 2) { er.textContent = 'Escribe tu nombre.'; er.hidden = false; return; }
+      if (tel.length < 10 || tel.length > 13) { er.textContent = 'Escribe tu WhatsApp a 10 dígitos.'; er.hidden = false; return; }
+      bt.disabled = true; bt.textContent = 'Enviando…';
+      try {
+        const specs = [['Pidió', 'Quiero una así: ' + tit.slice(0, 90)]].concat(pz ? [['Piedra', pz]] : [], bs ? [['Base', bs]] : [], x.f && D.FORMAS[x.f] ? [['Forma', D.FORMAS[x.f]]] : []);
+        const it = { tipo: 'mesa', titulo: ('Quiero una así: ' + tit).slice(0, 160), cantidad: 1, uso: x.u || 'comedor', specs };
+        const ruta = x.img && /\/img\//.test(x.img) ? x.img.slice(x.img.indexOf('/img/') + 1) : ''; if (ruta) it.link = 'https://dkas.mx/' + ruta;
+        const r = await A.crearPedido({ nombre, tel, notas: '', items: [it], canal: A.load('dazk-canal', '') });
+        A.save('dazk-yo', Object.assign(A.load('dazk-yo', {}), { nombre, tel }));
+        if (window.DKAS_VISITA) try { DKAS_VISITA(1); } catch (y) {}
+        $('.qa-b').innerHTML = '<p class="qa-t">¡Gracias, ' + esc(nombre.split(' ')[0]) + '!</p><p class="qa-s">Recibimos tu solicitud <b>#' + r.folio + '</b>. Un asesor de DKAS te escribe por WhatsApp.</p><button class="btn oro form-btn" data-qx>Listo</button>';
+      } catch (y) { er.textContent = y.message || 'No se pudo enviar. Intenta de nuevo.'; er.hidden = false; bt.disabled = false; bt.textContent = 'Quiero que me contacten'; }
+    };
+  }
 
   // ---------- menú del celular ----------
   const menu = $('#menu');

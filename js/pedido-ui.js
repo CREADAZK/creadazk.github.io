@@ -13,6 +13,8 @@
     let p;
     try { p = await A.verPedido(t); } catch (e) { main.innerHTML = '<div class="tt"><p class="et">Tu pedido</p><h2>No lo <em>encontramos.</em></h2></div><p class="sub">' + esc(e.message) + '</p><a class="btn oro" href="./">Diseñar una mesa</a>'; return; }
     const it = (p.items || [])[0] || {}, sp = Object.fromEntries((it.specs || []).map(x => [x[0], x[1]]));
+    // si dibujó su propia base, se carga para verla en su mesa
+    if (/.c-[0-9a-f]{10}./.test(String(sp['Código'] || '')) && D.registrarBase) try { const b = await A.verBaseCli(t); if (b) D.registrarBase('c-' + t.slice(0, 10), Object.assign({ desc: 'Diseñada por el cliente.' }, b, { cli: true })); } catch (e) {}
     const c = p.cotizacion, m = deCodigo(c && c.mesa) || deCodigo(sp['Código']);
     const i = Math.max(0, PASOS.findIndex(x => x[0] === p.estado));
     const foto = await A.verFoto(t).catch(() => null);

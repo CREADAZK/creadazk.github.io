@@ -93,11 +93,14 @@
   const real = {
     async crearPedido(p, staff) {
       const c = cliente(p), items = itemsDe(p.items), me = staff && await this.yo();
+      const bc = p.baseCli && Array.isArray(p.baseCli.segs) && p.baseCli.segs.length ? { nombre: String(p.baseCli.nombre || 'Base del cliente').slice(0, 40), segs: p.baseCli.segs.slice(0, 59).map(q => q.slice(0, 4).map(Number)), perfil: ['ligero', 'robusto', 'solera'].includes(p.baseCli.perfil) ? p.baseCli.perfil : 'ligero' } : null;
       // the folio counter and the order are written together; if someone else took the number first the rules reject it and we try the next one
       for (let i = 0; i < 6; i++) {
         const folio = ((await db('folio')) || 1000) + 1, t = rnd();
-        const ped = Object.assign({ folio, estado: 'nuevo', creado: TS, actualizado: TS, items, eventos: { e0: staff ? { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: 'creado', texto: 'Pedido capturado en el panel.' } : { creado: TS, autor: 'cliente', autor_nombre: c.nombre, tipo: 'creado', texto: 'Pedido enviado desde Crea tu mesa.' } } }, c);
-        try { await db('', 'PATCH', { folio, ['pedidos/' + t]: ped }, !!staff); return { folio, token: t }; }
+        // base dibujada por el cliente (cotizador): se guarda junto con el pedido, con el número del pedido
+        const its = bc ? JSON.parse(JSON.stringify(items).split('c-nueva').join('c-' + t.slice(0, 10))) : items;
+        const ped = Object.assign({ folio, estado: 'nuevo', creado: TS, actualizado: TS, items: its, eventos: { e0: staff ? { creado: TS, autor: 'dazk', autor_nombre: me.nombre, tipo: 'creado', texto: 'Pedido capturado en el panel.' } : { creado: TS, autor: 'cliente', autor_nombre: c.nombre, tipo: 'creado', texto: 'Pedido enviado desde Crea tu mesa.' } } }, c);
+        try { await db('', 'PATCH', Object.assign({ folio, ['pedidos/' + t]: ped }, bc ? { ['basesCli/' + t]: Object.assign({}, bc, { creado: TS }) } : {}), !!staff); return { folio, token: t }; }
         catch (e) { if (!denied(e)) throw e; }
       }
       throw new Error('No se pudo guardar el pedido. Intenta de nuevo en un momento.');
@@ -266,6 +269,7 @@
       const c = cliente(p), d = ddb(), ped = Object.assign({ id: rnd(), folio: ++d.folio, token: rnd(), estado: 'nuevo', creado: now(), actualizado: now(),
         items: p.items.map((it, i) => Object.assign({ cantidad: 1 }, it, { pos: i + 1 })),
         eventos: [staff ? { id: 1, creado: now(), autor: 'dazk', autor_nombre: who().nombre, tipo: 'creado', texto: 'Pedido capturado en el panel.', interno: false } : { id: 1, creado: now(), autor: 'cliente', autor_nombre: c.nombre, tipo: 'creado', texto: 'Pedido enviado desde Crea tu mesa.', interno: false }] }, c);
+      if (p.baseCli) { const k = 'c-' + ped.token.slice(0, 10); ped.items = JSON.parse(JSON.stringify(ped.items).split('c-nueva').join(k)); const b = load('dazk-demo-bcli', {}); b[ped.token] = Object.assign({}, p.baseCli, { creado: Date.now() }); save('dazk-demo-bcli', b); }
       d.pedidos.push(ped); save('dazk-demo-db', d);
       return { folio: ped.folio, token: ped.token };
     },

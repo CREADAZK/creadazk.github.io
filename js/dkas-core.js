@@ -847,10 +847,10 @@
       cotas(v) { conCotas = !!v; cotas.visible = rejilla.visible = conCotas; pinta(); },
       // foto de la mesa (JPEG) para el pedido, el panel y WhatsApp
       // conMedidas: la foto lleva las cotas (para la ficha técnica); la del pedido sale limpia
-      foto(w, h, conMedidas) {
+      foto(w, h, conMedidas, zoom) {
         w = w || 1200; h = h || 800; const keep = [az, pol, dist, ancho, alto, R.getPixelRatio()];
         const ver = conCotas; cotas.visible = rejilla.visible = !!conMedidas;
-        az = 0.72; pol = 1.2; ancho = w; alto = h; R.setPixelRatio(1); R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); encuadre(); dist *= 0.92;
+        az = 0.72; pol = 1.2; ancho = w; alto = h; R.setPixelRatio(1); R.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); encuadre(); dist *= zoom || 0.92;
         colocar(); R.render(scene, cam); const url = R.domElement.toDataURL('image/jpeg', 0.86);
         cotas.visible = rejilla.visible = ver; [az, pol, dist] = keep; R.setPixelRatio(keep[5]); medir(); return url;
       },

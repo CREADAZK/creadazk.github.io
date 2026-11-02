@@ -427,6 +427,8 @@
     caja(p) { const xs = p.map(q => q[0]), zs = p.map(q => q[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs); return { x0, x1, z0, z1, w: x1 - x0, h: z1 - z0 }; },
     dentro(q, p) { let d = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const [xi, zi] = p[i], [xj, zj] = p[j]; if ((zi > q[1]) !== (zj > q[1]) && q[0] < (xj - xi) * (q[1] - zi) / (zj - zi) + xi) d = !d; } return d; },
     dSeg(q, a, b) { const vx = b[0] - a[0], vz = b[1] - a[1], l2 = vx * vx + vz * vz || 1e-9, t = clamp(((q[0] - a[0]) * vx + (q[1] - a[1]) * vz) / l2, 0, 1); return Math.hypot(q[0] - a[0] - t * vx, q[1] - a[1] - t * vz); },
+    // sin puntos repetidos (rompen el MDF y las normales)
+    limpia(p) { const o = []; p.forEach(q => { const l = o[o.length - 1]; if (!l || Math.hypot(q[0] - l[0], q[1] - l[1]) > 0.05) o.push(q); }); while (o.length > 3 && Math.hypot(o[0][0] - o[o.length - 1][0], o[0][1] - o[o.length - 1][1]) <= 0.05) o.pop(); return o; },
     dBorde(q, p) { let m = Infinity; for (let i = 0; i < p.length; i++) m = Math.min(m, G.dSeg(q, p[i], p[(i + 1) % p.length])); return m; },
     envolvente(pts) { // casco convexo
       const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]); if (p.length < 3) return p;
@@ -461,7 +463,7 @@
     },
     // el mismo contorno metido d cm hacia adentro (para el MDF)
     adentro(p, d) {
-      const sg = G.area(p) > 0 ? 1 : -1, n = p.length, out = [];
+      p = G.limpia(p); const sg = G.area(p) > 0 ? 1 : -1, n = p.length, out = [];
       const nor = (a, b) => { const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [-(b[1] - a[1]) / l * sg, (b[0] - a[0]) / l * sg]; };
       for (let i = 0; i < n; i++) {
         const a = p[(i - 1 + n) % n], b = p[i], c = p[(i + 1) % n], n1 = nor(a, b), n2 = nor(b, c);
@@ -480,11 +482,11 @@
     const L = +m.L, W = m.forma === 'round' || m.forma === 'square' ? +m.L : +m.W, a = L / 2, b = W / 2;
     if (m.forma === 'libre' && m.libre && m.libre.pts && m.libre.pts.length >= 3) {
       const p = m.libre.pts.map(q => [+q[0], +q[1]]);
-      return m.libre.curva ? G.curva(p, 16) : G.filete(p, m.libre.radios);
+      return G.limpia(m.libre.curva ? G.curva(p, 16) : G.filete(p, m.libre.radios));
     }
     if (m.forma === 'round' || m.forma === 'oval') { const n = 160, out = []; for (let i = 0; i < n; i++) { const t = i / n * 2 * Math.PI; out.push([a * Math.cos(t), b * Math.sin(t)]); } return out; }
     const r = m.forma === 'ovcuad' ? (m.r != null && m.r !== '' ? +m.r : radio({ forma: 'ovcuad', W })) : +(m.r || 0), rr = clamp(r, 0, Math.min(a, b));
-    return G.filete([[-a, -b], [a, -b], [a, b], [-a, b]], [rr, rr, rr, rr]);
+    return G.limpia(G.filete([[-a, -b], [a, -b], [a, b], [-a, b]], [rr, rr, rr, rr]));
   }
   // pasar la forma de siempre a puntos que se pueden mover a mano
   function aLibre(m) {

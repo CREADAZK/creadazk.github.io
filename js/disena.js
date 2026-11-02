@@ -17,7 +17,7 @@
     { nombre: 'Robusta', eps: 0.05, ang: 15, sym: true, perfil: 'robusto' },
     { nombre: 'Líneas puras a 45°', eps: 0.07, ang: 45, sym: true, perfil: 'robusto' },
     { nombre: 'En placa de solera', eps: 0.04, ang: 15, sym: true, perfil: 'solera' },
-    { nombre: 'Como la dibujaste', eps: 0.025, ang: 5, sym: false, perfil: 'ligero' },
+    { nombre: 'Como la dibujaste', eps: 0.04, ang: 5, sym: false, perfil: 'ligero' },
   ];
   function variante(n) {
     if (n < VARIANTES.length) return VARIANTES[n];
@@ -35,11 +35,27 @@
     for (let i = 1; i < pts.length - 1; i++) { const d = Math.abs((b[0] - a[0]) * (a[1] - pts[i][1]) - (a[0] - pts[i][0]) * (b[1] - a[1])) / L; if (d > dm) { dm = d; im = i; } }
     return dm > eps ? rdp(pts.slice(0, im + 1), eps).slice(0, -1).concat(rdp(pts.slice(im), eps)) : [a, b];
   }
+  // promedio móvil: borra el temblor y deja la intención del trazo (las puntas no se mueven)
+  function suaviza(t, n) {
+    if (t.length < 5) return t;
+    return t.map((q, i) => { if (i === 0 || i === t.length - 1) return q; let x = 0, y = 0, k = 0; for (let j = Math.max(0, i - n); j <= Math.min(t.length - 1, i + n); j++) { x += t[j][0]; y += t[j][1]; k++; } return [x / k, y / k]; });
+  }
+  // quita los quiebres chiquitos: si dos tramos casi siguen la misma dirección, son uno solo
+  function sinQuiebres(p) {
+    let cambio = true;
+    while (cambio && p.length > 2) { cambio = false;
+      for (let i = 1; i < p.length - 1; i++) {
+        const a = p[i - 1], b = p[i], c2 = p[i + 1], g1 = Math.atan2((b[1] - a[1]) * PY, (b[0] - a[0]) * PX), g2 = Math.atan2((c2[1] - b[1]) * PY, (c2[0] - b[0]) * PX);
+        let d = Math.abs(g1 - g2); if (d > Math.PI) d = 2 * Math.PI - d;
+        const corto = Math.min(Math.hypot((b[0] - a[0]) * PX, (b[1] - a[1]) * PY), Math.hypot((c2[0] - b[0]) * PX, (c2[1] - b[1]) * PY));
+        if (d < 0.30 || corto < 9) { p.splice(i, 1); cambio = true; break; } } }
+    return p;
+  }
   function redisenar(trazos, v) {
     let segs = [];
-    trazos.forEach(t => { const p = rdp(t, v.eps); for (let i = 1; i < p.length; i++) segs.push([p[i - 1][0], p[i - 1][1], p[i][0], p[i][1]]); });
+    trazos.forEach(t => { const p = sinQuiebres(rdp(suaviza(suaviza(t, 3), 2), Math.max(v.eps, 0.045))); for (let i = 1; i < p.length; i++) segs.push([p[i - 1][0], p[i - 1][1], p[i][0], p[i][1]]); });
     const largo = q => Math.hypot((q[2] - q[0]) * PX, (q[3] - q[1]) * PY);
-    segs = segs.filter(q => largo(q) > 6);
+    segs = segs.filter(q => largo(q) > 10);
     // al piso y al bastidor
     const pega = y => y < 0.1 ? 0 : y > 0.9 ? 1 : y;
     segs = segs.map(([a, b, c, d]) => [a, pega(b), c, pega(d)]);
@@ -48,7 +64,7 @@
       let [x1, y1, x2, y2] = q; if (!(y1 === 0 || y1 === 1) && (y2 === 0 || y2 === 1)) [x1, y1, x2, y2] = [x2, y2, x1, y1];
       const dx = (x2 - x1) * PX, dy = (y2 - y1) * PY, L = Math.hypot(dx, dy);
       // se endereza al ángulo limpio más cercano, pero solo si ya casi lo era (no se pierde el diseño)
-      const g0 = Math.atan2(dy, dx) * 180 / Math.PI, gA = Math.round(g0 / v.ang) * v.ang, tol = Math.min(v.ang / 2, 12);
+      const g0 = Math.atan2(dy, dx) * 180 / Math.PI, gA = Math.round(g0 / v.ang) * v.ang, tol = Math.min(v.ang / 2, 16);
       const a = (Math.abs(g0 - gA) <= tol ? gA : Math.round(g0 / 5) * 5) * Math.PI / 180;
       let nx = x1 + Math.cos(a) * L / PX, ny = y1 + Math.sin(a) * L / PY;
       // si el otro extremo iba al piso o arriba, que llegue exacto
@@ -77,6 +93,16 @@
         const cx = ox + s * ux, cy = oy + s * uy, d = Math.hypot(px - cx, py - cy);
         if (d < 12 && (!mejor || d < mejor[0])) mejor = [d, cx / PX, cy / PY]; });
       if (mejor) { q[i] = mejor[1]; q[i + 1] = mejor[2]; }
+    }));
+    // uniones a alturas de diseño (un tercio, la mitad, dos tercios…) y columnas de puntos alineadas
+    const NIV = [0.2, 0.25, 1 / 3, 0.4, 0.5, 0.6, 2 / 3, 0.75, 0.8];
+    const yy = [], xx = []; segs.forEach(q => [0, 2].forEach(i => { if (q[i + 1] > 0 && q[i + 1] < 1) yy.push(q[i + 1]); xx.push(q[i]); }));
+    const grupo = (vals, tol) => { const g = []; vals.slice().sort((a, b) => a - b).forEach(x => { const u = g[g.length - 1]; if (u && x - u[u.length - 1] < tol) u.push(x); else g.push([x]); }); return g.map(u => u.reduce((a, b) => a + b, 0) / u.length); };
+    const nivY = grupo(yy, 0.06).map(y => { const n = NIV.reduce((a, b) => Math.abs(b - y) < Math.abs(a - y) ? b : a); return [y, Math.abs(n - y) < 0.06 ? n : y]; });
+    const colX = grupo(xx.map(Math.abs), 0.035);
+    segs = segs.map(q => q.map((n, i) => {
+      if (i % 2) { if (n === 0 || n === 1) return n; const h = nivY.find(([y]) => Math.abs(y - n) < 0.06); return h ? h[1] : n; }
+      const c3 = colX.find(x => Math.abs(x - Math.abs(n)) < 0.035); return c3 == null ? n : Math.sign(n || 1) * c3;
     }));
     // a la cuadrícula del taller y dentro de la mesa
     const g = 0.0125, cl = (n, a, b) => Math.max(a, Math.min(b, n));
@@ -137,9 +163,14 @@
     dibuja();
     let actual = null;
     const pos = e => { const r = cv.getBoundingClientRect(); return aD((e.clientX - r.left) * CW / r.width, (e.clientY - r.top) * CH / r.height); };
-    cv.onpointerdown = e => { cv.setPointerCapture(e.pointerId); actual = [pos(e)]; trazos.push(actual); dibuja(); e.preventDefault(); };
-    cv.onpointermove = e => { if (!actual) return; actual.push(pos(e)); dibuja(); };
-    cv.onpointerup = cv.onpointercancel = () => { if (actual && actual.length < 2) trazos.pop(); actual = null; dibuja(); };
+    cv.onpointerdown = e => { cv.setPointerCapture(e.pointerId); crudo = null; actual = [pos(e)]; trazos.push(actual); dibuja(); e.preventDefault(); };
+    // el dedo tiembla: solo se toma un punto cada ~9 px y se promedia con el anterior (el trazo fluye)
+    let crudo = null;
+    cv.onpointermove = e => { if (!actual) return; const p = pos(e), u = actual[actual.length - 1];
+      crudo = crudo ? [crudo[0] * 0.5 + p[0] * 0.5, crudo[1] * 0.5 + p[1] * 0.5] : p;
+      const [a, b] = aC(...u), [c2, d2] = aC(...crudo); if (Math.hypot(c2 - a, d2 - b) < 9) return;
+      actual.push(crudo.slice()); dibuja(); };
+    cv.onpointerup = cv.onpointercancel = e => { if (actual) { if (e.type === 'pointerup' && actual.length > 1) actual.push(pos(e)); if (actual.length < 2) trazos.pop(); } actual = null; dibuja(); };
   }
   async function proponer() {
     const box = $('#dz-prop'), cont = $('#dz-cont');

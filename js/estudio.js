@@ -139,15 +139,17 @@
   let vista = null, texForma = null;
   function marco(cv, extra) {
     const ct = c.contorno, b = G.caja(ct), v = c.viab, pl = v.rot ? [v.nL * 160, v.nW * 320] : [v.nL * 320, v.nW * 160];
-    const w = Math.max(b.w, extra ? pl[0] : 0) + 70, h = Math.max(b.h, extra ? pl[1] : 0) + 70, k = Math.min(cv.width / w, cv.height / h);
+    const w = Math.max(b.w, extra ? pl[0] : 0), h = Math.max(b.h, extra ? pl[1] : 0), k = Math.min((cv.width - 90 * u) / w, (cv.height - 80 * u) / h);
     return { k, cx: cv.width / 2, cy: cv.height / 2, ox: 0, oz: 0, pl };
   }
   const aP = (x, z) => [vista.cx + (x - vista.ox) * vista.k, vista.cy + (z - vista.oz) * vista.k];
   const aM = (px, py) => [(px - vista.cx) / vista.k + vista.ox, (py - vista.cy) / vista.k + vista.oz];
   function camino(x, pts) { x.beginPath(); pts.forEach(([a, b], i) => { const [px, py] = aP(a, b); i ? x.lineTo(px, py) : x.moveTo(px, py); }); x.closePath(); }
+  let u = 1;
+  function prep(cv, ratio) { const d = Math.min(2, window.devicePixelRatio || 1), w = Math.round((cv.clientWidth || 600) * d), h = Math.round(w * ratio); if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; } u = d; }
   function lienzoForma() {
     const cv = $('#es-cf'); if (!cv) return;
-    const x = cv.getContext('2d'); if (!arrastre) vista = marco(cv, true);
+    if (!arrastre) prep(cv, 0.6); const x = cv.getContext('2d'); if (!arrastre) vista = marco(cv, true);
     x.clearRect(0, 0, cv.width, cv.height); x.fillStyle = '#ece8e1'; x.fillRect(0, 0, cv.width, cv.height);
     // la(s) placa(s) con la foto real
     const [pw, ph] = vista.pl, [x0, y0] = aP(-pw / 2, -ph / 2);
@@ -163,25 +165,25 @@
     x.save(); x.beginPath(); x.rect(0, 0, cv.width, cv.height); const ct = c.contorno;
     ct.slice().reverse().forEach(([a, b], i) => { const [px, py] = aP(a, b); i ? x.lineTo(px, py) : x.moveTo(px, py); }); x.closePath();
     x.fillStyle = 'rgba(20,17,14,.62)'; x.fill('evenodd'); x.restore();
-    camino(x, ct); x.strokeStyle = '#c2a273'; x.lineWidth = 3; x.stroke();
-    camino(x, c.mdf.contorno); x.setLineDash([8, 6]); x.strokeStyle = 'rgba(255,255,255,.75)'; x.lineWidth = 1.5; x.stroke(); x.setLineDash([]);
+    camino(x, ct); x.strokeStyle = '#c2a273'; x.lineWidth = 2.5 * u; x.stroke();
+    camino(x, c.mdf.contorno); x.setLineDash([6 * u, 5 * u]); x.strokeStyle = 'rgba(255,255,255,.8)'; x.lineWidth = 1.3 * u; x.stroke(); x.setLineDash([]);
     // medidas generales
-    const b = G.caja(ct); x.font = '600 22px Inter, sans-serif'; x.textAlign = 'center';
-    cotaH(x, b.x0, b.x1, b.z0 - 14 / vista.k * 2.2, (m.forma === 'round' ? 'Ø ' : '') + r1(b.w) + ' cm');
-    if (m.forma !== 'round') cotaV(x, b.x1 + 14 / vista.k * 2.2, b.z0, b.z1, r1(b.h) + ' cm');
-    x.fillStyle = '#6b665e'; x.font = '500 16px Inter, sans-serif'; x.textAlign = 'left';
-    x.fillText('Placa ' + pw + ' × ' + ph + ' cm' + (c.viab.placas > 1 ? ' (' + c.viab.placas + ' piezas)' : '') + ' · aprovechas ' + c.piedra.aprov + '%', 14, cv.height - 14);
+    const b = G.caja(ct); x.font = '600 ' + 13 * u + 'px Inter, sans-serif'; x.textAlign = 'center';
+    cotaH(x, b.x0, b.x1, b.z0 - 22 * u / vista.k, (m.forma === 'round' ? 'Ø ' : '') + r1(b.w) + ' cm');
+    if (m.forma !== 'round') cotaV(x, b.x1 + 22 * u / vista.k, b.z0, b.z1, r1(b.h) + ' cm');
+    x.fillStyle = '#efe9df'; x.font = '500 ' + 12 * u + 'px Inter, sans-serif'; x.textAlign = 'left';
+    x.fillText('Placa ' + pw + ' × ' + ph + ' cm' + (c.viab.placas > 1 ? ' (' + c.viab.placas + ' piezas)' : '') + ' · aprovechas ' + c.piedra.aprov + '%', 10 * u, cv.height - 10 * u);
     if (m.forma !== 'libre') return;
     const p = m.libre.pts;
     // largo de cada lado (orilla recta)
-    if (!m.libre.curva) { x.font = '600 15px Inter, sans-serif'; x.textAlign = 'center'; p.forEach((q, i) => { const n = p[(i + 1) % p.length], l = Math.hypot(n[0] - q[0], n[1] - q[1]); if (l < 8) return; const [px, py] = aP((q[0] + n[0]) / 2, (q[1] + n[1]) / 2); etiqueta(x, r1(l) + '', px, py - 18); }); }
-    if (mano) { if (trazo) { x.beginPath(); trazo.forEach(([a, b2], i) => { const [px, py] = aP(a, b2); i ? x.lineTo(px, py) : x.moveTo(px, py); }); x.strokeStyle = '#c2a273'; x.lineWidth = 4; x.stroke(); } return; }
-    p.forEach((q, i) => { const n = p[(i + 1) % p.length], [px, py] = aP((q[0] + n[0]) / 2, (q[1] + n[1]) / 2); x.beginPath(); x.arc(px, py, 10, 0, 7); x.fillStyle = 'rgba(255,255,255,.85)'; x.fill(); x.fillStyle = '#16140f'; x.font = '700 16px Inter, sans-serif'; x.textAlign = 'center'; x.fillText('+', px, py + 5.5); });
-    p.forEach((q, i) => { const [px, py] = aP(q[0], q[1]); x.beginPath(); x.arc(px, py, i === sel ? 13 : 10, 0, 7); x.fillStyle = i === sel ? '#fff' : '#c2a273'; x.fill(); x.lineWidth = 3; x.strokeStyle = '#16140f'; x.stroke(); });
+    if (!m.libre.curva) { x.font = '600 ' + 12 * u + 'px Inter, sans-serif'; x.textAlign = 'center'; const sg = G.area(p) > 0 ? 1 : -1; p.forEach((q, i) => { const n = p[(i + 1) % p.length], l = Math.hypot(n[0] - q[0], n[1] - q[1]); if (l < 8) return; const nx = (n[1] - q[1]) / l * sg, nz = -(n[0] - q[0]) / l * sg, d = 24 * u / vista.k; const [px, py] = aP((q[0] + n[0]) / 2 + nx * d, (q[1] + n[1]) / 2 + nz * d); etiqueta(x, r1(l) + ' cm', px, py); }); }
+    if (mano) { if (trazo) { x.beginPath(); trazo.forEach(([a, b2], i) => { const [px, py] = aP(a, b2); i ? x.lineTo(px, py) : x.moveTo(px, py); }); x.strokeStyle = '#c2a273'; x.lineWidth = 3 * u; x.stroke(); } return; }
+    p.forEach((q, i) => { const n = p[(i + 1) % p.length], [px, py] = aP((q[0] + n[0]) / 2, (q[1] + n[1]) / 2); x.beginPath(); x.arc(px, py, 9 * u, 0, 7); x.fillStyle = 'rgba(255,255,255,.9)'; x.fill(); x.fillStyle = '#16140f'; x.font = '700 ' + 14 * u + 'px Inter, sans-serif'; x.textAlign = 'center'; x.fillText('+', px, py + 5 * u); });
+    p.forEach((q, i) => { const [px, py] = aP(q[0], q[1]); x.beginPath(); x.arc(px, py, (i === sel ? 11 : 8.5) * u, 0, 7); x.fillStyle = i === sel ? '#fff' : '#c2a273'; x.fill(); x.lineWidth = 2.5 * u; x.strokeStyle = '#16140f'; x.stroke(); });
   }
-  function etiqueta(x, t, px, py) { const w = x.measureText(t).width + 14; x.fillStyle = 'rgba(14,12,10,.85)'; x.beginPath(); x.roundRect ? x.roundRect(px - w / 2, py - 12, w, 22, 11) : x.rect(px - w / 2, py - 12, w, 22); x.fill(); x.fillStyle = '#f1e6d2'; x.fillText(t, px, py + 4.5); }
-  function cotaH(x, a, b, z, t) { const [p1, y] = aP(a, z), [p2] = aP(b, z); x.strokeStyle = '#a8844f'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(p1, y); x.lineTo(p2, y); x.moveTo(p1, y - 7); x.lineTo(p1, y + 7); x.moveTo(p2, y - 7); x.lineTo(p2, y + 7); x.stroke(); etiqueta(x, t, (p1 + p2) / 2, y - 16); }
-  function cotaV(x, xx, a, b, t) { const [px, y1] = aP(xx, a), [, y2] = aP(xx, b); x.strokeStyle = '#a8844f'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(px, y1); x.lineTo(px, y2); x.moveTo(px - 7, y1); x.lineTo(px + 7, y1); x.moveTo(px - 7, y2); x.lineTo(px + 7, y2); x.stroke(); x.save(); x.translate(px + 18, (y1 + y2) / 2); x.rotate(-Math.PI / 2); etiqueta(x, t, 0, 0); x.restore(); }
+  function etiqueta(x, t, px, py) { const w = x.measureText(t).width + 12 * u, h = 19 * u; x.fillStyle = 'rgba(14,12,10,.85)'; x.beginPath(); x.roundRect ? x.roundRect(px - w / 2, py - h / 2, w, h, h / 2) : x.rect(px - w / 2, py - h / 2, w, h); x.fill(); x.fillStyle = '#f1e6d2'; x.textBaseline = 'middle'; x.fillText(t, px, py + 0.5 * u); x.textBaseline = 'alphabetic'; }
+  function cotaH(x, a, b, z, t) { const [p1, y] = aP(a, z), [p2] = aP(b, z); x.strokeStyle = '#d9bf8f'; x.lineWidth = 1.3 * u; x.beginPath(); x.moveTo(p1, y); x.lineTo(p2, y); x.moveTo(p1, y - 6 * u); x.lineTo(p1, y + 6 * u); x.moveTo(p2, y - 6 * u); x.lineTo(p2, y + 6 * u); x.stroke(); etiqueta(x, t, (p1 + p2) / 2, y - 13 * u); }
+  function cotaV(x, xx, a, b, t) { const [px, y1] = aP(xx, a), [, y2] = aP(xx, b); x.strokeStyle = '#d9bf8f'; x.lineWidth = 1.3 * u; x.beginPath(); x.moveTo(px, y1); x.lineTo(px, y2); x.moveTo(px - 6 * u, y1); x.lineTo(px + 6 * u, y1); x.moveTo(px - 6 * u, y2); x.lineTo(px + 6 * u, y2); x.stroke(); x.save(); x.translate(px + 14 * u, (y1 + y2) / 2); x.rotate(-Math.PI / 2); etiqueta(x, t, 0, 0); x.restore(); }
   function puntoDe(cv, e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; }
   let arrastre = null, trazo = null;
   function eventosForma() {
@@ -189,7 +191,7 @@
     cv.onpointerdown = e => {
       const [px, py] = puntoDe(cv, e), p = m.libre.pts; cv.setPointerCapture(e.pointerId);
       if (mano) { trazo = [aM(px, py)]; arrastre = { mano: true }; return; }
-      const cerca = (x, z) => Math.hypot(aP(x, z)[0] - px, aP(x, z)[1] - py) < 22;
+      const cerca = (x, z) => Math.hypot(aP(x, z)[0] - px, aP(x, z)[1] - py) < 18 * u;
       let i = p.findIndex(q => cerca(q[0], q[1]));
       if (i < 0) { const j = p.findIndex((q, k) => { const n = p[(k + 1) % p.length]; return cerca((q[0] + n[0]) / 2, (q[1] + n[1]) / 2); });
         if (j >= 0) { const n = p[(j + 1) % p.length]; p.splice(j + 1, 0, [r1((p[j][0] + n[0]) / 2), r1((p[j][1] + n[1]) / 2)]); if (m.libre.radios) m.libre.radios.splice(j + 1, 0, 0); i = j + 1; } }
@@ -289,19 +291,19 @@
   const igualB = (a, b) => (Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.6 && Math.hypot(a[2] - b[2], a[3] - b[3]) < 0.6) || (Math.hypot(a[0] - b[2], a[1] - b[3]) < 0.6 && Math.hypot(a[2] - b[0], a[3] - b[1]) < 0.6);
   let vistaP = null, tiro = null;
   function lienzoPlanta() {
-    const cv = $('#es-cp'); if (!cv) return; const x = cv.getContext('2d');
-    vista = vistaP = marco(cv, false);
+    const cv = $('#es-cp'); if (!cv) return; if (!tiro) prep(cv, 0.62); const x = cv.getContext('2d');
+    if (!tiro) vistaP = marco(cv, false); vista = vistaP;
     x.clearRect(0, 0, cv.width, cv.height); x.fillStyle = '#fbfaf8'; x.fillRect(0, 0, cv.width, cv.height);
     // cuadrícula de 10 cm
     const b = G.caja(c.contorno); x.strokeStyle = 'rgba(160,150,135,.18)'; x.lineWidth = 1;
     for (let gx = Math.floor((b.x0 - 30) / 10) * 10; gx <= b.x1 + 30; gx += 10) { const [px] = aP(gx, 0); x.beginPath(); x.moveTo(px, 0); x.lineTo(px, cv.height); x.stroke(); }
     for (let gz = Math.floor((b.z0 - 30) / 10) * 10; gz <= b.z1 + 30; gz += 10) { const [, py] = aP(0, gz); x.beginPath(); x.moveTo(0, py); x.lineTo(cv.width, py); x.stroke(); }
-    camino(x, c.contorno); x.fillStyle = 'rgba(194,162,115,.13)'; x.fill(); x.strokeStyle = '#c2a273'; x.lineWidth = 2.5; x.stroke();
-    camino(x, c.mdf.contorno); x.setLineDash([8, 6]); x.strokeStyle = '#8b857b'; x.lineWidth = 1.5; x.stroke(); x.setLineDash([]);
+    camino(x, c.contorno); x.fillStyle = 'rgba(194,162,115,.13)'; x.fill(); x.strokeStyle = '#c2a273'; x.lineWidth = 2 * u; x.stroke();
+    camino(x, c.mdf.contorno); x.setLineDash([6 * u, 5 * u]); x.strokeStyle = '#8b857b'; x.lineWidth = 1.2 * u; x.stroke(); x.setLineDash([]);
     // ejes de simetría
     x.strokeStyle = 'rgba(168,132,79,.35)'; x.setLineDash([3, 6]); const [ox, oy] = aP(0, 0); x.beginPath(); x.moveTo(ox, 0); x.lineTo(ox, cv.height); x.moveTo(0, oy); x.lineTo(cv.width, oy); x.stroke(); x.setLineDash([]);
     pintaPiezas(x, c.P, vista.k);
-    if (tiro) { x.strokeStyle = 'rgba(31,138,76,.8)'; x.lineWidth = 5; x.setLineDash([6, 5]);
+    if (tiro) { x.strokeStyle = 'rgba(31,138,76,.8)'; x.lineWidth = 4 * u; x.setLineDash([5 * u, 4 * u]);
       if (tiro.aro) { x.beginPath(); x.arc(ox, oy, tiro.r * vista.k, 0, 7); x.stroke(); }
       else copiasBarra(tiro.a[0], tiro.a[1], tiro.b[0], tiro.b[1]).forEach(q => { const [p1, p2] = aP(q[0], q[1]), [p3, p4] = aP(q[2], q[3]); x.beginPath(); x.moveTo(p1, p2); x.lineTo(p3, p4); x.stroke(); });
       x.setLineDash([]); }
@@ -314,7 +316,7 @@
       const vert = Math.hypot(b[0] - a[0], b[2] - a[2]) < 1, alto = Math.max(a[1], b[1]) >= yA, bajo = Math.min(a[1], b[1]) <= 8 && Math.max(a[1], b[1]) <= 8;
       const [p1, p2] = aP(a[0], a[2]), [p3, p4] = aP(b[0], b[2]);
       if (vert) { const s = Math.max(w, h) * k; x.fillStyle = '#16140f'; x.fillRect(p1 - s / 2, p2 - s / 2, s, s); return; }
-      x.strokeStyle = bajo ? '#8a7f70' : alto ? '#3a3733' : '#5c5650'; x.lineWidth = Math.max(3, w * k); x.lineCap = 'butt'; x.beginPath(); x.moveTo(p1, p2); x.lineTo(p3, p4); x.stroke();
+      x.strokeStyle = bajo ? '#8a7f70' : alto ? '#3a3733' : '#5c5650'; x.lineWidth = Math.max(3 * u, w * k); x.lineCap = 'butt'; x.beginPath(); x.moveTo(p1, p2); x.lineTo(p3, p4); x.stroke();
     });
     if (P.ped) { const [ox, oy] = aP(0, 0); x.beginPath(); x.arc(ox, oy, P.ped.plato / 2 * k, 0, 7); x.fillStyle = 'rgba(58,55,51,.25)'; x.fill(); x.beginPath(); x.arc(ox, oy, P.ped.columna / 2 * k, 0, 7); x.fillStyle = '#16140f'; x.fill(); }
   }
@@ -323,7 +325,7 @@
     const pl = () => m.planta, snap = ([x, z]) => {
       // se pega a una pata o punta cercana; si no, al centímetro
       const P = pl(), cand = P.postes.concat(...P.arriba.map(q => [[q[0], q[1]], [q[2], q[3]]]), ...P.piso.map(q => [[q[0], q[1]], [q[2], q[3]]]));
-      const k = cand.find(q => Math.hypot(q[0] - x, q[1] - z) * vista.k < 16); return k ? [k[0], k[1]] : [Math.round(x), Math.round(z)];
+      const k = cand.find(q => Math.hypot(q[0] - x, q[1] - z) * vista.k < 14 * u); return k ? [k[0], k[1]] : [Math.round(x), Math.round(z)];
     };
     cv.onpointerdown = e => {
       cv.setPointerCapture(e.pointerId); vista = vistaP; const q = snap(aM(...puntoDe(cv, e))), P = pl();
@@ -341,7 +343,7 @@
     };
   }
   function borrarEn(q) {
-    const P = m.planta, d = 14 / vista.k;
+    const P = m.planta, d = 14 * u / vista.k;
     const pi = P.postes.findIndex(p => Math.hypot(p[0] - q[0], p[1] - q[1]) < d);
     if (pi >= 0) { const cs = copias(...P.postes[pi]); P.postes = P.postes.filter(p => !cs.some(o => Math.hypot(o[0] - p[0], o[1] - p[1]) < 1)); return todo(); }
     for (const k of ['arriba', 'piso']) { const bi = P[k].findIndex(b => G.dSeg(q, [b[0], b[1]], [b[2], b[3]]) < d);
@@ -444,5 +446,6 @@
     v.querySelectorAll('[data-bo]').forEach(b => b.onclick = async () => { if (!confirm('¿Borrar "' + l[b.dataset.bo].nombre + '"?')) return; try { await A.borrarEstudio(b.dataset.bo); if (id === b.dataset.bo) id = null; cerrar(); abrirLista(); } catch (e) { ctx.alerta(e.message); } });
   }
 
-  window.DKAS_ESTUDIO = { pantalla, salir };
+  // _aP: de cm de la mesa a pixeles del lienzo (solo para pruebas)
+  window.DKAS_ESTUDIO = { pantalla, salir, _aP: (x, z) => aP(x, z), _m: () => m };
 })();

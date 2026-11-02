@@ -131,8 +131,9 @@
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : h === '#agenda' ? 'agenda' : h === '#mas' || h === '#visitas' || h === '#bases' || h === '#precios' ? 'mas' : h === '#clientes' || h === '#accesos' || /^#prop=/.test(h) ? 'clientes' : h === '#accesos' ? 'accesos' : 'log';
+    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : h === '#agenda' ? 'agenda' : h === '#mas' || h === '#visitas' || h === '#bases' || h === '#precios' || h === '#estudio' ? 'mas' : h === '#clientes' || h === '#accesos' || /^#prop=/.test(h) ? 'clientes' : h === '#accesos' ? 'accesos' : 'log';
     if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
+    if (h !== '#estudio' && window.DKAS_ESTUDIO) DKAS_ESTUDIO.salir();
     $$('#top-nav a[data-sec]').forEach(a => { a.classList.toggle('on', a.dataset.sec === sec); if (a.dataset.sec === sec && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'center' }); });
     if (h === '#precios') return precios();
     main.onclick = null; contarSolicitudes(); if (h !== '#agenda') { editando = null; contarAgenda(); }
@@ -143,6 +144,7 @@
     if (h === '#visitas') return visitas();
     if (h === '#accesos') return accesos();
     if (h === '#bases') return DKAS_DISENA.pantalla(main, { toast, alerta });
+    if (h === '#estudio') return DKAS_ESTUDIO.pantalla(main, { toast, alerta });
     if (h === '#nuevo') return nuevo();
     if (h === '#taller') return lista('taller');
     const id = (h.match(/^#([pt])=([\w-]+)/) || []);
@@ -592,11 +594,11 @@
 
   // ---------- quién ha entrado a la página de clientes (dan su nombre al entrar y la página los recuerda) ----------
   async function visitas() {
-    main.innerHTML = '<h1>Visitas</h1><p class="sub">Cargando…</p>';
-    let l; try { l = await A.visitas(); } catch (e) { main.innerHTML = '<h1>Visitas</h1><p class="err">' + esc(e.message) + '</p>'; return; }
+    main.innerHTML = '<h1>Auditoría</h1><p class="sub">Cargando…</p>';
+    let l, bq = {}; try { [l, bq] = await Promise.all([A.visitas(), A.bloqueos().catch(() => ({}))]); } catch (e) { main.innerHTML = '<h1>Auditoría</h1><p class="err">' + esc(e.message) + '</p>'; return; }
     // una fila por persona (mismo navegador = misma persona)
     const per = {};
-    l.slice().sort((a, b) => (a.ult || a.t) - (b.ult || b.t)).forEach(x => { const k = x.v || x.t; const a = per[k] = per[k] || { nombre: '', veces: 0, primera: x.t, ult: 0, disp: x.disp, origen: x.origen, max: 0, folio: 0, tel: '', interes: '', ints: [], vs: [], diseno: '' };
+    l.slice().sort((a, b) => (a.ult || a.t) - (b.ult || b.t)).forEach(x => { const k = x.v || x.t; const a = per[k] = per[k] || { v: x.v || '', nombre: '', veces: 0, primera: x.t, ult: 0, disp: x.disp, origen: x.origen, max: 0, folio: 0, tel: '', interes: '', ints: [], vs: [], diseno: '' };
       a.veces++; a.primera = Math.min(a.primera, x.t); a.ult = Math.max(a.ult, x.ult || x.t); if (x.nombre) a.nombre = x.nombre; a.max = Math.max(a.max, x.paso || 0); if (x.folio) a.folio = x.folio; if (x.tel) a.tel = x.tel; if (x.interes) { a.interes = x.interes; if (!a.ints.includes(x.interes)) a.ints.push(x.interes); } if (x.diseno) a.diseno = x.diseno; a.vs.push(x); });
     // su WhatsApp: el que dejó en la página o, si no, el de su pedido o su solicitud de acceso con el mismo nombre
     const sols = await A.solicitudes().catch(() => []), llave = s => String(s || '').trim().toLowerCase();
@@ -640,10 +642,16 @@
     const botonWA = g => g.tel ? '<a class="btn chico wa-v" target="_blank" rel="noopener" href="https://wa.me/' + A.waNum(g.tel) + '?text=' + encodeURIComponent(msjWA(g)) + '">WhatsApp</a>' : '<small class="sin-tel">sin WhatsApp</small>';
     const PASO = ['Vio la página', 'Abrió el 3D', 'Armó su mesa', 'Mandó su diseño'];
     const cuando = t => { const d = new Date(t); return d.toDateString() === hoy ? 'hoy ' + d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' }) : A.fecha(t); };
-    main.innerHTML = '<h1>Visitas</h1><p class="sub">Quién ha entrado a dkas.mx. Al entrar se les pide su nombre y la página los recuerda.</p>'
-      + '<div class="resumen-g"><div><b>' + gente.length + '</b><span>personas</span></div><div><b>' + gente.filter(g => new Date(g.ult).toDateString() === hoy).length + '</b><span>hoy</span></div><div><b>' + gente.filter(g => g.folio).length + '</b><span>mandaron pedido</span></div></div>'
+    // bloquear: su teléfono o computadora (y su solicitud) ya no ven nada de dkas.mx, solo 'No puedes entrar en este momento'
+    const idsDe = g => [g.v, g.sol && g.sol.id].filter(x => /^[0-9a-f]{32}$/.test(x || '')), bloq = g => idsDe(g).some(id => bq[id]);
+    const bqV = g => idsDe(g).length ? '<button class="btn chico' + (bloq(g) ? ' bq-on' : '') + '" data-bq="' + idsDe(g).join(',') + '" data-bqs="' + (bloq(g) ? 0 : 1) + '" data-bqn="' + esc(g.nombre || 'Sin nombre') + '">' + (bloq(g) ? 'Desbloquear' : 'Bloquear') + '</button>' : '';
+    main.onclick = async e => { const b = e.target.closest('[data-bq]'); if (!b) return; const si = b.dataset.bqs === '1';
+      if (si && !confirm('¿Bloquear a ' + b.dataset.bqn + '? Ya no podrá ver nada de dkas.mx hasta que lo desbloquees.')) return;
+      b.disabled = true; try { await A.bloquear(b.dataset.bq.split(','), b.dataset.bqn, si); toast(si ? 'Bloqueado: le sale «No puedes entrar en este momento»' : 'Desbloqueado: ya puede entrar'); visitas(); } catch (x) { alerta(x.message); b.disabled = false; } };
+    main.innerHTML = '<h1>Auditoría</h1><p class="sub">Todo lo que hacen los clientes en dkas.mx, persona por persona. Si ves a alguien sospechoso, tócale <b>Bloquear</b>: ya no verá nada de la página (le sale «No puedes entrar en este momento. Intenta más tarde.»).</p>'
+      + '<div class="resumen-g"><div><b>' + gente.length + '</b><span>personas</span></div><div><b>' + gente.filter(g => new Date(g.ult).toDateString() === hoy).length + '</b><span>hoy</span></div><div><b>' + gente.filter(g => g.folio).length + '</b><span>mandaron pedido</span></div><div><b>' + gente.filter(bloq).length + '</b><span>bloqueados</span></div></div>'
       + '<div class="sec">' + (gente.length ? gente.map(g => '<div class="vis-p"><div class="fila vis"><div><b>' + esc(g.nombre || 'Sin nombre') + '</b><small>' + esc([g.disp, g.origen].filter(Boolean).join(' · ')) + '</small>' + (g.sol ? '<small class="v-sol">' + (ESOL[g.sol.estado] || 'Pidió acceso al 3D') + ' · ' + cuando(g.sol.creado) + '</small>' : '') + '</div>'
-        + '<div><span>' + (g.folio ? 'Mandó pedido #' + g.folio : PASO[Math.min(2, g.max)]) + '</span><small>' + g.veces + (g.veces === 1 ? ' visita' : ' visitas') + ' · última ' + cuando(g.ult) + '</small>' + (g.nombre ? botonWA(g) : '') + '</div></div>' + ((g.nombre && (g.ints.length || g.max || g.sol || g.folio)) ? '<div class="q-hizo"><p class="et-h">Qué hizo</p>' + historia(g) + '</div>' : '<details class="q-hizo"><summary>Qué hizo</summary>' + historia(g) + '</details>') + '</div>').join('') : '<p class="sub">Todavía nadie.</p>') + '</div>';
+        + '<div><span>' + (g.folio ? 'Mandó pedido #' + g.folio : PASO[Math.min(2, g.max)]) + '</span><small>' + g.veces + (g.veces === 1 ? ' visita' : ' visitas') + ' · última ' + cuando(g.ult) + '</small>' + (g.nombre ? botonWA(g) : '') + bqV(g) + (bloq(g) ? '<small class="bq-et">⛔ Bloqueado</small>' : '') + '</div></div>' + ((g.nombre && (g.ints.length || g.max || g.sol || g.folio)) ? '<div class="q-hizo"><p class="et-h">Qué hizo</p>' + historia(g) + '</div>' : '<details class="q-hizo"><summary>Qué hizo</summary>' + historia(g) + '</details>') + '</div>').join('') : '<p class="sub">Todavía nadie.</p>') + '</div>';
   }
 
   // ---------- agenda: los pendientes del equipo, con fecha y en orden ----------
@@ -707,7 +715,7 @@
     };
   }
   function mas() {
-    main.innerHTML = '<h1>Más</h1><div class="mas">' + [['#visitas', 'Visitas', 'Quién entra a dkas.mx'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#precios', 'Precios', 'Costos y margen'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza'], ['https://dkas.mx/cotiza.html', 'Cotizador express', 'Lo que ven los clientes']]
+    main.innerHTML = '<h1>Más</h1><div class="mas">' + [['#estudio', 'Estudio de diseño', 'Crea mesas completas: piedra, recorte, base y medidas'], ['#visitas', 'Auditoría', 'Todo lo que hacen los clientes · bloquear'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#precios', 'Precios', 'Costos y margen'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza'], ['https://dkas.mx/cotiza.html', 'Cotizador express', 'Lo que ven los clientes']]
       .map(([h, t, d]) => '<a href="' + h + '"' + (/^http/.test(h) ? ' target="_blank" rel="noopener"' : '') + '><b>' + t + '</b><small>' + d + '</small></a>').join('') + '<a href="#" id="salir2"><b>Salir</b><small>Cerrar sesión en este aparato</small></a></div>';
     $('#salir2').onclick = e => { e.preventDefault(); $('#salir').click(); };
   }

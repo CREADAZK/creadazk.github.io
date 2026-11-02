@@ -531,7 +531,7 @@
     const P = piezas({ base: B, m });
     // piedra: cuántas placas de 320 × 160 (se acuesta como convenga)
     const n1 = [Math.ceil(m.L / PLACA.L), Math.ceil(m.W / PLACA.W)], n2 = [Math.ceil(m.L / PLACA.W), Math.ceil(m.W / PLACA.L)];
-    const [nL, nW] = n1[0] * n1[1] <= n2[0] * n2[1] ? n1 : n2, placas = nL * nW, uniones = (nL - 1) + (nW - 1);
+    const rot = n1[0] * n1[1] > n2[0] * n2[1], [nL, nW] = rot ? n2 : n1, placas = nL * nW, uniones = (nL - 1) + (nW - 1);
     const a2 = Math.abs(G.area(ct)), m2 = Math.round(a2 / 100) / 100, peso = Math.round(m2 * 28.8), per = G.perim(ct);
     const aprov = Math.round(a2 / (PLACA.L * PLACA.W * placas) * 100);
     // ---- revisiones: que la base y la piedra tengan lógica ----
@@ -604,7 +604,7 @@
     return { m, estudio: true, contorno: ct, mdf, base: B, cortes, metros, P, volados, volReal,
       piedra: { L: m.L, W: m.W, esp: PLACA.esp, m2, aprov, peso, placas, perim: Math.round(per) / 100 },
       personas: personasN, rev, nivel, avisos: rev.filter(r => r.n).map(r => r.t), radio: 0, libre: { lado: null, cabecera: null },
-      viab: { placas, nL, nW, uniones, m2, peso, nivel: Math.min(nivel, 2) } };
+      viab: { placas, nL, nW, rot, uniones, m2, peso, nivel: Math.min(nivel, 2) } };
   }
 
   // ---------- precios: lo que cuesta, lo que pactamos y cuánto ganamos ----------

@@ -175,6 +175,10 @@
     async gastos() { return Object.entries((await db('gastos', 'GET', undefined, true)) || {}).map(([k, x]) => Object.assign({ id: k }, x)).sort((a, b) => b.fecha.localeCompare(a.fecha) || b.creado - a.creado); },
     async agregarGasto(x) { const me = await this.yo(); await db('gastos', 'POST', Object.assign({}, x, { por: me.nombre, creado: TS }), true); },
     async borrarGasto(id) { await db('gastos/' + id, 'DELETE', undefined, true); },
+    async guardarGasto(id, x) { await db('gastos/' + id, 'PUT', x, true); },
+    async ingresos() { return Object.entries((await db('ingresos', 'GET', undefined, true)) || {}).map(([k, x]) => Object.assign({ id: k }, x)).sort((a, b) => b.fecha.localeCompare(a.fecha) || b.creado - a.creado); },
+    async agregarIngreso(x) { const me = await this.yo(); await db('ingresos', 'POST', Object.assign({}, x, { por: me.nombre, creado: TS }), true); },
+    async borrarIngreso(id) { await db('ingresos/' + id, 'DELETE', undefined, true); },
     // what the public page shows: notice, WhatsApp numbers, hidden models and stones
     // the owner's costs and monthly goal (staff only)
     async config() { return (await db('config/tarifa', 'GET', undefined, true)) || {}; },
@@ -305,6 +309,10 @@
     async gastos() { return load('dazk-demo-gastos', []).slice().sort((a, b) => b.fecha.localeCompare(a.fecha) || b.creado - a.creado); },
     async agregarGasto(x) { save('dazk-demo-gastos', load('dazk-demo-gastos', []).concat(Object.assign({ id: rnd() }, x, { por: who().nombre, creado: Date.now() }))); },
     async borrarGasto(id) { save('dazk-demo-gastos', load('dazk-demo-gastos', []).filter(x => x.id !== id)); },
+    async guardarGasto(id, x) { save('dazk-demo-gastos', load('dazk-demo-gastos', []).map(g => g.id === id ? Object.assign({ id }, x) : g)); },
+    async ingresos() { return load('dazk-demo-ingresos', []).slice().sort((a, b) => b.fecha.localeCompare(a.fecha) || b.creado - a.creado); },
+    async agregarIngreso(x) { save('dazk-demo-ingresos', load('dazk-demo-ingresos', []).concat(Object.assign({ id: rnd() }, x, { por: who().nombre, creado: Date.now() }))); },
+    async borrarIngreso(id) { save('dazk-demo-ingresos', load('dazk-demo-ingresos', []).filter(x => x.id !== id)); },
     async config() { return load('dazk-demo-config', {}); },
     async guardarConfig(c) { save('dazk-demo-config', c); },
     async publico() { return load('dazk-demo-publico', {}); },

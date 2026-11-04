@@ -101,6 +101,8 @@
     if (est !== p.estado) { await A.staffEstado(p.id, est); p.estado = est; toast('Pasó solo a: ' + A.estado(est)); }
   }
 
+  DKAS_AGENDA.init({ A, D, main, esc, hoy, fechaCorta, pesos, todos: () => todos, me: () => me, numeros, entrega, sigue, avanzar, recargar, ruta: () => ruta(), toast: t => toast(t), alerta: t => alerta(t) });
+
   // ---------- entrar ----------
   async function arrancar() {
     try { me = await A.yo(); } catch (e) { me = null; }
@@ -108,7 +110,7 @@
     if (!me.nombre) return nombre();
     $('#top-nav').hidden = false;
     main.innerHTML = '<p class="cargando">Cargando…</p>';
-    await recargar(); if (!location.hash) history.replaceState(null, '', '#clientes'); ruta(); barraAvisos(); vigilar();
+    await recargar(); if (!location.hash) history.replaceState(null, '', '#agenda'); ruta(); barraAvisos(); vigilar();
   }
   function login(err) {
     $('#top-nav').hidden = true;
@@ -131,16 +133,16 @@
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : h === '#agenda' ? 'agenda' : h === '#mas' || h === '#visitas' || h === '#bases' || h === '#precios' || h === '#estudio' ? 'mas' : h === '#clientes' || h === '#accesos' || /^#prop=/.test(h) ? 'clientes' : h === '#accesos' ? 'accesos' : 'log';
+    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : h === '#agenda' || h === '#dinero' ? 'agenda' : h === '#mas' || h === '#visitas' || h === '#bases' || h === '#precios' || h === '#estudio' ? 'mas' : h === '#clientes' || h === '#accesos' || /^#prop=/.test(h) ? 'clientes' : h === '#accesos' ? 'accesos' : 'log';
     if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
     if (h !== '#estudio' && window.DKAS_ESTUDIO) DKAS_ESTUDIO.salir();
     $$('#top-nav a[data-sec]').forEach(a => { a.classList.toggle('on', a.dataset.sec === sec); if (a.dataset.sec === sec && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'center' }); });
     if (h === '#precios') return precios();
-    main.onclick = null; contarSolicitudes(); if (h !== '#agenda') { editando = null; contarAgenda(); }
+    main.onclick = null; contarSolicitudes(); if (h !== '#agenda' && h !== '#dinero') contarAgenda();
     if (h === '#clientes') return clientes();
     if (h === '#mas') return mas();
     if (/^#prop=[0-9a-f]{32}$/.test(h)) return propuesta(h.slice(6));
-    if (h === '#agenda') return agenda();
+    if (h === '#agenda' || h === '#dinero') return DKAS_AGENDA.pantalla(h.slice(1));
     if (h === '#visitas') return visitas();
     if (h === '#accesos') return accesos();
     if (h === '#bases') return DKAS_DISENA.pantalla(main, { toast, alerta });
@@ -248,8 +250,9 @@
           + '<p class="nota">Se guarda solo. Si no pones fecha, al cobrar el anticipo se pone sola a ' + dias() + ' días.</p>')
         + sec(3, 'Cotización al cliente', '<div id="coti"></div>')
         + sec(4, 'Pagos', '<div id="pagos"></div>')
+        + sec(5, 'Agenda y gastos de este pedido', '<div id="ag-ped"></div>')
         + pie + '<div class="guardar" id="gbar" hidden><span>Tienes cambios sin guardar</span><button class="btn negro" id="guardar">Guardar</button></div>';
-      pintarCoti(p); pintarPagos(p);
+      pintarCoti(p); pintarPagos(p); DKAS_AGENDA.enPedido(p, $('#ag-ped'));
     } else {
       const c = D.calcular(m), lim = D.limites(m.uso, m.forma, m.L), red = D.redonda(m.forma);
       main.innerHTML = cab
@@ -654,65 +657,10 @@
         + '<div><span>' + (g.folio ? 'Mandó pedido #' + g.folio : PASO[Math.min(2, g.max)]) + '</span><small>' + g.veces + (g.veces === 1 ? ' visita' : ' visitas') + ' · última ' + cuando(g.ult) + '</small>' + (g.nombre ? botonWA(g) : '') + bqV(g) + (bloq(g) ? '<small class="bq-et">⛔ Bloqueado</small>' : '') + '</div></div>' + ((g.nombre && (g.ints.length || g.max || g.sol || g.folio)) ? '<div class="q-hizo"><p class="et-h">Qué hizo</p>' + historia(g) + '</div>' : '<details class="q-hizo"><summary>Qué hizo</summary>' + historia(g) + '</details>') + '</div>').join('') : '<p class="sub">Todavía nadie.</p>') + '</div>';
   }
 
-  // ---------- agenda: los pendientes del equipo, con fecha y en orden ----------
-  let tareas = [], editando = null, verHechos = false;
-  const urgente = t => !t.hecho && t.fecha && t.fecha <= hoy();
+  // ---------- agenda: ahora vive en agenda.js (Mi agenda + Dinero); aquí solo el contador ----------
   function contarAgenda(l) {
-    const pinta = x => { const n = x.filter(urgente).length, b = $('#nb-age'); if (b) { b.textContent = n; b.hidden = !n; } };
-    if (l) return pinta(l);
-    A.agenda().then(x => { tareas = x; pinta(x); }).catch(() => {});
-  }
-  async function agenda() {
-    main.innerHTML = '<h1>Agenda</h1><p class="sub">Cargando…</p>';
-    try { tareas = await A.agenda(); } catch (e) { main.innerHTML = '<h1>Agenda</h1><p class="err">' + esc(e.message) + '</p>'; return; }
-    pintarAgenda();
-  }
-  function pintarAgenda() {
-    contarAgenda(tareas);
-    const h = hoy(), m = hoy(1), ed = editando && tareas.find(t => t.id === editando);
-    const orden = (a, b) => (a.fecha || '9').localeCompare(b.fecha || '9') || (b.urgente ? 1 : 0) - (a.urgente ? 1 : 0) || (a.hora || '99').localeCompare(b.hora || '99') || a.creado - b.creado;
-    const pend = tareas.filter(t => !t.hecho).sort(orden), hechos = tareas.filter(t => t.hecho).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.creado - a.creado);
-    const grupos = [];
-    const meter = (k, tit, cls, t) => { let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, tit, cls, l: [] }); g.l.push(t); };
-    pend.forEach(t => !t.fecha ? meter('z', 'Sin fecha', 'gris', t) : t.fecha < h ? meter('0', 'Atrasados', 'mal', t) : t.fecha === h ? meter('1', 'Hoy · ' + fechaCorta(h), 'ag-hoy', t) : t.fecha === m ? meter('2', 'Mañana · ' + fechaCorta(m), '', t) : meter(t.fecha, fechaCorta(t.fecha), '', t));
-    grupos.sort((a, b) => a.k < b.k ? -1 : 1);
-    const fila = t => '<div class="tarea' + (t.hecho ? ' hecha' : '') + (t.urgente && !t.hecho ? ' urg' : '') + '" data-id="' + t.id + '"><button class="chk" data-a="hecho" aria-label="' + (t.hecho ? 'Marcar pendiente' : 'Marcar hecho') + '"></button>'
-      + '<div class="tx"><p>' + esc(t.texto).replace(/\n/g, '<br>') + '</p><small>' + [t.hora ? t.hora.replace(/^0/, '') + ' h' : '', t.urgente && !t.hecho ? '<b>Urgente</b>' : '', (t.hecho || (t.fecha && t.fecha < h)) && t.fecha ? fechaCorta(t.fecha) : '', t.por ? 'anotó ' + esc(t.por) : ''].filter(Boolean).join(' · ') + '</small></div>'
-      + '<div class="acc"><button class="lnk" data-a="editar">editar</button><button class="lnk gris" data-a="borrar">borrar</button></div></div>';
-    const cuenta = k => (grupos.find(g => g.k === k) || { l: [] }).l.length;
-    main.innerHTML = '<div class="cab"><div><h1>Agenda</h1><p class="sub">Los pendientes en orden: lo atrasado y lo de hoy, arriba.</p></div></div>'
-      + '<div class="resumen-g"><div class="rg mal"><b>' + cuenta('0') + '</b><span>Atrasados</span></div><div class="rg ambar"><b>' + cuenta('1') + '</b><span>Hoy</span></div><div class="rg"><b>' + pend.length + '</b><span>Pendientes</span></div><div class="rg gris"><b>' + hechos.length + '</b><span>Hechos</span></div></div>'
-      + '<div class="sec ag-nueva"><textarea id="ag-tx" rows="2" maxlength="400" placeholder="¿Qué hay que hacer? Ej. Llamar a Manuel para la fecha de entrega">' + esc(ed ? ed.texto : '') + '</textarea>'
-      + '<div class="ag-campos"><label>Fecha<input type="date" id="ag-f" value="' + esc(ed ? ed.fecha || '' : h) + '"></label><label>Hora (opcional)<input type="time" id="ag-h" value="' + esc(ed ? ed.hora || '' : '') + '"></label>'
-      + '<label class="ag-urg"><input type="checkbox" id="ag-u"' + (ed && ed.urgente ? ' checked' : '') + '> Urgente</label></div>'
-      + '<div class="ag-rapido"><button class="btn chico" data-agf="' + h + '">Hoy</button><button class="btn chico" data-agf="' + m + '">Mañana</button><button class="btn chico" data-agf="' + hoy(7) + '">En una semana</button><button class="btn chico" data-agf="">Sin fecha</button></div>'
-      + '<div class="ag-bot"><button class="btn negro" id="ag-ok">' + (ed ? 'Guardar cambios' : '+ Agregar pendiente') + '</button>' + (ed ? '<button class="btn" id="ag-cancel">Cancelar</button>' : '') + '</div></div>'
-      + (grupos.length ? grupos.map(g => '<h3 class="ag-g ' + g.cls + '">' + esc(g.tit) + ' <i>' + g.l.length + '</i></h3><div class="lista">' + g.l.map(fila).join('') + '</div>').join('') : '<p class="sub ag-vacio">No hay pendientes.</p>')
-      + (hechos.length ? '<h3 class="ag-g"><button class="lnk gris" id="ag-ver">' + (verHechos ? 'Ocultar' : 'Ver') + ' hechos (' + hechos.length + ')</button></h3>' + (verHechos ? '<div class="lista">' + hechos.slice(0, 60).map(fila).join('') + '</div>' : '') : '');
-    $$('.ag-rapido [data-agf]').forEach(b => b.onclick = () => { $('#ag-f').value = b.dataset.agf; $$('.ag-rapido [data-agf]').forEach(z => z.classList.toggle('on', z === b)); });
-    const tx = $('#ag-tx'); if (ed) { tx.focus(); tx.scrollIntoView({ block: 'center' }); }
-    tx.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) { e.preventDefault(); $('#ag-ok').click(); } };
-    if ($('#ag-cancel')) $('#ag-cancel').onclick = () => { editando = null; pintarAgenda(); };
-    if ($('#ag-ver')) $('#ag-ver').onclick = () => { verHechos = !verHechos; pintarAgenda(); };
-    $('#ag-ok').onclick = async () => {
-      const texto = tx.value.trim(); if (!texto) { tx.focus(); return alerta('Escribe el pendiente.'); }
-      const x = Object.assign({}, ed ? { hecho: ed.hecho, creado: ed.creado } : { hecho: false, creado: Date.now() }, { texto: texto.slice(0, 400) });
-      const por = String(ed ? ed.por || '' : (me && me.nombre) || '').slice(0, 60); if (por) x.por = por;
-      const f = $('#ag-f').value, hr = $('#ag-h').value; if (f) x.fecha = f; if (hr) x.hora = hr; if ($('#ag-u').checked) x.urgente = true;
-      const id = ed ? ed.id : Date.now().toString(36) + A.rnd().slice(0, 6), b = $('#ag-ok'); b.disabled = true;
-      try { await A.guardarTarea(id, x); tareas = tareas.filter(t => t.id !== id).concat([Object.assign({ id }, x)]); editando = null; toast(ed ? 'Cambios guardados' : 'Pendiente agregado'); pintarAgenda(); }
-      catch (e) { b.disabled = false; alerta(e.message); }
-    };
-    main.onclick = async e => {
-      const b = e.target.closest('[data-a]'), r = b && b.closest('.tarea'); if (!r) return;
-      const t = tareas.find(z => z.id === r.dataset.id); if (!t) return;
-      if (b.dataset.a === 'editar') { editando = t.id; return pintarAgenda(); }
-      if (b.dataset.a === 'borrar') { if (!confirm('¿Borrar este pendiente?')) return; try { await A.borrarTarea(t.id); tareas = tareas.filter(z => z.id !== t.id); pintarAgenda(); } catch (x) { alerta(x.message); } return; }
-      if (b.dataset.a === 'hecho') {
-        const n = Object.assign({}, t, { hecho: !t.hecho }); delete n.id; r.classList.toggle('hecha', n.hecho);
-        try { await A.guardarTarea(t.id, n); t.hecho = n.hecho; if (n.hecho) toast('Hecho ✓'); setTimeout(pintarAgenda, n.hecho ? 400 : 0); } catch (x) { r.classList.toggle('hecha', t.hecho); alerta(x.message); }
-      }
-    };
+    if (l) return DKAS_AGENDA.contar(l);
+    A.agenda().then(x => DKAS_AGENDA.contar(x)).catch(() => {});
   }
   function mas() {
     main.innerHTML = '<h1>Más</h1><div class="mas">' + [['#estudio', 'Estudio de diseño', 'Crea mesas completas: piedra, recorte, base y medidas'], ['#visitas', 'Auditoría', 'Todo lo que hacen los clientes · bloquear'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#precios', 'Precios', 'Costos y margen'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza'], ['https://dkas.mx/cotiza.html', 'Cotizador express', 'Lo que ven los clientes']]
@@ -1115,7 +1063,7 @@
         l.filter(p => antes.ped[p.id] && ahora.msg[p.id] > (antes.msg[p.id] || 0)).forEach(p => hay.push(['Mensaje de ' + p.nombre, 'Pedido #' + p.folio, '#p=' + p.id]));
         pend.filter(x => !antes.sol[x.id]).forEach(x => hay.push(['Solicitud nueva · por aprobar', (x.nombre + ' ' + (x.apellido === '(web)' ? '' : x.apellido || '')).trim() + (x.quiere ? ' · ' + x.quiere : ''), '#clientes']));
         hay.slice(0, 5).forEach(a => avisar(a[0], a[1], a[2], true)); if (hay.length) toast(hay.length === 1 ? hay[0][0] + ' · ' + hay[0][1] : hay.length + ' avisos: ' + hay.map(a => a[0]).join(' · ')); if (hay.length > 5) avisar('Y ' + (hay.length - 5) + ' avisos más', 'Abre el panel', '');
-        if (hay.length) { sonido(); todos = l; if (['', '#', '#taller', '#accesos', '#clientes'].includes(location.hash)) ruta(); }
+        if (hay.length) { sonido(); todos = l; if (['', '#', '#taller', '#accesos', '#clientes', '#agenda', '#dinero'].includes(location.hash) && !(document.activeElement && document.activeElement.id === 'ag-tx')) ruta(); }
       }
       A.save(AV_K, ahora);
       const b = $('#nb-acc'); if (b) { b.textContent = pend.length; b.hidden = !pend.length; }
@@ -1129,7 +1077,7 @@
     // agenda: avisa cuando llega la hora de un pendiente (una vez por pendiente)
     try {
       const ag = await A.agenda(), d = new Date(), hhmm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), ya = A.load('dkas-ag-av', {});
-      contarAgenda(ag); if (location.hash !== '#agenda') tareas = ag;
+      contarAgenda(ag);
       ag.filter(t => !t.hecho && t.hora && t.fecha === hoy() && t.hora <= hhmm && !ya[t.id]).forEach(t => { ya[t.id] = 1; avisar('Pendiente · ' + t.hora.replace(/^0/, '') + ' h', t.texto.slice(0, 120), '#agenda'); sonido(); });
       Object.keys(ya).forEach(k => { if (!ag.some(t => t.id === k && !t.hecho)) delete ya[k]; }); A.save('dkas-ag-av', ya);
     } catch (e) {}

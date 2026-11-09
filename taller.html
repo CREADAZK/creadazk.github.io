@@ -403,6 +403,14 @@ a.rg{text-decoration:none;color:inherit}
 /* listo para mandar por WhatsApp + sin desbordarse a lo ancho en el celular */
 .vm-caja{overflow-x:hidden;box-sizing:border-box}.vm-tx{min-width:0}.vm-caja textarea{max-width:100%;box-sizing:border-box;overflow-wrap:anywhere}
 .wa-lista{z-index:95}.wa-prev{display:block;width:100%;max-height:46vh;object-fit:contain;background:#fff;border-radius:12px;margin:10px 0}
+/* presentación de la página: 3 opciones con vista previa */
+.pres-ops{display:grid;gap:18px;margin-top:18px}
+@media(min-width:900px){.pres-ops{grid-template-columns:repeat(3,1fr)}}
+.pres-op{border:1px solid var(--line,#ddd);border-radius:14px;overflow:hidden;background:#fff}
+.pres-op.on{border:2px solid #b8954f}
+.pres-op iframe{display:block;width:100%;aspect-ratio:9/12;border:0;pointer-events:none;background:#14110e}
+.pres-op>div{padding:12px 14px}.pres-op b{display:block}.pres-op b i{font-style:normal;color:#8f7043;font-weight:500}
+.pres-op small{display:block;color:#6b6258;margin:4px 0 10px}.pres-bot{display:flex;gap:8px;flex-wrap:wrap}
 /* DKAS · Estudio de diseño (panel, solo administración) */
 .es-cab{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
 .es-acc{display:flex;flex-wrap:wrap;gap:8px}
@@ -610,4 +618,4 @@ a.rg{text-decoration:none;color:inherit}
 </style></head><body>
 <header class="top"><a href="#agenda"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#agenda" data-sec="agenda">Mi agenda<i class="badge" id="nb-age" hidden></i></a><a href="#clientes" data-sec="clientes">Clientes<i class="badge" id="nb-acc" hidden></i></a><a href="#" data-sec="log">Pedidos<span class="lg"> y logística</span></a><a href="#taller" data-sec="taller">Taller<span class="lg"> y creación</span></a><a href="#mas" data-sec="mas">Más</a><a href="#" id="salir" hidden>Salir</a></nav></header>
 <div id="avisos" class="avisos" hidden></div><main id="m"></main><div id="toast" hidden></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=9d1a98dc8e"></script><script src="js/dkas-api.js?v=a2648eaa0b"></script><script src="js/dkas-croquis.js?v=1713142b92"></script><script src="js/disena.js?v=fbf9a608dd"></script><script src="js/estudio.js?v=e796ae90c8"></script><script src="js/agenda.js?v=fa2ce7919c"></script><script src="js/agenda-simple.js?v=d521845bfb"></script><script src="js/panel-interes.js?v=944d66e338"></script><script src="js/panel.js?v=0b9d54a6c1"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=af91a721a8"></script><script src="js/dkas-api.js?v=a2648eaa0b"></script><script src="js/dkas-croquis.js?v=1713142b92"></script><script src="js/disena.js?v=fbf9a608dd"></script><script src="js/estudio.js?v=e796ae90c8"></script><script src="js/agenda.js?v=fa2ce7919c"></script><script src="js/agenda-simple.js?v=d521845bfb"></script><script src="js/panel-interes.js?v=dd47ea5755"></script><script src="js/panel.js?v=71b0c5b97d"></script></body></html>

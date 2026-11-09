@@ -84,6 +84,12 @@
   $$('#menu a').forEach(a => a.addEventListener('click', () => abrirMenu(false)));
 
   // ---------- portada: las fotos se van turnando ----------
+  // portada: la presentación que el dueño escoge en el panel (clasica / revista / mosaico); se recuerda para que no parpadee
+  const portada = $('#portada');
+  const ponPres = p => { if (!portada || !/^(clasica|revista|mosaico)$/.test(p || '')) return; portada.dataset.pres = p; $$('#portada > .pv').forEach(s => s.classList.toggle('act', s.dataset.p === p)); };
+  try { ponPres(localStorage.getItem('dkas-pres')); } catch (e) {}
+  if (A && A.publico) A.publico().then(c => { if (c && c.presentacion) { ponPres(c.presentacion); try { localStorage.setItem('dkas-pres', c.presentacion); } catch (e) {} } }).catch(() => {});
+  const vp = new URLSearchParams(location.search).get('portada'); if (vp) ponPres(vp); // vista previa desde el panel
   const slides = $$('.hero .slides img');
   let si = 0;
   if (slides.length > 1 && !matchMedia('(prefers-reduced-motion:reduce)').matches) setInterval(() => {
@@ -188,7 +194,7 @@
   }, 'image/png');
 
   // ---------- pantallas: cada sección se abre sola (con el #) ----------
-  const PANT = { inicio: ['.hero', '#accesos', '.sellos', '#revista'], crea: ['#disena', '#acceso', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
+  const PANT = { inicio: ['#portada', '#accesos', '.sellos', '#revista'], crea: ['#disena', '#acceso', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
     bases: ['#bases'], proyectos: ['#proyectos'], arquitectos: ['#arquitectos'], como: ['#casa', '#como', '#preguntas'], contacto: ['#contacto'] };
   const ALIAS = { app: 'crea', disena: 'crea', casa: 'como', preguntas: 'como', porque: 'piedras', espacios: 'proyectos', revista: 'inicio' };
   const ORDEN = ['inicio', 'crea', 'coleccion', 'piedras', 'bases', 'proyectos', 'arquitectos', 'como', 'contacto'];

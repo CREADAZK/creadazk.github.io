@@ -134,7 +134,7 @@
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : h === '#agenda' || h === '#dinero' ? 'agenda' : h === '#mas' || h === '#visitas' || h === '#bases' || h === '#precios' || h === '#estudio' ? 'mas' : h === '#clientes' || h === '#accesos' || /^#prop=/.test(h) ? 'clientes' : h === '#accesos' ? 'accesos' : 'log';
+    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : h === '#agenda' || h === '#dinero' ? 'agenda' : h === '#mas' || h === '#visitas' || h === '#bases' || h === '#precios' || h === '#estudio' || h === '#portada' ? 'mas' : h === '#clientes' || h === '#accesos' || /^#prop=/.test(h) ? 'clientes' : h === '#accesos' ? 'accesos' : 'log';
     if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
     if (h !== '#estudio' && window.DKAS_ESTUDIO) DKAS_ESTUDIO.salir();
     $$('#top-nav a[data-sec]').forEach(a => { a.classList.toggle('on', a.dataset.sec === sec); if (a.dataset.sec === sec && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'center' }); });
@@ -145,6 +145,7 @@
     if (/^#prop=[0-9a-f]{32}$/.test(h)) return propuesta(h.slice(6));
     if (h === '#agenda' || h === '#dinero') return DKAS_AGENDA.pantalla(h.slice(1));
     if (h === '#visitas') return visitas();
+    if (h === '#portada') return portada();
     if (h === '#accesos') return accesos();
     if (h === '#bases') return DKAS_DISENA.pantalla(main, { toast, alerta });
     if (h === '#estudio') return DKAS_ESTUDIO.pantalla(main, { toast, alerta });
@@ -674,8 +675,18 @@
     if (l) return DKAS_AGENDA.contar(l);
     A.agenda().then(x => DKAS_AGENDA.contar(x)).catch(() => {});
   }
+  // ---------- cómo se ve el inicio de dkas.mx para los clientes: 3 presentaciones ----------
+  async function portada() {
+    main.innerHTML = '<h1>Presentación de la página</h1><p class="sub">Cargando…</p>';
+    let c = {}; try { c = await A.publico() || {}; } catch (e) {}
+    const act = c.presentacion || 'clasica', OPS = [['clasica', 'Clásica', 'Foto grande a pantalla completa que va cambiando, con el texto abajo.'], ['revista', 'Revista', 'Título grande a la izquierda y tres fotos encimadas, como portada de revista.'], ['mosaico', 'Mosaico', 'Seis casas en cuadrícula y una tarjeta al centro con el logo.']];
+    main.innerHTML = '<a class="volver" href="#mas">← Más</a><h1>Presentación de la página</h1><p class="sub">Lo primero que ven los clientes en dkas.mx. Escoge una y cámbiala cuando quieras.</p><div class="pres-ops">'
+      + OPS.map(([k, t, d]) => '<div class="pres-op' + (k === act ? ' on' : '') + '"><iframe src="https://dkas.mx/?portada=' + k + '" loading="lazy" title="' + t + '" tabindex="-1"></iframe><div><b>' + t + (k === act ? ' · <i>la que ven hoy</i>' : '') + '</b><small>' + d + '</small><div class="pres-bot"><a class="btn chico" target="_blank" rel="noopener" href="https://dkas.mx/?portada=' + k + '">Verla completa</a>' + (k === act ? '' : '<button class="btn chico oro" data-pres="' + k + '">Usar esta</button>') + '</div></div></div>').join('') + '</div>';
+    main.onclick = async e => { const b = e.target.closest('[data-pres]'); if (!b) return; b.disabled = true;
+      try { const c2 = Object.assign({}, await A.publico() || {}); delete c2.actualizado; c2.presentacion = b.dataset.pres; await A.guardarPublico(c2); toast('Listo: los clientes ya ven la presentación ' + OPS.find(o => o[0] === b.dataset.pres)[1]); portada(); } catch (x) { b.disabled = false; alerta(x.message); } };
+  }
   function mas() {
-    main.innerHTML = '<h1>Más</h1><div class="mas">' + [['#estudio', 'Estudio de diseño', 'Crea mesas completas: piedra, recorte, base y medidas'], ['#visitas', 'Auditoría', 'Todo lo que hacen los clientes · bloquear'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#precios', 'Precios', 'Costos y margen'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza'], ['https://dkas.mx/cotiza.html', 'Cotizador express', 'Lo que ven los clientes']]
+    main.innerHTML = '<h1>Más</h1><div class="mas">' + [['#portada', 'Presentación de la página', 'Escoge cómo se ve el inicio de dkas.mx'], ['#estudio', 'Estudio de diseño', 'Crea mesas completas: piedra, recorte, base y medidas'], ['#visitas', 'Auditoría', 'Todo lo que hacen los clientes · bloquear'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#precios', 'Precios', 'Costos y margen'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza'], ['https://dkas.mx/cotiza.html', 'Cotizador express', 'Lo que ven los clientes']]
       .map(([h, t, d]) => '<a href="' + h + '"' + (/^http/.test(h) ? ' target="_blank" rel="noopener"' : '') + '><b>' + t + '</b><small>' + d + '</small></a>').join('') + '<a href="#" id="salir2"><b>Salir</b><small>Cerrar sesión en este aparato</small></a></div>';
     $('#salir2').onclick = e => { e.preventDefault(); $('#salir').click(); };
   }

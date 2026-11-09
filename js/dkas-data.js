@@ -146,10 +146,30 @@
   const PERFILES = { ligero: { nombre: 'PTR 2" × 2"', fondo: 5, alto: 5, mat: 'PTR 2" × 2" cal. 14' }, robusto: { nombre: 'PTR 4" × 2"', fondo: 5, alto: 10, mat: 'PTR 4" × 2" cal. 14' }, solera: { nombre: 'Solera 6" × 1/2"', fondo: 15, alto: 1.27, mat: 'Solera 6" × 1/2"' } };
   const propias = [];
   function registrarBase(id, b) {
-    if (!b || !Array.isArray(b.segs) || !b.segs.length) return;
-    BASES[id] = { nombre: String(b.nombre || 'Base nueva').slice(0, 40), desc: String(b.desc || 'Diseño DKAS hecho en el taller.').slice(0, 140), segs: b.segs.map(q => q.map(Number)), perfil: PERFILES[b.perfil] ? b.perfil : 'ligero', foto: b.foto || null, propia: true, cli: !!b.cli };
+    if (!b || !Array.isArray(b.segs) || !(b.segs.length || (b.ends && b.ends.length))) return;
+    BASES[id] = { nombre: String(b.nombre || 'Base nueva').slice(0, 40), desc: String(b.desc || 'Diseño DKAS hecho en el taller.').slice(0, 140), segs: b.segs.map(q => q.map(Number)), ends: (b.ends || []).map(q => q.map(Number)), largo: (b.largo || []).map(q => q.map(Number)), perfil: PERFILES[b.perfil] ? b.perfil : 'ligero', foto: b.foto || null, propia: true, cli: !!b.cli };
     if (!b.cli && !propias.includes(id)) propias.push(id); // la base de un cliente es solo para su mesa: no entra a la lista
   }
+  // bases del catálogo DKAS (2026-11-08) dibujadas como las del panel: silueta vista de lado; el sistema saca 3D, cortes y costo
+  const CATALOGO_BASES = {
+    h: { nombre: 'H', desc: 'Un poste en cada extremo y una barra a media altura que los une de punta a punta.', perfil: 'ligero',
+      segs: [[-1, 0, -1, 1], [1, 0, 1, 1], [-1, 0.38, 1, 0.38]] },
+    caballete: { nombre: 'Caballete', desc: 'Un caballete que se abre hacia el piso en cada extremo, con travesaño y una barra baja a lo largo.', perfil: 'ligero',
+      segs: [], ends: [[-1, 0, -0.8, 1], [1, 0, 0.8, 1], [-1, 0, 1, 0], [-0.93, 0.35, 0.93, 0.35]], largo: [[0.35, 0]] },
+    tijera: { nombre: 'Tijera', desc: 'Un poste en cada esquina y dos diagonales largas que se cruzan al centro de cada costado.', perfil: 'ligero',
+      segs: [[-1, 0, -1, 1], [1, 0, 1, 1], [-1, 0.05, 1, 0.95], [1, 0.05, -1, 0.95]] },
+    patin: { nombre: 'Patín', desc: 'Dos postes que bajan a un patín corrido sobre el piso. Muy estable.', perfil: 'robusto',
+      segs: [[-0.72, 0.06, -0.72, 1], [0.72, 0.06, 0.72, 1], [-1, 0, 1, 0]] },
+    caliz: { nombre: 'Cáliz', desc: 'Patas que se cierran hacia el piso: la mesa parece flotar.', perfil: 'ligero',
+      segs: [[-1, 1, -0.72, 0], [1, 1, 0.72, 0], [-0.72, 0, 0.72, 0]] },
+    puente: { nombre: 'Puente', desc: 'Postes con escuadras diagonales que sostienen la cubierta como un puente.', perfil: 'ligero',
+      segs: [[-1, 0, -1, 1], [1, 0, 1, 1], [-1, 0.5, -0.62, 1], [1, 0.5, 0.62, 1]] },
+    doble: { nombre: 'Doble poste', desc: 'Dos postes juntos en cada extremo, unidos abajo: ligera y muy firme.', perfil: 'ligero',
+      segs: [[-1, 0, -1, 1], [-0.8, 0, -0.8, 1], [1, 0, 1, 1], [0.8, 0, 0.8, 1], [-1, 0.12, -0.8, 0.12], [1, 0.12, 0.8, 0.12]] },
+    arco: { nombre: 'Arco', desc: 'Cada poste se dobla hacia el centro antes de llegar arriba, sobre un marco al piso.', perfil: 'ligero',
+      segs: [[-1, 0, -1, 0.68], [-1, 0.68, -0.78, 1], [1, 0, 1, 0.68], [1, 0.68, 0.78, 1], [-1, 0, 1, 0]] },
+  };
+  Object.entries(CATALOGO_BASES).forEach(([id, b]) => registrarBase(id, b));
   function quitarBase(id) { const i = propias.indexOf(id); if (i >= 0) propias.splice(i, 1); delete BASES[id]; }
 
   // qué bases sí funcionan para esa mesa
@@ -394,6 +414,13 @@
         [-1, 1].forEach(sz => bar([X(x1), Y(y1), sz * z0], [X(x2), Y(y2), sz * z0], pf.fondo, pf.alto, [0, 0, 1]));
         [[x1, y1], [x2, y2]].forEach(([x, y]) => { if (y < 0.03) piso.add(Math.round(X(x) * 10) / 10); });
       });
+      // piezas en el plano de cada extremo (atraviesan el ancho; z de -1 a 1) y barras a lo largo por el centro
+      const Z = z => z * z0, xe = hx - s / 2;
+      (BASES[k].ends || []).forEach(([z1, y1, z2, y2]) => [-1, 1].forEach(sx => {
+        bar([sx * xe, Y(y1), Z(z1)], [sx * xe, Y(y2), Z(z2)], pf.fondo, pf.alto, [1, 0, 0]);
+        [[z1, y1], [z2, y2]].forEach(([z, y]) => { if (y < 0.03) pie(sx * xe, Z(z)); });
+      }));
+      (BASES[k].largo || []).forEach(([y, z]) => bar([-xe + s / 2, Y(y), Z(z || 0)], [xe - s / 2, Y(y), Z(z || 0)]));
       // donde la base toca el piso: un travesaño de lado a lado y regatones
       piso.forEach(x => { bar([x, 0.8 + s / 2, -z0 + s / 2], [x, 0.8 + s / 2, z0 - s / 2]); [-1, 1].forEach(sz => pie(x, sz * z0)); });
     }

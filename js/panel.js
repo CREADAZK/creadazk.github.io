@@ -1169,8 +1169,44 @@
     const i = Object.assign({ plano: true }, info); if (!i.foto) i.foto = await foto3d(m).catch(() => null) || undefined;
     return [new File([await CQ.png(m, i)], (nombre || 'tu-mesa') + '.jpg', { type: 'image/jpeg' })];
   }
+  // varias imágenes en una sola (PNG) para poder copiarla y pegarla en el chat
+  async function unirImgs(files) {
+    const ims = await Promise.all(files.map(f => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(f); })));
+    const W = Math.min(1400, Math.max(...ims.map(i => i.naturalWidth))), hs = ims.map(i => Math.round(i.naturalHeight * W / i.naturalWidth)), gap = ims.length > 1 ? 24 : 0;
+    const c = document.createElement('canvas'); c.width = W; c.height = hs.reduce((a, b) => a + b, 0) + gap * (ims.length - 1);
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    let y = 0; ims.forEach((i, k) => { g.drawImage(i, 0, y, W, hs[k]); y += hs[k] + gap; URL.revokeObjectURL(i.src); });
+    return new Promise(ok => c.toBlob(ok, 'image/png'));
+  }
+  // directo al chat del cliente: un botón abre SU WhatsApp con el mensaje escrito y deja la foto copiada para pegarla
   async function compartir(files, texto, tel) {
-    if (!files || !files.length) { window.open('https://wa.me/' + (tel || '') + '?text=' + encodeURIComponent(texto), '_blank'); return; }
+    const url = 'https://wa.me/' + (tel || '') + '?text=' + encodeURIComponent(texto);
+    if (!files || !files.length) { if (!window.open(url, '_blank')) location.href = url; return; }
+    if (tel) {
+      const png = await unirImgs(files).catch(() => null), v = document.createElement('div'); v.className = 'vm wa-lista';
+      v.innerHTML = '<div class="vm-caja"><button class="vm-x" aria-label="Cerrar">×</button><div class="vm-tx"><p class="vm-et">Listo para mandar</p><h2>Ya está su mesa</h2>'
+        + (png ? '<img class="wa-prev" src="' + URL.createObjectURL(png) + '" alt="">' : '')
+        + '<p class="nota">Toca el botón: se abre <b>su chat</b> con el mensaje ya escrito. La foto queda copiada: en el chat mantén presionado y toca <b>Pegar</b>.</p>'
+        + '<div class="vm-bot"><button class="btn verde" data-w="ir">Abrir su WhatsApp</button><button class="btn" data-w="sh">Compartir de otra forma</button></div></div></div>';
+      document.body.appendChild(v);
+      v.onclick = async e => {
+        if (e.target === v || e.target.closest('.vm-x')) return v.remove();
+        const b = e.target.closest('[data-w]'); if (!b) return;
+        if (b.dataset.w === 'ir') {
+          let p = null, copiada = false;
+          try { if (png && window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) p = navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]); } catch (x) {}
+          v.remove();
+          if (!window.open(url, '_blank')) location.href = url;
+          if (p) { try { await p; copiada = true; } catch (x) {} }
+          if (copiada) toast('Foto copiada: en su chat mantén presionado y Pegar');
+          else { files.forEach(f => bajar(f, f.name)); toast('No se pudo copiar la foto: se descargó, adjúntala en el chat'); }
+          return;
+        }
+        try { if (navigator.canShare && navigator.canShare({ files })) { await navigator.share({ files, text: texto }); v.remove(); return; } } catch (x) { if (x && x.name === 'AbortError') return; }
+        files.forEach(f => bajar(f, f.name)); v.remove();
+      };
+      return;
+    }
     try { if (navigator.canShare && navigator.canShare({ files })) { await navigator.share({ files, text: texto }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
     // en compu: se descargan las imágenes y se abre el chat con el texto
     files.forEach(f => bajar(f, f.name));

@@ -79,6 +79,8 @@
 
   (async function () {
     if (staff) { window.DKAS_STAFF = true; return abrir(); }
+    // Mi pedido: el link que le mandamos (pedido.html#t=<token>) ya es su llave; entra directo, sin pedir acceso
+    if (/pedido\.html$/.test(location.pathname) && (/t=[0-9a-f]{16,64}/.test(location.hash) || A.load('dazk-pedidos', []).length)) return abrir();
     // link especial: ?acceso=<token>
     const q = new URLSearchParams(location.search), t = (q.get('acceso') || '').toLowerCase();
     if (/^[0-9a-f]{32}$/.test(t)) {

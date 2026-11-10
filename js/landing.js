@@ -31,6 +31,8 @@
   function repintaAcceso() { if (document.body.classList.contains('con-acceso')) return; const p = document.querySelector('#acceso .sub'); if (p && window.DKAS_QUIERE) p.textContent = 'Te gustó «' + DKAS_QUIERE.replace(/^Quiero una así: /, '') + '». Para diseñarla a tu medida déjanos tu nombre y tu WhatsApp. Te damos acceso y un asesor te acompaña con tu cotización.'; }
   // todos los "Quiero una así" y "Crear mi mesa" llevan al diseñador con esa mesa; sin acceso, primero la solicitud (nombre y WhatsApp)
   document.addEventListener('click', e => {
+    const gr = e.target.closest('[data-gr]'); // de la banda de grapas a la Revista ya filtrada
+    if (gr) setTimeout(() => { const t = document.querySelector('.rev-fil [data-rf="' + gr.dataset.gr + '"]'); if (t) t.click(); }, 400);
     const rf = e.target.closest('[data-rf]'); // filtros de la galería de la Revista
     if (rf) { const k = rf.dataset.rf; rf.parentNode.querySelectorAll('[data-rf]').forEach(x => x.classList.toggle('on', x === rf));
       document.querySelectorAll('.rev-g .rev-c').forEach(f => { f.hidden = k !== 'todas' && f.dataset.uso !== k; if (!f.hidden) f.classList.add('in'); }); return; }

@@ -234,7 +234,7 @@
     const medidas = '<div class="es-nums">' + num('baseL', 'Largo de la base', m.baseL, ' placeholder="auto ' + (auto.L || '') + '"') + num('baseW', 'Ancho de la base', m.baseW, ' placeholder="auto ' + (auto.W || '') + '"') + '</div>'
       + '<p class="nota">Vacío = el sistema la ajusta a la piedra. ' + (m.baseL || m.baseW ? '<button class="lnk" id="es-ajusta">Ajustar a la piedra</button>' : '') + '</p>';
     if (t === 'catalogo') {
-      bx.innerHTML = '<div class="es-bases">' + cat.map(k => { const b = D.BASES[k], img = b.foto || (['patas', 'marco', 'trapecio', 'x', 'zeta', 't', 'ym', 'ped'].includes(k) ? 'img/bases/' + k + '.jpg' : '');
+      bx.innerHTML = '<div class="es-bases">' + cat.map(k => { const b = D.BASES[k], img = b.foto || (['mx', 'patas', 'marco', 'trapecio', 'x', 'zeta', 't', 'ym', 'ped'].includes(k) ? 'img/bases/' + k + '.jpg' : '');
         return '<button data-base="' + k + '"' + (m.base === k ? ' class="on"' : '') + '>' + (img ? '<img src="' + img + '" alt="" loading="lazy">' : '<span class="es-sinf"></span>') + '<b>' + esc(b.nombre) + '</b></button>'; }).join('') + '</div>' + (m.base === 'ped' ? '' : medidas);
       bx.querySelectorAll('[data-base]').forEach(b => b.onclick = () => { m.base = b.dataset.base; todo(); });
     } else if (t === 'frente') {

@@ -175,13 +175,14 @@
 
   // PTR de 2" (5 × 5 cm) pintado negro, salvo donde se dice otra cosa
   const BASES = {
+    mx: { nombre: 'Maestra', desc: 'Nuestra base insignia. Cabeceras que se cierran hacia el piso, con V hacia el centro arriba y al piso, largueros y viga central.' },
     patas: { nombre: '4 patas', desc: 'Cuatro patas rectas y bastidor. La más sencilla y firme.' },
     marco: { nombre: 'Marco rectangular', desc: 'Un marco cerrado en cada extremo, unido por largueros.' },
     trapecio: { nombre: 'Trapecio', desc: 'Un marco en cada extremo que se abre hacia el piso.' },
     x: { nombre: 'X', desc: 'Dos patas cruzadas en X en cada extremo.' },
     zeta: { nombre: 'Z', desc: 'Una Z de PTR en cada esquina: ligera y moderna.' },
     t: { nombre: 'T doble', desc: 'Un poste con pie en cada extremo y viga central. Deja libres los lados.' },
-    ym: { nombre: 'Y maestra', desc: 'Una Y de PTR en cada extremo sobre un pie al piso, unidas por una viga baja. Nuestra insignia.' },
+    ym: { nombre: 'Y con viga', desc: 'Una Y de PTR en cada extremo sobre un pie al piso, unidas por una viga baja.' },
     ped: { nombre: 'Pedestal', desc: 'Una columna al centro con plato al piso y cruz arriba.' },
   };
 
@@ -204,7 +205,7 @@
   const USO_DESC = { comedor: 'Altura 75 cm', centro: 'Para sala · altura 40 cm', periquera: 'Barra o terraza · altura 105 cm' };
 
   const MODELOS = [
-    { id: 'maestra', nombre: 'Maestra', uso: 'comedor', forma: 'rect', L: 280, W: 150, base: 'ym', piedra: 'statuario' },
+    { id: 'maestra', nombre: 'Maestra', uso: 'comedor', forma: 'rect', L: 280, W: 150, base: 'mx', piedra: 'statuario' },
     { id: 'aura', nombre: 'Aura', uso: 'comedor', forma: 'ovcuad', L: 240, W: 110, base: 'marco', piedra: 'mont-blanc' },
     { id: 'valor', nombre: 'Valor', uso: 'comedor', forma: 'rect', L: 210, W: 100, base: 'patas', piedra: 'taj-mahal-light' },
     { id: 'terra', nombre: 'Terra', uso: 'comedor', forma: 'oval', L: 260, W: 120, base: 't', piedra: 'cardenaskin' },
@@ -324,8 +325,8 @@
     if (uso === 'comedor') {
       if (forma === 'round') return L >= 110 ? ['ped', 'patas'] : ['ped'];
       if (forma === 'square') return L <= 130 ? ['patas', 'ped'] : ['patas'];
-      if (forma === 'oval') return ['t', 'x', 'patas'];
-      return ['patas', 'marco', 'trapecio', 'x', 'zeta', 't'].concat(L >= 220 && W >= 100 ? ['ym'] : []);
+      if (forma === 'oval') return ['t', 'x', 'patas'].concat(L >= 180 && W >= 90 ? ['mx'] : []);
+      return (L >= 160 && W >= 80 ? ['mx'] : []).concat(['patas', 'marco', 'trapecio', 'x', 'zeta', 't']).concat(L >= 220 && W >= 100 ? ['ym'] : []);
     }
     if (uso === 'centro') {
       if (forma === 'round') return L >= 80 ? ['ped', 'patas'] : ['ped'];
@@ -449,6 +450,15 @@
     if (m.base === 'x') { c('Patas en X (diagonal)', 4, Math.hypot(B.W - s, B.H - s)); c('Travesaños de arriba', 2, B.W); c('Largueros', 2, B.L - 2 * s); if (cent) c('Travesaño central', 1, B.W - 2 * s); }
     if (m.base === 'zeta') { const a = r5(B.H * 0.4); B.z = a; c('Diagonales de la Z', 4, Math.hypot(a, B.H - 2 * s)); c('Pies de la Z (al piso)', 4, a); c('Travesaños (arriba y abajo)', 4, B.W - 2 * s); c('Largueros', 2, B.L); }
     if (m.base === 't') { c('Postes', 2, B.H - 2 * s, 'PTR 4" × 2" cal. 14'); c('Pies (al piso)', 2, B.W, 'PTR 4" × 2" cal. 14'); c('Travesaños de arriba', 2, B.W); c('Viga central', 1, B.L - 2 * s, 'PTR 4" × 2" cal. 14'); c('Largueros', 2, B.L); }
+    if (m.base === 'mx') {
+      const M = mxMedidas(B), P = 'PTR 3" × 3" cal. 14';
+      c('Patas (se cierran hacia el piso)', 4, M.pata, P);
+      c('Brazos de la V de arriba (corte compuesto)', 4, M.brazoA, P);
+      c('Brazos de la V al piso (corte compuesto)', 4, M.brazoP, P);
+      c('Largueros de arriba (de esquina a esquina)', 2, B.L - M.a, P);
+      c('Viga de arriba (punta a punta de las V)', 1, M.viga, P);
+      c('Viga al piso', 1, M.viga, P);
+    }
     if (m.base === 'ym') {
       // en cada extremo: dos brazos del bastidor bajan a un nudo, de ahí un poste al pie; una viga baja une los dos postes
       const y = ymMedidas(B);
@@ -477,6 +487,15 @@
     }
     const metros = r1(cortes.filter(x => /^PTR/.test(x.mat)).reduce((a, x) => a + x.cant * x.med, 0) / 100);
     return { cortes, metros };
+  }
+
+  // la base Maestra (la insignia del taller): en cada extremo dos patas que se cierran hacia el piso; arriba y abajo los travesaños
+  // no van rectos sino en V hacia el centro de la mesa; las puntas de las V se unen con una viga arriba y otra al piso, y dos largueros
+  // unen las esquinas de arriba (vista desde arriba: dos cajones con la viga al centro). 16 tubos de PTR 3" (cm)
+  function mxMedidas(B) {
+    const a = 7.6, hx = B.L / 2, hz = B.W / 2, xe = hx - a / 2, d = r5(clamp(B.W * 0.3, 15, B.L * 0.22)), zt = hz - a / 2, zf = r1(Math.max(hz * 0.45, 12));
+    const yT = B.H - a / 2, yP = 0.8 + a / 2;
+    return { a, xe, d, zt, zf, yT, yP, pata: r1(Math.hypot(zt - zf, yT - yP) + a), brazoA: r1(Math.hypot(d, zt)), brazoP: r1(Math.hypot(d, zf)), viga: r1(2 * (xe - d)) };
   }
 
   // la Y maestra: dónde va cada cosa (cm)
@@ -533,6 +552,21 @@
         [-1, 1].forEach(sz => pie(x + 0, sz * (hz - 4))); });
       bar([-xe, Hb - 18, 0], [xe, Hb - 18, 0], 5, 10, [0, 0, 1]);
       rieles(0); [-1, 1].forEach(sx => bar([sx * (hx - s / 2), Hb - s / 2, -hz + s], [sx * (hx - s / 2), Hb - s / 2, hz - s]));
+    }
+    if (k === 'mx') {
+      const M = mxMedidas(B), a = M.a, xi = M.xe - M.d;
+      [-1, 1].forEach(sx => {
+        [-1, 1].forEach(sz => {
+          bar([sx * M.xe, M.yP - a / 2, sz * M.zf], [sx * M.xe, M.yT + a / 2, sz * M.zt], a, a, [1, 0, 0]); // pata (se cierra hacia el piso)
+          bar([sx * M.xe, M.yT, sz * M.zt], [sx * xi, M.yT, 0], a, a, [0, 1, 0]);                            // brazo de arriba (V)
+          bar([sx * M.xe, M.yP, sz * M.zf], [sx * xi, M.yP, 0], a, a, [0, 1, 0]);                            // brazo al piso (V)
+          pie(sx * M.xe, sz * M.zf);
+        });
+        pie(sx * xi, 0);
+      });
+      [-1, 1].forEach(sz => bar([-M.xe, M.yT, sz * M.zt], [M.xe, M.yT, sz * M.zt], a, a, [0, 1, 0])); // largueros de arriba, de esquina a esquina
+      bar([-xi, M.yT, 0], [xi, M.yT, 0], a, a, [0, 1, 0]); // viga de arriba
+      bar([-xi, M.yP, 0], [xi, M.yP, 0], a, a, [0, 1, 0]); // viga al piso
     }
     if (k === 'ym') {
       const y = ymMedidas(B), xe = y.xe;

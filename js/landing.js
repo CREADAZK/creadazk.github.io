@@ -95,6 +95,7 @@
   if (slides.length > 1 && !matchMedia('(prefers-reduced-motion:reduce)').matches) setInterval(() => {
     if (document.hidden || scrollY > innerHeight) return;
     slides[si].classList.remove('on'); si = (si + 1) % slides.length; slides[si].loading = 'eager'; slides[si].classList.add('on');
+      $('.hero .hcap a').forEach((c, k) => c.classList.toggle('on', k === si));
   }, 7000);
 
   // ---------- aparece al bajar ----------

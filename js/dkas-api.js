@@ -80,6 +80,8 @@
   }
   // the shared panel account: its password is the panel code, and the rules give its uid the same access as the team
   const PANEL_EMAIL = 'panel@creadazk.github.io', PANEL_UID = 'sSOabJv4HySaB6vyQAdNgzew65l1';
+  // el equipo: cada administrador entra con SU código de 6 números (cuenta eq<código>@equipo.dkas.mx); el dueño los crea y les quita el acceso en equipo/<uid>
+  const EQ = c => 'eq' + c + '@equipo.dkas.mx', esEq = e => /@equipo\.dkas\.mx$/i.test(String(e || ''));
   const OWNER = 'i55969072@gmail.com', ekey = e => String(e).trim().toLowerCase().replace(/\./g, ',');
   const emailOk = e => { e = String(e || '').trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) throw new Error('Revisa el correo.'); return e; };
   const itemsDe = l => l.map(it => Object.assign({ tipo: ['mesa', 'sillas', 'bancos'].includes(it.tipo) ? it.tipo : 'mesa', titulo: String(it.titulo || 'Mesa').slice(0, 160), cantidad: Math.max(1, Math.min(99, +it.cantidad || 1)),
@@ -115,8 +117,15 @@
     async pedirEnlace(email) { email = emailOk(email); save('dazk-correo', email); try { await enviarLink(email); } catch (e) { throw new Error(authErr(e)); } return null; },
     async reenviar(email) { try { await enviarLink(emailOk(email)); } catch (e) { throw new Error(authErr(e)); } },
     async entrarConCodigo(code) {
-      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email: PANEL_EMAIL, password: String(code || ''), returnSecureToken: true })); }
-      catch (e) { throw new Error(/INVALID_LOGIN|INVALID_PASSWORD|MISSING_PASSWORD/.test(e.code) ? 'Código incorrecto.' : authErr(e)); }
+      code = String(code || '');
+      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email: PANEL_EMAIL, password: code, returnSecureToken: true })); }
+      catch (e) {
+        if (!/INVALID_LOGIN|INVALID_PASSWORD|MISSING_PASSWORD/.test(e.code)) throw new Error(authErr(e));
+        // no es el código principal: ¿es el código de alguien del equipo?
+        try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email: EQ(code), password: code, returnSecureToken: true })); }
+        catch (x) { throw new Error(/INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND|MISSING_PASSWORD/.test(x.code) ? 'Código incorrecto.' : authErr(x)); }
+        yoCache = null; const me = await this.yo(); if (!me) { setSes(null); throw new Error('Este código ya no tiene acceso. Pídele al dueño uno nuevo.'); }
+      }
       return this.yo();
     },
     async entrarConClave(email, pass) {
@@ -142,7 +151,11 @@
     async yo() {
       if (!ses) return null;
       // the panel account has no admins/ entry; each device keeps the name of whoever uses it
-      if (ses.uid === PANEL_UID) return { uid: ses.uid, email: ses.email, key: 'panel', duenio: false, panel: true, nombre: nombreLimpio(load('dazk-nombre', '')) };
+      if (ses.uid === PANEL_UID) return { uid: ses.uid, email: ses.email, key: 'panel', duenio: false, panel: true, jefe: true, nombre: nombreLimpio(load('dazk-nombre', '')) };
+      if (esEq(ses.email)) {
+        if (!yoCache) { const s = await db('equipo/' + ses.uid, 'GET', undefined, true).catch(() => null); yoCache = s && s.activo ? { uid: ses.uid, email: ses.email, key: 'eq', equipo: true, nombre: nombreLimpio(s.nombre) } : null; }
+        return yoCache;
+      }
       if (!yoCache) {
         const k = ekey(ses.email), duenio = ses.email.toLowerCase() === OWNER;
         const s = await db('admins/' + k, 'GET', undefined, true).catch(e => { if (denied(e)) return false; throw e; });
@@ -164,6 +177,21 @@
       await enviarLink(email).catch(() => {});
     },
     async quitarAdmin(k) { await db('admins/' + k, 'DELETE', undefined, true); },
+    // equipo (solo el dueño): crear un administrador con su propio código, quitarle o devolverle el acceso
+    async equipo() { return Object.entries((await db('equipo', 'GET', undefined, true)) || {}).map(([uid, a]) => Object.assign({ uid }, a)).sort((a, b) => a.creado - b.creado); },
+    async crearAdmin(nombre) {
+      nombre = String(nombre || '').trim().slice(0, 60); if (nombre.length < 2) throw new Error('Escribe el nombre de la persona.');
+      const me = await this.yo();
+      for (let i = 0; i < 6; i++) {
+        const codigo = String(100000 + crypto.getRandomValues(new Uint32Array(1))[0] % 900000);
+        let r; try { r = await idp('identitytoolkit.googleapis.com/v1/accounts:signUp', { email: EQ(codigo), password: codigo, returnSecureToken: true }); }
+        catch (e) { if (/EMAIL_EXISTS/.test(e.code)) continue; throw new Error(authErr(e)); }
+        await db('equipo/' + r.localId, 'PUT', { nombre, activo: true, creado: TS, por: String((me && me.nombre) || 'Dueño').slice(0, 60) }, true);
+        return { uid: r.localId, nombre, codigo };
+      }
+      throw new Error('No se pudo crear el código. Intenta otra vez.');
+    },
+    async accesoAdmin(uid, activo) { await db('equipo/' + uid + '/activo', 'PUT', !!activo, true); },
     async listar() {
       const [ps, ns, fs, rp, pg] = await Promise.all(['pedidos', 'interno', 'fichas', 'resenas_publicas', 'pagos'].map(n => db(n, 'GET', undefined, true)));
       return Object.entries(ps || {}).map(([t, p]) => Object.assign(shape(t, p, (ns || {})[t]), { fichas: (fs || {})[t] || {}, resenaPublica: !!(rp || {})[t],

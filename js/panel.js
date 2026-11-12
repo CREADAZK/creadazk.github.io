@@ -134,7 +134,7 @@
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = h === '#agenda' ? 'agenda' : h === '#dinero' ? 'dinero' : h === '' || h === '#' || h === '#nuevo' || /^#[pt]=/.test(h) ? 'log' : 'mas';
+    const h = location.hash, sec = h === '#agenda' ? 'agenda' : h === '#dinero' ? 'dinero' : h === '#clientes' || /^#prop=/.test(h) ? 'clientes' : h === '' || h === '#' || h === '#nuevo' || /^#[pt]=/.test(h) ? 'log' : 'mas';
     if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
     if (h !== '#estudio' && window.DKAS_ESTUDIO) DKAS_ESTUDIO.salir();
     $$('#top-nav a[data-sec]').forEach(a => { a.classList.toggle('on', a.dataset.sec === sec); if (a.dataset.sec === sec && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'center' }); });
@@ -147,6 +147,7 @@
     if (h === '#visitas') return visitas();
     if (h === '#portada') return portada();
     if (h === '#accesos') return accesos();
+    if (h === '#equipo') return equipo();
     if (h === '#bases') return DKAS_DISENA.pantalla(main, { toast, alerta });
     if (h === '#estudio') return DKAS_ESTUDIO.pantalla(main, { toast, alerta });
     if (h === '#nuevo') return nuevo();
@@ -160,7 +161,9 @@
   // ---------- las listas ----------
   function lista(modo) {
     const tall = modo === 'taller';
-    const ver = ordenados(todos.filter(p => filtro === 'todos' || (filtro === 'activos' ? activo(p) : p.estado === 'entregado'))
+    const ETF = { activos: activo, cotizar: p => p.estado === 'nuevo', respuesta: p => p.estado === 'cotizado', fabrica: p => ['confirmado', 'fabricacion'].includes(p.estado), entregar: p => p.estado === 'listo', entregado: p => p.estado === 'entregado', todos: () => true };
+    if (!ETF[filtro]) filtro = 'activos';
+    const ver = ordenados(todos.filter(ETF[filtro])
       .filter(p => !busca || (p.nombre + ' ' + p.folio + ' ' + (p.tel || '') + ' ' + (ficha(p).herrero || '') + ' ' + JSON.stringify(p.items)).toLowerCase().includes(busca.toLowerCase())));
     const act = todos.filter(activo), cuenta = g => act.filter(p => entrega(p).g === g).length;
     let html = '<div class="cab"><div><h1>' + (tall ? 'Taller y creación' : 'Pedidos y logística') + '</h1><p class="sub">'
@@ -172,7 +175,7 @@
       const sinCosto = act.filter(p => !numeros(p).k.usaReal).length, bajo = act.filter(p => { const x = numeros(p); return x.pactado && !x.g.ok; }).length, sinH = act.filter(p => !ficha(p).herrero).length;
       html += '<div class="resumen-g"><div class="rg ' + (bajo ? 'mal' : '') + '"><b>' + bajo + '</b><span>Ganancia baja</span></div><div class="rg ' + (sinCosto ? 'ambar' : '') + '"><b>' + sinCosto + '</b><span>Sin costos reales</span></div><div class="rg ' + (sinH ? 'ambar' : '') + '"><b>' + sinH + '</b><span>Sin herrero</span></div><div class="rg"><b>' + act.length + '</b><span>Mesas activas</span></div></div>';
     }
-    html += '<div class="filtros">' + [['activos', 'Activos'], ['entregado', 'Entregados'], ['todos', 'Todos']].map(([k, t]) => '<button class="pill' + (filtro === k ? ' sel' : '') + '" data-f="' + k + '">' + t + '</button>').join('')
+    html += '<div class="filtros">' + [['activos', 'Activos'], ['cotizar', 'Por cotizar'], ['respuesta', 'Esperan respuesta'], ['fabrica', 'En fabricación'], ['entregar', 'Por entregar'], ['entregado', 'Entregados'], ['todos', 'Todos']].map(([k, t]) => { const n = todos.filter(ETF[k]).length; return '<button class="pill' + (filtro === k ? ' sel' : '') + '" data-f="' + k + '">' + t + (k !== 'todos' && k !== 'entregado' ? ' <i>' + n + '</i>' : '') + '</button>'; }).join('')
       + '<input id="busca" placeholder="Buscar cliente, folio o herrero" value="' + esc(busca) + '"></div>';
     if (!tall && filtro === 'activos' && !busca) {
       const tareas = ordenados(act).filter(p => accion(p) && p.estado !== 'cotizado').slice(0, 6);
@@ -232,7 +235,7 @@
     const cab = '<a class="volver" href="' + (tall ? '#taller' : '#') + '">← ' + (tall ? 'Taller y creación' : 'Pedidos y logística') + '</a>'
       + '<div class="hcab"><div><p class="folio">Pedido #' + p.folio + ' · ' + A.fecha(p.creado) + (p.canal ? ' · ' + esc(p.canal) : '') + (f.bienvenida ? ' · bienvenida enviada ' + A.fecha(f.bienvenida) : '') + '</p><h1>' + esc(p.nombre) + '</h1>'
       + '<p class="sub">' + esc(D.titulo(m)) + (p.tel ? ' · ' + esc(p.tel) : '') + '</p></div>'
-      + (tel ? '<div class="botones"><a class="btn verde" target="_blank" rel="noopener" href="https://wa.me/' + tel + '">WhatsApp</a><a class="btn" target="_blank" rel="noopener" title="Le manda su link para ver cómo va su mesa" href="https://wa.me/' + tel + '?text=' + encodeURIComponent('Hola ' + p.nombre.split(' ')[0] + ', aquí puedes ver cómo va tu mesa DKAS (pedido #' + p.folio + '): ' + SITE + 'pedido.html#t=' + p.token) + '">Mandarle su link</a></div>' : '') + '</div>'
+      + (tel ? '<div class="botones"><a class="btn verde" target="_blank" rel="noopener" href="https://wa.me/' + tel + '">WhatsApp</a><button class="btn" id="mlink" title="Le manda su link para ver cómo va su mesa, con su foto y planos">Mandarle su link</button></div>' : '') + '</div>'
       + etapas(p)
       + (ac ? '<div class="paso-sig"><div><span>Siguiente paso</span><b>' + esc(sigue(p)) + '</b>' + (e.g !== 'fin' ? '<em class="ent ' + e.cls + '">Entrega: ' + esc(e.txt) + (e.f ? ' · ' + fechaCorta(e.f) : '') + '</em>' : '') + '</div><button class="btn oro" id="accion">' + esc(ac.txt) + ' →</button></div>' : '')
       + (tall ? '<div class="tabs"><a href="#p=' + p.id + '">Pedido</a><a href="#t=' + p.id + '" class="on">Taller</a></div>' : '')
@@ -331,6 +334,9 @@
     });
     $$('[data-etapa]').forEach(b => b.onclick = () => ponerEstado(p, b.dataset.etapa, modo));
     if ($('#accion')) $('#accion').onclick = () => ac.run(modo);
+    if ($('#mlink')) $('#mlink').onclick = async () => { const b = $('#mlink'); b.disabled = true;
+      try { await compartir(await adjuntos(m, gustoPedido(p), { cliente: p.nombre, titulo: 'Tu mesa · pedido #' + p.folio }, 'tu-mesa-' + p.folio), 'Hola ' + p.nombre.split(' ')[0] + ', aquí puedes ver cómo va tu mesa DKAS (pedido #' + p.folio + '): ' + SITE + 'pedido.html#t=' + p.token, tel); } catch (e) { alerta(e.message); }
+      b.disabled = false; };
     if ($('#cancelar')) $('#cancelar').onclick = () => { if (confirm('¿Cancelar el pedido #' + p.folio + '?')) ponerEstado(p, 'cancelado', modo); };
     if (enfocar) { const q = enfocar; enfocar = null; setTimeout(() => { const el = $(q); if (!el) return; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); if (el.tagName === 'BUTTON') el.click(); else el.focus(); el.classList.add('brilla'); setTimeout(() => el.classList.remove('brilla'), 2200); }, 150); }
     $('#guardar').onclick = () => guardar(p);
@@ -387,7 +393,7 @@
   }
   async function mandarBienvenida(p, modo, txt) {
     // con la foto y el plano de la mesa que escogió
-    try { await compartir(await adjMesa(mesaDe(p), { cliente: p.nombre, foto: await fotoMesa(p).catch(() => null), titulo: 'Tu mesa · pedido #' + p.folio }, 'tu-mesa-' + p.folio), txt, A.waNum(p.tel)); }
+    try { await compartir(await adjuntos(mesaDe(p), gustoPedido(p), { cliente: p.nombre, titulo: 'Tu mesa · pedido #' + p.folio }, 'tu-mesa-' + p.folio), txt, A.waNum(p.tel)); }
     catch (e) { window.open('https://wa.me/' + A.waNum(p.tel) + '?text=' + encodeURIComponent(txt), '_blank'); }
     try { await navigator.clipboard.writeText(txt); } catch (e) {}
     const f = Object.assign({}, ficha(p), { bienvenida: Date.now() });
@@ -475,7 +481,7 @@
         const tel = p.tel ? A.waNum(p.tel) : '';
         const txt = 'Hola ' + p.nombre.split(' ')[0] + ', te mando la cotización de tu mesa DKAS (pedido #' + p.folio + '):\n• ' + D.titulo(m) + '\n• Piedra ' + D.piedra(m.piedra).nombre + ' · base ' + baseDe(p)
           + (x.n > 1 ? '\n• ' + x.n + ' mesas' : '') + '\nTotal: ' + pesos(x.pactado) + '\nAnticipo para empezar: ' + pesos(anticipo) + '\nAquí la ves y la aceptas: ' + SITE + 'pedido.html#t=' + p.token;
-        const files = [new File([await imagenCoti(p)], 'cotizacion-' + p.folio + '.jpg', { type: 'image/jpeg' }), new File([await CQ.png(m, { folio: p.folio, cliente: p.nombre })], 'croquis-' + p.folio + '.jpg', { type: 'image/jpeg' })];
+        const files = [new File([await imagenCoti(p)], 'cotizacion-' + p.folio + '.jpg', { type: 'image/jpeg' })].concat(await adjuntos(m, gustoPedido(p), { cliente: p.nombre, titulo: 'Tu mesa · pedido #' + p.folio }, 'mesa-' + p.folio));
         pedido(p, 'log'); await compartir(files, txt, tel); // primero se ve como cotizado; luego se abre WhatsApp
       } catch (e) { alerta(e.message); }
       if ($('#mandar')) $('#mandar').disabled = false;
@@ -667,7 +673,7 @@
     const idsDe = g => [g.v, g.sol && g.sol.id].filter(x => /^[0-9a-f]{32}$/.test(x || '')), bloq = g => idsDe(g).some(id => bq[id]);
     const bqV = g => idsDe(g).length ? '<button class="btn chico' + (bloq(g) ? ' bq-on' : '') + '" data-bq="' + idsDe(g).join(',') + '" data-bqs="' + (bloq(g) ? 0 : 1) + '" data-bqn="' + esc(g.nombre || 'Sin nombre') + '">' + (bloq(g) ? 'Desbloquear' : 'Bloquear') + '</button>' : '';
     main.onclick = async e => { const w = e.target.closest('[data-wav]'); if (w) { const g = gente[+w.dataset.wav]; if (!g) return; w.disabled = true;
-        try { await compartir(await adjMesa(mesaAud(g), { cliente: g.nombre }, 'tu-mesa'), msjWA(g), A.waNum(g.tel)); } catch (x) { alerta(x.message); } w.disabled = false; return; }
+        try { const pg = g.folio && todos.find(z => z.folio === g.folio); await compartir(await adjuntos(mesaAud(g), pg ? gustoPedido(pg) : g.diseno ? null : gustoDe(g.interes), { cliente: g.nombre }, 'tu-mesa'), msjWA(g), A.waNum(g.tel)); } catch (x) { alerta(x.message); } w.disabled = false; return; }
       const b = e.target.closest('[data-bq]'); if (!b) return; const si = b.dataset.bqs === '1';
       if (si && !confirm('¿Bloquear a ' + b.dataset.bqn + '? Ya no podrá ver nada de dkas.mx hasta que lo desbloquees.')) return;
       b.disabled = true; try { await A.bloquear(b.dataset.bq.split(','), b.dataset.bqn, si); toast(si ? 'Bloqueado: le sale «No puedes entrar en este momento»' : 'Desbloqueado: ya puede entrar'); visitas(); } catch (x) { alerta(x.message); b.disabled = false; } };
@@ -693,9 +699,42 @@
       try { const c2 = Object.assign({}, await A.publico() || {}); delete c2.actualizado; c2.presentacion = b.dataset.pres; await A.guardarPublico(c2); toast('Listo: los clientes ya ven la presentación ' + OPS.find(o => o[0] === b.dataset.pres)[1]); portada(); } catch (x) { b.disabled = false; alerta(x.message); } };
   }
   function mas() {
-    main.innerHTML = '<h1>Más</h1><div class="mas">' + [['#clientes', 'Clientes de la página' + (($('#nb-acc') && !$('#nb-acc').hidden) ? ' · ' + $('#nb-acc').textContent + ' por aprobar' : ''), 'Quién pidió diseñar su mesa · aprobar y escribirles'], ['#taller', 'Taller', 'Costos, cortes, croquis y orden de compra de cada mesa'], ['#portada', 'Presentación de la página', 'Escoge cómo se ve el inicio de dkas.mx'], ['#estudio', 'Estudio de diseño', 'Crea mesas completas: piedra, recorte, base y medidas'], ['#visitas', 'Auditoría', 'Todo lo que hacen los clientes · bloquear'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#precios', 'Precios', 'Costos y margen'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza'], ['https://dkas.mx/cotiza.html', 'Cotizador express', 'Lo que ven los clientes']]
-      .map(([h, t, d]) => '<a href="' + h + '"' + (/^http/.test(h) ? ' target="_blank" rel="noopener"' : '') + '><b>' + t + '</b><small>' + d + '</small></a>').join('') + '<a href="#" id="salir2"><b>Salir</b><small>Cerrar sesión en este aparato</small></a></div>';
+    const G = [
+      ['Clientes y seguridad', [['#visitas', 'Auditoría y bloqueos', 'Quién entra a dkas.mx, qué ve y qué hace · bloquear o desbloquear'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza']]],
+      ['Taller', [['#taller', 'Mesas en el taller', 'Costos, cortes, croquis y orden de compra de cada mesa'], ['#precios', 'Precios', 'Costos y margen'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#estudio', 'Estudio de diseño', 'Crea mesas completas: piedra, recorte, base y medidas']]],
+      ['Página', [['#portada', 'Presentación de la página', 'Escoge cómo se ve el inicio de dkas.mx'], ['https://dkas.mx/cotiza.html', 'Cotizador express', 'Lo que ven los clientes']]],
+      ['Equipo', [['#equipo', 'Administradores', (me && (me.jefe || me.duenio)) ? 'Crea cuentas para tu equipo, cada quien con su código' : 'Quién más tiene acceso al panel']]]];
+    main.innerHTML = '<h1>Más</h1>' + G.map(([g, l]) => '<p class="mas-g">' + g + '</p><div class="mas">' + l.map(([h, t, d]) => '<a href="' + h + '"' + (/^http/.test(h) ? ' target="_blank" rel="noopener"' : '') + '><b>' + t + '</b><small>' + d + '</small></a>').join('') + '</div>').join('')
+      + '<div class="mas" style="margin-top:22px"><a href="#" id="salir2"><b>Salir</b><small>' + esc((me && me.nombre) || '') + ' · cerrar sesión en este aparato</small></a></div>';
     $('#salir2').onclick = e => { e.preventDefault(); $('#salir').click(); };
+  }
+  // ---------- Administradores: el dueño crea cuentas, cada quien entra con su propio código ----------
+  async function equipo(nuevo) {
+    const jefe = me && (me.jefe || me.duenio);
+    main.innerHTML = '<h1>Administradores</h1><p class="sub">Cargando…</p>';
+    let l = []; try { l = await A.equipo(); } catch (e) { main.innerHTML = '<h1>Administradores</h1><p class="err">' + esc(e.message) + '</p>'; return; }
+    const msj = (n, c) => 'Hola ' + n.split(' ')[0] + ', ya tienes acceso al panel de DKAS. Entra aquí: https://dkas.mx/taller.html y escribe tu código: ' + c + '. Es solo tuyo, no lo compartas.';
+    main.innerHTML = '<a class="volver" href="#mas">← Más</a><h1>Administradores</h1><p class="sub">Cada persona entra con su propio código de 6 números. Todo lo que hace queda con su nombre en la auditoría.</p>'
+      + (nuevo ? '<div class="sec eq-nuevo"><p class="tit">Listo: ' + esc(nuevo.nombre) + '</p><p>Su código es</p><p class="eq-cod">' + nuevo.codigo + '</p><p class="nota">Apúntalo o mándaselo ahora: por seguridad no se vuelve a mostrar. Si lo pierde, le quitas el acceso y le creas uno nuevo.</p>'
+        + '<div class="botones"><button class="btn verde" id="eq-wa">Mandárselo por WhatsApp</button><button class="btn" id="eq-cp">Copiar mensaje</button></div></div>' : '')
+      + (jefe ? '<div class="sec"><p class="tit">Nuevo administrador</p><div class="precio-c"><label>Nombre<input id="eq-nom" placeholder="Ej. Daniel"></label><button class="btn negro" id="eq-crear">Crear</button></div></div>'
+        : '<p class="nota">Solo el dueño (con el código principal) puede crear o quitar administradores.</p>')
+      + '<div class="sec"><p class="tit">Quién tiene acceso</p><ul class="eq-lista"><li><div><b>Dueño</b><small>Código principal</small></div><span class="eq-on">Siempre</span></li>'
+      + l.map(a => '<li><div><b>' + esc(a.nombre) + '</b><small>Desde ' + A.fecha(a.creado) + (a.por ? ' · lo creó ' + esc(a.por) : '') + '</small></div>'
+        + (a.activo ? '<span class="eq-on">Con acceso</span>' : '<span class="eq-off">Sin acceso</span>')
+        + (jefe ? '<button class="btn chico' + (a.activo ? '' : ' negro') + '" data-eq="' + a.uid + '" data-on="' + (a.activo ? 0 : 1) + '" data-n="' + esc(a.nombre) + '">' + (a.activo ? 'Quitar acceso' : 'Devolver acceso') + '</button>' : '') + '</li>').join('')
+      + '</ul></div>';
+    if (nuevo) {
+      $('#eq-wa').onclick = () => { const u = 'https://wa.me/?text=' + encodeURIComponent(msj(nuevo.nombre, nuevo.codigo)); if (!window.open(u, '_blank')) location.href = u; };
+      $('#eq-cp').onclick = async () => { try { await navigator.clipboard.writeText(msj(nuevo.nombre, nuevo.codigo)); toast('Mensaje copiado'); } catch (e) { alerta(msj(nuevo.nombre, nuevo.codigo)); } };
+    }
+    if (!jefe) return;
+    $('#eq-crear').onclick = async () => { const b = $('#eq-crear'); b.disabled = true; b.textContent = 'Creando…';
+      try { const r = await A.crearAdmin($('#eq-nom').value); equipo(r); } catch (e) { alerta(e.message); b.disabled = false; b.textContent = 'Crear'; } };
+    $$('[data-eq]').forEach(b => b.onclick = async () => {
+      const on = b.dataset.on === '1'; if (!on && !confirm('¿Quitarle el acceso a ' + b.dataset.n + '? Ya no podrá entrar al panel.')) return;
+      b.disabled = true; try { await A.accesoAdmin(b.dataset.eq, on); toast(on ? 'Acceso devuelto' : 'Acceso quitado'); equipo(); } catch (e) { alerta(e.message); b.disabled = false; }
+    });
   }
   // ---------- Clientes: todo el camino de cada cliente en un solo lugar ----------
   // solicitud (nombre + WhatsApp) → apruebas → diseña (su mesa se guarda sola) → la envía (pedido). El sistema nunca le pone precio.
@@ -757,7 +796,7 @@
       v.innerHTML = '<div class="vm-caja"><button class="vm-x" aria-label="Cerrar">×</button><div class="vm-tx"><p class="vm-et">Mensaje para ' + esc(c.nombre) + '</p><h2>¿Cómo le escribes?</h2>'
         + '<div class="m-ops">' + ops.map(([t, x], i) => '<button class="m-op' + (i ? '' : ' on') + '" data-op="' + i + '"><b>' + t + '</b><span>' + esc(x) + '</span></button>').join('') + '</div>'
         + '<label class="m-ed">Puedes cambiarlo antes de mandarlo<textarea rows="5">' + esc(ops[0][1]) + '</textarea></label>'
-        + (mesaCli(c) ? '<p class="m-adj">Se adjuntan la foto de su mesa y el plano con medidas</p><div class="vm-bot"><button class="btn verde" data-adj>Mandar con foto y plano por WhatsApp</button><a class="btn" target="_blank" rel="noopener" data-abrir>Solo el texto</a></div>' : '<div class="vm-bot"><a class="btn verde" target="_blank" rel="noopener" data-abrir>Abrir WhatsApp con este mensaje</a>' + (/^[0-9a-f]{32}$/.test(c.k) ? '<a class="btn" href="#prop=' + c.k + '">Armarle su mesa para mandarle plano</a>' : '') + '</div>') + '</div></div>';
+        + (mesaCli(c) ? '<p class="m-adj">' + ((c.p && c.p.items ? gustoPedido(c.p) : c.d && c.d.cod ? null : gustoDe(c.quiere)) ? 'Se adjuntan la foto real del comedor que le gustó y los planos' : 'Se adjuntan los planos de su mesa') + '</p><div class="vm-bot"><button class="btn verde" data-adj>Mandar por WhatsApp</button></div>' : '<div class="vm-bot"><a class="btn verde" target="_blank" rel="noopener" data-abrir>Abrir WhatsApp con este mensaje</a>' + (/^[0-9a-f]{32}$/.test(c.k) ? '<a class="btn" href="#prop=' + c.k + '">Armarle su mesa para mandarle plano</a>' : '') + '</div>') + '</div></div>';
       document.body.appendChild(v); document.body.style.overflow = 'hidden';
       const ta = v.querySelector('textarea'), a = v.querySelector('[data-abrir]'), liga = () => { a.href = 'https://wa.me/' + A.waNum(c.tel) + '?text=' + encodeURIComponent(ta.value); };
       liga(); ta.oninput = liga;
@@ -768,8 +807,7 @@
         if (e.target.closest('a[href^="#prop="]')) return cerrar();
         const adj = e.target.closest('[data-adj]');
         if (adj) { adj.disabled = true; adj.textContent = 'Preparando…';
-          try { const m = mesaCli(c), info = { cliente: c.nombre, plano: true }, files = [];
-            const f = await foto3d(m) || (c.d && c.d.img); files.push(new File([await CQ.png(m, Object.assign(info, { foto: f || undefined }))], 'tu-mesa-' + c.nombre.split(' ')[0].toLowerCase() + '.jpg', { type: 'image/jpeg' }));
+          try { const files = await adjuntos(mesaCli(c), c.p && c.p.items ? gustoPedido(c.p) : c.d && c.d.cod ? null : gustoDe(c.quiere), { cliente: c.nombre }, 'tu-mesa-' + c.nombre.split(' ')[0].toLowerCase());
             await compartir(files, ta.value, A.waNum(c.tel)); } catch (x) { alerta(x.message); }
           cerrar(); if (!seg[c.k]) { try { await A.marcarEscrito(c.k, true); seg[c.k] = { escrito: Date.now(), por: me.nombre }; setTimeout(clientes, 900); } catch (x) {} } return; }
         if (e.target.closest('[data-abrir]')) { setTimeout(cerrar, 300); if (!seg[c.k]) { try { await A.marcarEscrito(c.k, true); seg[c.k] = { escrito: Date.now(), por: me.nombre }; setTimeout(clientes, 900); } catch (x) {} } }
@@ -806,7 +844,7 @@
       aprobar: () => de('aprobar').length ? '<p class="sub l-sub">Pidieron el diseñador 3D. Aprueba o escríbeles.</p><div class="leads">' + de('aprobar').map(ficha).join('') + '</div>' : '<p class="sub l-sub">Nadie por aprobar.</p>',
       pend: () => (sinTerminar.length ? '<p class="sub l-sub">Tienen acceso o armaron su mesa pero no la enviaron. Ármasela tú o escríbeles.</p><div class="leads">' + sinTerminar.map(ficha).join('') + '</div>' : '<p class="sub l-sub">Nadie pendiente.</p>')
         + (de('rech').length ? '<details class="c-rech"><summary>Rechazados (' + de('rech').length + ')</summary><div class="leads">' + de('rech').map(ficha).join('') + '</div></details>' : '') };
-    main.innerHTML = '<div class="cab"><div><h1>Clientes</h1></div></div>'
+    main.innerHTML = '<div class="cab"><div><h1>Clientes</h1></div><a class="btn" href="#visitas">Auditoría y bloqueos</a></div>'
       + '<details class="c-nuevo"><summary>+ Me escribió alguien por WhatsApp</summary><p class="sub">Mándale el cotizador de 1 minuto, o ármale tú la mesa.</p><div class="acc-nuevo"><input id="cn-nom" placeholder="Nombre" maxlength="60"><input id="cn-tel" inputmode="tel" placeholder="WhatsApp (10 dígitos)" maxlength="16"><button class="btn verde" id="cn-link">Mandarle el cotizador</button><button class="btn negro" id="cn-ok">Armarle su mesa yo</button></div><p class="nota">El cotizador le abre con su nombre y WhatsApp ya puestos: escoge tamaño, piedra y base y te llega como pedido.</p></details>'
       + '<div class="c-tabs">' + TABS.map(([k2, t, n]) => '<button class="' + (clientes.tab === k2 ? 'on' : '') + '" data-tab="' + k2 + '">' + t + (n ? ' <i>' + n + '</i>' : '') + '</button>').join('') + '</div>'
       + '<div id="c-cuerpo">' + cuerpo[clientes.tab]() + '</div>'
@@ -896,8 +934,8 @@
             detalle: resumenP(p).map(([k, w]) => k + ': ' + w).join(' · '), condiciones: 'Anticipo del 50% para empezar a fabricar; el saldo se paga al entregar.' };
           await A.enviarCotizacion(p.id, cot); p.cotizacion = Object.assign({}, cot, { enviada: Date.now() }); p.estado = 'cotizado';
           files.push(new File([await imagenCoti(p)], 'cotizacion-' + p.folio + '.jpg', { type: 'image/jpeg' }));
-          files.push(new File([await CQ.png(m, { cliente: p.nombre, plano: true })], 'plano-' + p.folio + '.jpg', { type: 'image/jpeg' }));
-        } else files.push(new File([await CQ.png(m, { cliente: p.nombre, plano: true, foto: await fotoMesa(p) || undefined, titulo: 'Tu mesa · pedido #' + p.folio })], 'tu-mesa-' + p.folio + '.jpg', { type: 'image/jpeg' }));
+        }
+        files = files.concat(await adjuntos(m, gustoPedido(p), { cliente: p.nombre, titulo: 'Tu mesa · pedido #' + p.folio }, 'mesa-' + p.folio));
         await compartir(files, tx, A.waNum(p.tel));
         if (pr) toast('Cotización enviada: pasa a «Esperan respuesta»');
         cerrar(); await recargar(); if (location.hash === '#clientes') clientes();
@@ -952,7 +990,7 @@
         await A.guardarTarea(id, Object.assign({ texto: ('Cita con ' + c.nombre + (c.tel ? ' (' + c.tel + ')' : '') + ': ' + tt.toLowerCase() + (c.folio ? ' · pedido #' + c.folio : '')).slice(0, 400), fecha: f, hecho: false, creado: Date.now(), urgente: true, por: String(me.nombre || '').slice(0, 60) }, h ? { hora: h } : {}));
         toast('Cita guardada en la Agenda'); contarAgenda();
         if (ok.id === 'ci-ok' && c.tel) { const pd = c.folio && todos.find(z => z.folio === c.folio); // con su mesa si ya escogió una
-          await compartir(pd ? await adjMesa(mesaDeP(pd), { cliente: pd.nombre, foto: await fotoMesa(pd).catch(() => null) }, 'tu-mesa-' + pd.folio) : [], v.querySelector('#ci-tx').value, A.waNum(c.tel)); }
+          await compartir(pd ? await adjuntos(mesaDeP(pd), gustoPedido(pd), { cliente: pd.nombre }, 'tu-mesa-' + pd.folio) : [], v.querySelector('#ci-tx').value, A.waNum(c.tel)); }
         cerrar();
       } catch (x) { ok.disabled = false; alerta(x.message); }
     };
@@ -966,7 +1004,7 @@
       + '<div class="vm-tx"><p class="vm-et">La mesa de ' + esc(c.nombre) + (c.p ? ' · enviada' : ' · guardada, sin enviar') + '</p><h2>' + esc(D.titulo(m)) + '</h2>'
       + '<div class="vm-cq" role="button">' + CQ.lamina(m, info) + '<span>Tocar para ver en grande</span></div>'
       + '<ul class="vm-med">' + D.resumen(m).map(([k, x]) => '<li><span>' + esc(k) + '</span><b>' + esc(x) + '</b></li>').join('') + '</ul>'
-      + '<div class="vm-bot">' + (c.tel ? '<button class="btn verde" data-vm="wa">Mandarle foto y plano por WhatsApp</button>' : '') + '<a class="btn" target="_blank" rel="noopener" href="' + SITE + '#d=' + encodeURIComponent(c.d.cod) + '">Abrirla en el 3D</a><button class="btn" data-vm="bajar">Descargar plano</button></div></div></div>';
+      + '<div class="vm-bot">' + (c.tel ? '<button class="btn verde" data-vm="wa">Mandarle los planos por WhatsApp</button>' : '') + '<a class="btn" target="_blank" rel="noopener" href="' + SITE + '#d=' + encodeURIComponent(c.d.cod) + '">Abrirla en el 3D</a><button class="btn" data-vm="bajar">Descargar plano</button></div></div></div>';
     document.body.appendChild(v); document.body.style.overflow = 'hidden';
     const cerrar = () => { v.remove(); document.body.style.overflow = ''; };
     v.onclick = async e => {
@@ -974,7 +1012,7 @@
       if (e.target.closest('.vm-cq')) { const u = URL.createObjectURL(await CQ.png(m, info)), w = window.open(u, '_blank'); if (!w) location.href = u; return; }
       const b = e.target.closest('[data-vm]'); if (!b) return;
       if (b.dataset.vm === 'bajar') return bajar(await CQ.png(m, info), 'plano-' + c.nombre + '.jpg');
-      const fs = [new File([await CQ.png(m, Object.assign({}, info, { foto: await foto3d(m) || c.d.img || undefined }))], 'tu-mesa.jpg', { type: 'image/jpeg' })];
+      const fs = await adjuntos(m, null, info, 'tu-mesa');
       await compartir(fs, texto + '\n\n' + D.resumen(m).filter(z => z[0] !== 'Fabricación').map(z => z[0] + ': ' + z[1]).join('\n'), A.waNum(c.tel));
       A.marcarEscrito(c.k, true).catch(() => {});
     };
@@ -1182,6 +1220,23 @@
 
   // ---------- utilidades ----------
   // la hoja de su mesa (foto + plano con medidas) para mandarla junto con el mensaje
+  // REGLA DEL DUEÑO: todo WhatsApp sobre una mesa va con adjuntos.
+  //  · le gustó una mesa de la página → la foto real de ese comedor + los planos
+  //  · armó su propia mesa → solo los planos
+  //  · la cotización siempre va con su imagen, más lo de arriba
+  const gustoDe = t => { const FI = window.DKAS_INTERES || {}, k = String(t || '').replace(/^(Quiero una así|Crear mi mesa en):?\s*/, '').trim(); return k && FI[k] && FI[k].img && !/^img\/piedras\//.test(FI[k].img) ? Object.assign({ nombre: k }, FI[k]) : null; };
+  const gustoPedido = p => { const it = (p && p.items || [])[0] || {}, s = (it.specs || []).find(z => z[0] === 'Pidió'); return gustoDe(s ? s[1] : /^Quiero una así/.test(it.titulo || '') ? it.titulo : ''); };
+  async function fotoReal(g, nombre) {
+    if (!g) return null;
+    try { const r = await fetch(g.img); if (r.ok) return new File([await r.blob()], nombre + '-foto.jpg', { type: 'image/jpeg' }); } catch (e) {}
+    const im = await cargarImg(g.img); if (!im) return null;
+    try { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext('2d').drawImage(im, 0, 0); const b = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.9)); return b ? new File([b], nombre + '-foto.jpg', { type: 'image/jpeg' }) : null; } catch (e) { return null; }
+  }
+  async function adjuntos(m, gusto, info, nombre) {
+    nombre = nombre || 'tu-mesa'; const fs = [], f = await fotoReal(gusto, nombre); if (f) fs.push(f);
+    if (m) fs.push(new File([await CQ.png(m, Object.assign({}, info, { plano: true, foto: undefined }))], nombre + '-plano.jpg', { type: 'image/jpeg' }));
+    return fs;
+  }
   async function adjMesa(m, info, nombre) {
     if (!m) return [];
     const i = Object.assign({ plano: true }, info); if (!i.foto) i.foto = await foto3d(m).catch(() => null) || undefined;

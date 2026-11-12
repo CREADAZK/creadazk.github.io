@@ -134,7 +134,7 @@
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = /^#(taller|t=)/.test(h) ? 'taller' : h === '#precios' ? 'precios' : h === '#bases' ? 'bases' : h === '#visitas' ? 'visitas' : h === '#agenda' || h === '#dinero' ? 'agenda' : h === '#mas' || h === '#visitas' || h === '#bases' || h === '#precios' || h === '#estudio' || h === '#portada' ? 'mas' : h === '#clientes' || h === '#accesos' || /^#prop=/.test(h) ? 'clientes' : h === '#accesos' ? 'accesos' : 'log';
+    const h = location.hash, sec = h === '#agenda' ? 'agenda' : h === '#dinero' ? 'dinero' : h === '' || h === '#' || h === '#nuevo' || /^#[pt]=/.test(h) ? 'log' : 'mas';
     if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
     if (h !== '#estudio' && window.DKAS_ESTUDIO) DKAS_ESTUDIO.salir();
     $$('#top-nav a[data-sec]').forEach(a => { a.classList.toggle('on', a.dataset.sec === sec); if (a.dataset.sec === sec && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'center' }); });
@@ -235,7 +235,7 @@
       + (tel ? '<div class="botones"><a class="btn verde" target="_blank" rel="noopener" href="https://wa.me/' + tel + '">WhatsApp</a><a class="btn" target="_blank" rel="noopener" title="Le manda su link para ver cómo va su mesa" href="https://wa.me/' + tel + '?text=' + encodeURIComponent('Hola ' + p.nombre.split(' ')[0] + ', aquí puedes ver cómo va tu mesa DKAS (pedido #' + p.folio + '): ' + SITE + 'pedido.html#t=' + p.token) + '">Mandarle su link</a></div>' : '') + '</div>'
       + etapas(p)
       + (ac ? '<div class="paso-sig"><div><span>Siguiente paso</span><b>' + esc(sigue(p)) + '</b>' + (e.g !== 'fin' ? '<em class="ent ' + e.cls + '">Entrega: ' + esc(e.txt) + (e.f ? ' · ' + fechaCorta(e.f) : '') + '</em>' : '') + '</div><button class="btn oro" id="accion">' + esc(ac.txt) + ' →</button></div>' : '')
-      + '<div class="tabs"><a href="#p=' + p.id + '"' + (tall ? '' : ' class="on"') + '>Pedido y logística</a><a href="#t=' + p.id + '"' + (tall ? ' class="on"' : '') + '>Taller y creación</a></div>'
+      + (tall ? '<div class="tabs"><a href="#p=' + p.id + '">Pedido</a><a href="#t=' + p.id + '" class="on">Taller</a></div>' : '')
       + (p.notas ? '<p class="nota-cli"><b>El cliente escribió:</b> “' + esc(p.notas) + '”</p>' : '');
     const pie = '<div class="pie-ped">' + (p.estado === 'cancelado' ? '' : '<button class="lnk gris" id="cancelar">Cancelar este pedido</button>') + '</div>';
     const resumen = '<ul class="res">' + resumenP(p).concat([['Modelo', modeloDe(p).txt]]).map(([k, v]) => '<li><span>' + k + '</span><b>' + esc(v) + '</b></li>').join('') + (x.n > 1 ? '<li><span>Cantidad</span><b>' + x.n + ' mesas</b></li>' : '') + '</ul>';
@@ -243,14 +243,14 @@
     if (!tall) {
       main.innerHTML = cab
         + sec(1, 'La mesa', '<div class="mesa"><img id="foto"' + (f.m ? '' : ' data-foto="' + p.token + '"') + ' alt="La mesa del cliente"><div><p class="tit">' + esc(D.titulo(m)) + '</p>' + piedraCard(m) + resumen
-          + '<a class="lnk" href="#t=' + p.id + '">Medidas, costos y orden de compra →</a></div></div>')
+          + '<a class="lnk" href="#t=' + p.id + '">Taller: medidas, costos y orden de compra →</a></div></div>')
         + sec(2, 'Entrega y herrero', '<div class="grid2">'
           + '<label>Fecha de entrega<input type="date" data-ent="entrega" value="' + esc(f.entrega || '') + '"></label>'
           + '<label>Herrero que la hace<input data-ent="herrero" list="hlist" placeholder="Escribe o elige" value="' + esc(f.herrero || '') + '"></label>'
           + '<label class="full">Dirección de entrega<input data-ent="dir" placeholder="Calle, número, colonia, ciudad" value="' + esc(f.dir || '') + '"></label>'
           + '<label class="full">Notas de entrega<input data-ent="notaEnt" placeholder="Piso, horario, quién recibe…" value="' + esc(f.notaEnt || '') + '"></label></div>' + hdl
           + '<p class="nota">Se guarda solo. Si no pones fecha, al cobrar el anticipo se pone sola a ' + dias() + ' días.</p>')
-        + sec(3, 'Cotización al cliente', '<div id="coti"></div>')
+        + sec(3, 'Precio y cotización', '<div id="coti"></div>')
         + sec(4, 'Pagos', '<div id="pagos"></div>')
         + sec(5, 'Agenda y gastos de este pedido', '<div id="ag-ped"></div>')
         + pie + '<div class="guardar" id="gbar" hidden><span>Tienes cambios sin guardar</span><button class="btn negro" id="guardar">Guardar</button></div>';
@@ -355,7 +355,7 @@
     const est = s => modo => ponerEstado(p, s, location.hash.startsWith('#t=') ? 'taller' : location.hash.startsWith('#p=') ? 'log' : null).then(() => { if (!location.hash.match(/^#[pt]=/)) ruta(); });
     switch (p.estado) {
       case 'nuevo': if (!f.bienvenida && p.tel) return { txt: 'Mandar bienvenida', run: modo => bienvenida(p, modo) };
-        return x.pactado ?{ txt: 'Mandar cotización', run: ir('p', '#mandar') } : { txt: 'Poner precio', run: ir('t', '#pactado') };
+        return x.pactado ?{ txt: 'Mandar cotización', run: ir('p', '#mandar') } : { txt: 'Poner precio', run: ir('p', '#precio-c') };
       case 'cotizado': return { txt: 'Registrar anticipo', run: ir('p', '#pmonto') };
       case 'confirmado': return x.pagado < anticipo ? { txt: 'Registrar anticipo', run: ir('p', '#pmonto') } : !f.herrero ? { txt: 'Asignar herrero', run: ir('p', '[data-ent="herrero"]') } : { txt: 'Mandar a fabricar', run: est('fabricacion') };
       case 'fabricacion': return { txt: 'Marcar como lista', run: est('listo') };
@@ -452,11 +452,18 @@
   // ---------- cotización: se guarda en el pedido (el cliente la ve en su link) y se manda por WhatsApp con la foto ----------
   function pintarCoti(p) {
     const x = numeros(p), m = mesaDe(p), c = p.cotizacion, el = $('#coti'), anticipo = Math.ceil(x.pactado / 2);
-    el.innerHTML = piedraCard(m) + (c ? '<p class="ok-c">Enviada el ' + A.fecha(c.enviada) + ' por ' + pesos(c.total) + (c.aceptada ? ' · <b>el cliente la aceptó</b>' : ' · esperando respuesta') + '</p>' : '')
+    const campo = '<div class="precio-c"><label>Precio al cliente' + (x.n > 1 ? ' (las ' + x.n + ' mesas)' : '') + '<input id="precio-c" inputmode="decimal" placeholder="Sugerido ' + pesos(x.sugerido) + '" value="' + esc(x.pactado || '') + '"></label><button class="btn' + (x.pactado ? '' : ' negro') + '" id="precio-g">' + (x.pactado ? 'Cambiar' : 'Poner precio') + '</button></div>';
+    el.innerHTML = campo + (c ? '<p class="ok-c">Enviada el ' + A.fecha(c.enviada) + ' por ' + pesos(c.total) + (c.aceptada ? ' · <b>el cliente la aceptó</b>' : ' · esperando respuesta') + '</p>' : '')
       + (x.pactado ? '<div class="cifras"><div><span>Total</span><b>' + pesos(x.pactado) + '</b></div><div><span>Anticipo 50%</span><b>' + pesos(anticipo) + '</b><small>para empezar a fabricar</small></div><div><span>Saldo al entregar</span><b>' + pesos(x.pactado - anticipo) + '</b></div></div>'
         + (x.g.ok ? '' : '<p class="aviso-rojo">Ojo: la ganancia es de ' + x.g.pct + '%, menos del ' + x.minimo + '%. Puedes mandarla igual.</p>')
         + '<div class="botones"><button class="btn negro" id="mandar">' + (c ? 'Mandar de nuevo' : 'Mandar cotización') + ' por WhatsApp</button><button class="btn" id="cimg">Descargar imagen</button></div>'
-        : '<p class="nota">Primero pon el precio en <a class="lnk" href="#t=' + p.id + '">Taller y creación</a>.</p>');
+        : '<p class="nota">Escribe el precio y toca Poner precio. Luego aparece el botón para mandarla por WhatsApp.</p>');
+    $('#precio-g').onclick = async () => {
+      const v = num($('#precio-c').value); if (!v) { $('#precio-c').focus(); return; }
+      const fi = Object.assign({}, ficha(p), { pactado: v, actualizado: Date.now() });
+      try { await A.guardarFicha(p.id, 'dkas', JSON.parse(JSON.stringify(fi)), 'Precio al cliente: ' + pesos(v) + '.'); p.fichas = Object.assign({}, p.fichas, { dkas: fi }); toast('Precio guardado'); pedido(p, 'log'); const b = $('#mandar'); if (b) { b.scrollIntoView({ block: 'center' }); b.classList.add('brilla'); setTimeout(() => b.classList.remove('brilla'), 2200); } }
+      catch (e) { alerta(e.message); }
+    };
     if (!x.pactado) return;
     $('#cimg').onclick = async () => bajar(await imagenCoti(p), 'cotizacion-' + p.folio + '.jpg');
     $('#mandar').onclick = async () => {
@@ -686,7 +693,7 @@
       try { const c2 = Object.assign({}, await A.publico() || {}); delete c2.actualizado; c2.presentacion = b.dataset.pres; await A.guardarPublico(c2); toast('Listo: los clientes ya ven la presentación ' + OPS.find(o => o[0] === b.dataset.pres)[1]); portada(); } catch (x) { b.disabled = false; alerta(x.message); } };
   }
   function mas() {
-    main.innerHTML = '<h1>Más</h1><div class="mas">' + [['#portada', 'Presentación de la página', 'Escoge cómo se ve el inicio de dkas.mx'], ['#estudio', 'Estudio de diseño', 'Crea mesas completas: piedra, recorte, base y medidas'], ['#visitas', 'Auditoría', 'Todo lo que hacen los clientes · bloquear'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#precios', 'Precios', 'Costos y margen'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza'], ['https://dkas.mx/cotiza.html', 'Cotizador express', 'Lo que ven los clientes']]
+    main.innerHTML = '<h1>Más</h1><div class="mas">' + [['#clientes', 'Clientes de la página' + (($('#nb-acc') && !$('#nb-acc').hidden) ? ' · ' + $('#nb-acc').textContent + ' por aprobar' : ''), 'Quién pidió diseñar su mesa · aprobar y escribirles'], ['#taller', 'Taller', 'Costos, cortes, croquis y orden de compra de cada mesa'], ['#portada', 'Presentación de la página', 'Escoge cómo se ve el inicio de dkas.mx'], ['#estudio', 'Estudio de diseño', 'Crea mesas completas: piedra, recorte, base y medidas'], ['#visitas', 'Auditoría', 'Todo lo que hacen los clientes · bloquear'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#precios', 'Precios', 'Costos y margen'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza'], ['https://dkas.mx/cotiza.html', 'Cotizador express', 'Lo que ven los clientes']]
       .map(([h, t, d]) => '<a href="' + h + '"' + (/^http/.test(h) ? ' target="_blank" rel="noopener"' : '') + '><b>' + t + '</b><small>' + d + '</small></a>').join('') + '<a href="#" id="salir2"><b>Salir</b><small>Cerrar sesión en este aparato</small></a></div>';
     $('#salir2').onclick = e => { e.preventDefault(); $('#salir').click(); };
   }

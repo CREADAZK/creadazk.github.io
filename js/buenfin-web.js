@@ -9,16 +9,16 @@
   const css = document.createElement('style');
   css.textContent = `
 :root{--bfr:#E5332A;--bfh:38px}
-.bf-cinta{position:fixed;top:0;left:0;right:0;height:var(--bfh);z-index:2147483000;background:var(--bfr);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;padding:0 10px;font:500 11px/1 'Jost','Segoe UI',sans-serif;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden}
+.bf-cinta{position:fixed;top:0;left:0;right:0;height:var(--bfh);z-index:2147483000;background:linear-gradient(90deg,#9e2620,#C8312A 50%,#9e2620);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;padding:0 10px;font:500 11px/1 'Jost','Segoe UI',sans-serif;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden}
 .bf-cinta b{font-weight:600;letter-spacing:.2em}.bf-cinta .bf-t{font-variant-numeric:tabular-nums;opacity:.92}.bf-cinta a{color:#fff;border:1px solid rgba(255,255,255,.7);padding:6px 10px;border-radius:3px;text-decoration:none}
 .bf-cinta .bf-l,.bf-cinta .bf-w,.bf-cinta a{display:none}
 @media(min-width:760px){.bf-cinta{font-size:12.5px;gap:16px;letter-spacing:.14em}.bf-cinta .bf-l,.bf-cinta .bf-w{display:inline}.bf-cinta a{display:inline-block}}
 body.bf-on .top{top:var(--bfh)!important}body.bf-on{padding-top:0}
 body.bf-on .menu{padding-top:calc(80px + var(--bfh))}
 body.bf-on .hero,body.bf-on .pv,body.bf-on .acceso.pag,body.bf-on .cz-top{scroll-margin-top:var(--bfh)}
-.bf-sello{position:absolute!important;z-index:6;left:auto!important;bottom:auto!important;margin:0!important;right:18px;top:calc(var(--bfh) + 74px);width:96px;height:96px;border-radius:50%;background:var(--bfr);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-9deg);box-shadow:0 14px 40px rgba(0,0,0,.45);pointer-events:none;text-align:center}
-.bf-sello b{font:400 36px/.9 'Cormorant Garamond',Garamond,serif;font-weight:500}.bf-sello small{font:500 9.5px/1.2 'Jost',sans-serif;letter-spacing:.24em;text-transform:uppercase;margin-top:5px}
-@media(min-width:980px){.bf-sello{width:150px;height:150px;right:6vw;top:calc(var(--bfh) + 110px)}.bf-sello b{font-size:58px}.bf-sello small{font-size:11px}}
+.bf-sello{position:absolute!important;z-index:6;left:auto!important;bottom:auto!important;margin:0!important;right:20px;top:calc(var(--bfh) + 78px);padding:14px 16px 12px;background:rgba(14,12,10,.72);backdrop-filter:blur(8px);border:1px solid rgba(229,51,42,.7);color:#fff;display:flex;flex-direction:column;align-items:center;pointer-events:none;text-align:center}
+.bf-sello b{font:500 34px/1 'Cormorant Garamond',Garamond,serif}.bf-sello small{font:500 9.5px/1.3 'Jost',sans-serif;letter-spacing:.26em;text-transform:uppercase;margin-top:6px;color:#f0b9b3}
+@media(min-width:980px){.bf-sello{right:5vw;top:calc(var(--bfh) + 120px);padding:20px 24px 16px}.bf-sello b{font-size:48px}.bf-sello small{font-size:11px}}
 .bf-tag{position:absolute;z-index:3;left:12px;top:12px;background:var(--bfr);color:#fff;font:600 12px/1 'Jost',sans-serif;letter-spacing:.12em;padding:7px 9px 6px;border-radius:2px;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.3)}
 .bf-tag i{font-style:normal;font-weight:400;opacity:.9;margin-left:6px;letter-spacing:.18em;font-size:10px}
 .bf-pos{position:relative}
@@ -50,13 +50,9 @@ body.bf-on .hero,body.bf-on .pv,body.bf-on .acceso.pag,body.bf-on .cz-top{scroll
     setInterval(() => { if (Date.now() >= FIN) { location.reload(); return; } const t = c.querySelector('.bf-t'); if (t) t.textContent = falta(); }, 30000);
 
     // sello en las portadas y botones principales
-    $$('.hero, .pv').forEach(s => { if (s.querySelector('.bf-sello')) return; const d = document.createElement('aside'); d.className = 'bf-sello'; d.innerHTML = '<b>-' + PCT + '%</b><small>Buen Fin</small>'; s.appendChild(d); });
+    $$('.hero, .pv').forEach(s => { if (s.querySelector('.bf-sello')) return; const d = document.createElement('aside'); d.className = 'bf-sello'; d.innerHTML = '<b>-' + PCT + '%</b><small>Buen Fin 2026</small><small style="margin-top:3px;color:#d8cdbd">en todas las mesas</small>'; s.appendChild(d); });
     $$('.hero .btn.oro, .pv .btn.oro').forEach(b => { if (/cotiza/.test(b.getAttribute('href') || '')) b.textContent = 'Cotiza con ' + PCT + '% de descuento'; });
 
-    // etiqueta -10% en cada foto de mesa
-    const fotos = '.mod .im, .rev-lead, .rev-art .ph, .rev-c .ph, .riel#coleccion .ph, .riel#proyectos .ph';
-    $$(fotos).forEach(el => { if (el.querySelector(':scope > .bf-tag')) return; if (getComputedStyle(el).position === 'static') el.classList.add('bf-pos');
-      const t = document.createElement('span'); t.className = 'bf-tag'; t.innerHTML = '-' + PCT + '%<i>Buen Fin</i>'; el.appendChild(t); });
 
     // aviso una vez por visita (no en el pedido del cliente)
     let visto = false; try { visto = sessionStorage.getItem('dkas-bf') === '1'; } catch (e) {}

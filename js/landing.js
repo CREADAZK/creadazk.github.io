@@ -24,7 +24,7 @@
     const qs = new URLSearchParams(Object.assign({}, x.u ? { u: x.u } : {}, x.f ? { f: x.f } : {}, x.p ? { p: x.p } : {}, x.b ? { b: x.b } : {}, x.t ? { t: x.t } : {}));
     if (x.u) { location.href = 'cotiza.html?' + qs; return; }
     const cambios = Object.assign({}, x.u ? { uso: x.u } : {}, x.f ? { forma: x.f } : {}, x.u && x.f ? D.tamanoPara(x.u, x.f, x.u === 'comedor' ? 8 : 4) : {}, x.p ? { piedra: x.p } : {}, x.b ? { base: x.b } : {});
-    window.DKAS_QUIERE = 'Quiero una así: ' + (x.t || (x.p ? 'mesa en ' + D.piedra(x.p).nombre : 'mesa de la página')); interesa(DKAS_QUIERE);
+    window.DKAS_QUIERE = 'Quiero una así: ' + (x.t || (x.p ? 'mesa de ' + D.piedra(x.p).nombre : 'mesa de la página')); interesa(DKAS_QUIERE);
     disenar(cambios, 1); repintaAcceso();
   }
   // el formulario de acceso se vuelve a pintar para decir qué mesa quiere (sin borrar lo que ya escribió)
@@ -49,7 +49,7 @@
     let mo = $('#qa');
     if (!mo) { mo = document.createElement('div'); mo.className = 'modal'; mo.id = 'qa'; document.body.appendChild(mo); }
     const esc = A.esc, yo = A.load('dazk-yo', {}), pz = x.p ? D.piedra(x.p).nombre : '', bs = x.b && D.BASES[x.b] ? D.BASES[x.b].nombre : '';
-    const tit = x.t || (pz ? 'Mesa en ' + pz : 'Mesa DKAS');
+    const tit = x.t || (pz ? 'Mesa de ' + pz : 'Mesa de piedra sinterizada DKAS');
     mo.innerHTML = '<div class="caja qa-c"><header><b>Quiero una así</b><button class="btn chico" data-qx>Cerrar</button></header><div class="qa-b">'
       + (x.img ? '<img class="qa-img" src="' + esc(x.img) + '" alt="">' : '')
       + '<p class="qa-t">' + esc(tit) + '</p><p class="qa-s">' + esc([pz && 'Piedra ' + pz, bs && 'Base ' + bs].filter(Boolean).join(' · ')) + '</p>'
@@ -145,8 +145,8 @@
   let lista = [], vi = 0;
   function pintarVisor() {
     const x = lista[vi], img = $('#vi-img');
-    img.src = 'img/l/' + x.k + (innerWidth < 800 ? '-m' : '') + '.jpg'; img.alt = x.t || 'Mesa DKAS';
-    $('#vi-t').textContent = x.t || 'Mesa DKAS';
+    img.src = 'img/l/' + x.k + (innerWidth < 800 ? '-m' : '') + '.jpg'; img.alt = (x.t ? x.t + ' · ' : '') + (x.p ? 'mesa de piedra ' + D.piedra(x.p).nombre : 'mesa de piedra sinterizada DKAS');
+    $('#vi-t').textContent = x.t || 'Mesa de piedra sinterizada DKAS';
     $('#vi-p').textContent = x.p ? 'Piedra ' + D.piedra(x.p).nombre : 'Hecha a la medida';
     $('#vi-btn').textContent = x.p ? 'Quiero una así' : 'Diseñar la mía'; $('#vi-crea').hidden = !x.p;
   }
@@ -198,10 +198,10 @@
 
   // ---------- pantallas: cada sección se abre sola (con el #) ----------
   const PANT = { inicio: ['#portada', '#accesos', '.sellos', '#revista'], crea: ['#disena', '#acceso', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
-    bases: ['#bases'], proyectos: ['#proyectos'], arquitectos: ['#arquitectos'], como: ['#casa', '#como', '#preguntas'], contacto: ['#contacto'] };
-  const ALIAS = { app: 'crea', disena: 'crea', casa: 'como', preguntas: 'como', porque: 'piedras', espacios: 'proyectos', revista: 'inicio' };
-  const ORDEN = ['inicio', 'crea', 'coleccion', 'piedras', 'bases', 'proyectos', 'arquitectos', 'como', 'contacto'];
-  const NOMBRE = { inicio: 'Inicio', crea: 'Crea tu mesa', coleccion: 'Colección', piedras: 'Piedras', bases: 'Bases', proyectos: 'Proyectos', arquitectos: 'Arquitectos', como: 'Nosotros', contacto: 'Contacto' };
+    bases: ['#bases'], proyectos: ['#proyectos'], arquitectos: ['#arquitectos'], nosotros: ['#casa', '#como', '#preguntas'], contacto: ['#contacto'] };
+  const ALIAS = { app: 'crea', disena: 'crea', casa: 'nosotros', como: 'nosotros', preguntas: 'nosotros', porque: 'piedras', espacios: 'proyectos', revista: 'inicio' };
+  const ORDEN = ['inicio', 'crea', 'coleccion', 'piedras', 'bases', 'proyectos', 'arquitectos', 'nosotros', 'contacto'];
+  const NOMBRE = { inicio: 'Inicio', crea: 'Crea tu mesa', coleccion: 'Colección', piedras: 'Piedras', bases: 'Bases', proyectos: 'Proyectos', arquitectos: 'Arquitectos', nosotros: 'Nosotros', contacto: 'Contacto' };
   const HREF = p => p === 'crea' ? '#app' : p === 'inicio' ? '#' : '#' + p;
   const todas = [...new Set(Object.values(PANT).flat())].map(s => $(s)).filter(Boolean);
   // al final de cada pantalla: ir a la siguiente o volver al inicio

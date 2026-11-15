@@ -12,7 +12,7 @@
     ['statuario', 'Statuario', 'Blanco con veta gris fina', ''],
     ['mont-blanc', 'Mont Blanc', 'Blanco con veta gris suave', ''],
     ['pure-white', 'Pure White', 'Blanco liso, textura cepillada', 'Cepillado'],
-    ['taj-mahal-light', 'Taj Mahal Light', 'Hueso cálido con veta muy suave', 'Mate suave'],
+    ['taj-mahal-light', 'Taj Mahal Light', 'Fondo crema cálido con vetas doradas suaves', 'Mate suave'],
     ['classic-bulgar', 'Classic Bulgar', 'Blanco con veta gris vino y toques cobre', ''],
     ['peacock', 'Peacock', 'Blanco con manchas azul acero y chocolate', 'Pulido'],
     ['cardenaskin', 'Cardenaskin', 'Blanco cálido con veta dorada', 'Mate suave'],
@@ -33,7 +33,7 @@
 
   // PTR de 2" (5 × 5 cm) pintado negro, salvo donde se dice otra cosa
   const BASES = {
-    mx: { nombre: 'Maestra', desc: 'Nuestra base insignia. Cabeceras que se cierran hacia el piso, con V hacia el centro arriba y al piso, largueros y viga central.' },
+    mx: { nombre: 'Maestra', desc: 'Nuestra base insignia. En cada extremo, dos patas que se cierran hacia el piso, con travesaños en V arriba y abajo; una viga central las une a lo largo.' },
     patas: { nombre: '4 patas', desc: 'Cuatro patas rectas y bastidor. La más sencilla y firme.' },
     marco: { nombre: 'Marco rectangular', desc: 'Un marco cerrado en cada extremo, unido por largueros.' },
     trapecio: { nombre: 'Trapecio', desc: 'Un marco en cada extremo que se abre hacia el piso.' },

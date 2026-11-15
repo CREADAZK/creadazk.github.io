@@ -25,7 +25,7 @@ body.bf-on #portada{display:none!important}
 .bf-reloj div{min-width:74px;padding:14px 8px 10px;text-align:center;background:rgba(14,12,10,.55);border:1px solid rgba(239,231,218,.18);backdrop-filter:blur(8px)}
 .bf-reloj b{display:block;font:400 44px/1 'Cormorant Garamond',Garamond,serif;color:#fff}.bf-reloj span{display:block;margin-top:7px;font:500 9.5px/1 'Jost',sans-serif;letter-spacing:.28em;text-transform:uppercase;color:#cbbfae}
 .bf-reloj div.s b{color:#ff8f86}
-.bf-hero h1,.bf-of h2,.bf-c h3,.bf-banda h2,.bf-cz h3,.bf-av h2{letter-spacing:-.005em!important;text-transform:none!important}
+.bf-hero h2,.bf-of h2,.bf-c h3,.bf-banda h2,.bf-cz h3,.bf-av h2{letter-spacing:-.005em!important;text-transform:none!important}
 .bf-hero .bf-k .lg{display:none}@media(min-width:700px){.bf-hero .bf-k .lg{display:inline}}
 @media(min-width:980px){.bf-reloj div{min-width:96px;padding:18px 10px 13px}.bf-reloj b{font-size:58px}}
 .bf-hero{position:relative;min-height:100svh;display:flex;align-items:flex-end;overflow:hidden;color:#efe7da;padding:calc(var(--bfh) + 96px) 22px 54px}
@@ -35,7 +35,7 @@ body.bf-on #portada{display:none!important}
 @media(min-width:980px){.bf-hero::before{background:linear-gradient(90deg,rgba(12,10,9,.9) 0%,rgba(12,10,9,.55) 45%,rgba(12,10,9,.1) 75%),linear-gradient(0deg,rgba(12,10,9,.92) 0%,rgba(12,10,9,0) 55%)}}
 .bf-hero .in{position:relative;z-index:2;width:100%;max-width:1240px;margin:0 auto}
 .bf-k{font:500 11.5px/1.4 'Jost',sans-serif;letter-spacing:.42em;text-transform:uppercase;color:var(--bfg)}
-.bf-hero h1{font:300 clamp(76px,15vw,200px)/.86 'Cormorant Garamond',Garamond,serif;letter-spacing:-.015em;margin:18px 0 0}.bf-hero h1 span{color:var(--bfr)}.bf-hero h1 em{color:var(--bfg)}
+.bf-hero h2{font:300 clamp(76px,15vw,200px)/.86 'Cormorant Garamond',Garamond,serif;letter-spacing:-.015em;margin:18px 0 0}.bf-hero h2 span{color:var(--bfr)}.bf-hero h2 em{color:var(--bfg)}
 .bf-pct{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin:22px 0 26px}.bf-pct b{font:500 clamp(54px,9vw,96px)/1 'Cormorant Garamond',serif;color:#fff}.bf-pct span{font:400 clamp(20px,2.6vw,28px)/1.25 'Cormorant Garamond',serif;font-style:italic;color:#ddd2c2}
 .bf-bot{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
 .bf-btn{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 26px;border-radius:40px;font:500 13px/1 'Jost',sans-serif;letter-spacing:.16em;text-transform:uppercase;text-decoration:none;border:1px solid rgba(239,231,218,.35);color:#efe7da;background:transparent;cursor:pointer}
@@ -114,7 +114,7 @@ body.bf-on{padding-bottom:64px}@media(min-width:900px){body.bf-on{padding-bottom
       // portada Buen Fin (la normal queda escondida)
       const h = document.createElement('section'); h.className = 'bf-hero'; h.id = 'buen-fin';
       h.innerHTML = '<img src="img/bf/maestra.jpg" srcset="img/bf/maestra-m.jpg 760w, img/bf/maestra.jpg 1600w" sizes="100vw" alt="Mesa Maestra DKAS en Bulgaria Dark Grey" fetchpriority="high">'
-        + '<div class="in"><div class="bf-k">Solo este fin de semana<span class="lg"> · Edición especial</span></div><h1><span>Buen Fin</span> <em>2026</em></h1>'
+        + '<div class="in"><div class="bf-k">Solo este fin de semana<span class="lg"> · Edición especial</span></div><h2><span>Buen Fin</span> <em>2026</em></h2>'
         + '<div class="row"><div><div class="bf-pct"><b>-' + PCT + '%</b><span>en todas nuestras mesas<br>de piedra sinterizada, hechas a tu medida.</span></div>'
         + '<div class="bf-bot"><a class="bf-btn r" href="' + cotiza + '">Cotiza con ' + PCT + '% de descuento</a><a class="bf-btn" href="#ofertas-bf">Ver las mesas</a></div></div>'
         + '<div><div class="bf-k" style="margin:30px 0 12px">Termina en</div>' + reloj() + '<div class="bf-fin">Hasta el domingo 15 de noviembre a las 11:59 p. m.</div></div></div></div>';

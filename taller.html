@@ -620,7 +620,86 @@ a.rg{text-decoration:none;color:inherit}
   .ag2 .tarea:not(.sis) .tx{flex:1 1 calc(100% - 50px)}
   .ag2 .tarea:not(.sis) .acc{flex-basis:100%;flex-direction:row;justify-content:flex-start;gap:14px;padding-left:42px}
 }
+/* DKAS · Dinero */
+.dn{--in:#2e9e5e;--out:#a3261d;max-width:640px;margin:0 auto;padding-bottom:40px}
+.dn .v{color:var(--in)}.dn .r{color:var(--out)}
+.dn-per{display:flex;gap:4px;padding:4px;background:#ebe8e2;border-radius:12px;margin-bottom:14px}
+.dn-per button{flex:1;min-height:40px;border-radius:9px;font-size:14.5px;font-weight:600;color:var(--gris)}
+.dn-per button.on{background:#fff;color:var(--tinta);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.dn-hero{background:var(--card);border:1px solid var(--linea);border-radius:var(--r);padding:20px 18px 18px;box-shadow:var(--sombra);text-align:center}
+.dn-k{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--gris);font-weight:600}
+.dn-g{font-size:46px;font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:4px 0 6px;font-variant-numeric:tabular-nums}
+.dn-g.neg{color:var(--out)}
+.dn-es{font-size:15px;color:var(--gris)}.dn-es b{font-variant-numeric:tabular-nums}
+.dn-cmp{display:inline-block;margin-top:10px;padding:4px 10px;border-radius:99px;font-size:13.5px;font-weight:600;background:#eef6f0;color:var(--in)}
+.dn-cmp.mal{background:#f8ecea;color:var(--out)}
+.dn-sec{background:var(--card);border:1px solid var(--linea);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sombra);margin-top:12px}
+.dn-sec h3{margin:0}
+.dn-sec-c{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.dn-sec-c h1{font-size:24px}
+.dn-ley{font-size:12.5px;color:var(--gris);display:flex;align-items:center;gap:5px}
+.dn-ley i{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--in);margin-left:6px}.dn-ley i.r{background:var(--out)}
+.dn-graf{width:100%;height:auto;display:block;overflow:visible}
+.dn-graf .g{stroke:var(--linea);stroke-dasharray:3 3}.dn-graf .b{stroke:#cfc9bf}
+.dn-graf .gt{font-size:10px;fill:var(--gris2)}.dn-graf .et{font-size:10.5px;fill:var(--gris)}
+.dn-graf path.v{fill:var(--in)}.dn-graf path.r{fill:var(--out)}
+.dn-graf .hit{fill:transparent}
+.dn-bar{cursor:pointer;outline:0}.dn-bar.on .hit,.dn-bar:focus-visible .hit{fill:rgba(194,162,115,.13)}.dn-bar.on .et{fill:var(--tinta);font-weight:700}
+.dn-tip{font-size:13.5px;color:var(--gris);margin-top:6px;min-height:20px}
+.dn-cats{display:grid;gap:9px}
+.dn-cats div{display:grid;grid-template-columns:minmax(76px,30%) 1fr 40px;grid-template-rows:auto auto;align-items:center;column-gap:10px;font-size:14px}
+.dn-cats span{grid-row:1/3;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dn-cats i{height:8px;border-radius:4px;background:#f1eeea;overflow:hidden}.dn-cats em{display:block;height:100%;border-radius:4px;background:var(--out)}
+.dn-cats b{text-align:right;font-variant-numeric:tabular-nums}
+.dn-cats small{grid-column:2/4;color:var(--gris2);font-size:12px;line-height:1.2}
+.dn-lista{display:grid}
+.dn-mov{display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;text-align:left;padding:10px 2px;border-top:1px solid var(--linea);width:100%}
+.dn-lista .dn-mov:first-child{border-top:0}
+.dn-mov i{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:700;background:#eef6f0;color:var(--in)}
+.dn-mov.out i{background:#f8ecea;color:var(--out)}
+.dn-mov span{min-width:0}.dn-mov span b,.dn-mov span small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dn-mov small{font-size:12.5px;color:var(--gris)}
+.dn-mov em{font-style:normal;font-weight:700;text-align:right;font-variant-numeric:tabular-nums;color:var(--in)}.dn-mov.out em{color:var(--out)}
+.dn-mov em small{display:block;font-weight:400}
+.dn-fil{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.dn-fil .dn-per,.dn-fil input[type=search],.dn-fil select{grid-column:1/-1;margin:0}
+.dn-fil label input{margin-top:3px}
+.dn-tot{font-size:13.5px;color:var(--gris);margin:4px 0 6px}
+.dn .dn-lista#dn-todos{background:var(--card);border:1px solid var(--linea);border-radius:var(--r);padding:2px 14px}
+/* el botón grande y fijo de abajo */
+.dn-reg{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));z-index:30;width:min(560px,calc(100% - 32px));min-height:58px;border-radius:16px;background:var(--tinta);color:#fff;font-size:18px;font-weight:700;box-shadow:0 8px 24px rgba(22,20,15,.28);display:flex;align-items:center;justify-content:center;gap:8px}
+.dn-reg span{font-size:24px;line-height:1}
+.dn-reg:active{transform:translateX(-50%) translateY(1px)}
+/* hoja para registrar */
+.dn-sin-scroll{overflow:hidden}
+.dn-capa{position:fixed;inset:0;z-index:60;background:rgba(14,12,10,.45);display:flex;align-items:flex-end;justify-content:center}
+.dn-capa.arriba{z-index:61}
+.dn-hoja{background:var(--bg);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom));animation:dnSube .18s ease-out}
+@keyframes dnSube{from{transform:translateY(30px);opacity:.6}}
+@media (min-width:700px){.dn-capa{align-items:center}.dn-hoja{border-radius:20px}}
+.dn-hoja-c{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.dn-hoja h2{font-size:20px}
+.dn-x{width:40px;height:40px;border-radius:50%;background:#ebe8e2;font-size:16px}
+.dn-tipo{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dn-tipo button{min-height:62px;border-radius:14px;border:2px solid var(--linea);background:#fff;font-size:16px;font-weight:700}
+.dn-tipo button.in.on{border-color:var(--in);background:#eef6f0;color:#1d6e41}
+.dn-tipo button.out.on{border-color:var(--out);background:#f8ecea;color:#8a1f18}
+.dn-hint{text-align:center;margin:14px 0 6px}
+.dn-cant{margin-top:14px}
+.dn-cant span{display:flex;align-items:center;gap:6px;margin-top:5px;background:#fff;border:1px solid var(--linea);border-radius:12px;padding:0 14px}
+.dn-cant i{font-style:normal;font-size:30px;font-weight:600;color:var(--gris2)}
+.dn-cant input{border:0;box-shadow:none!important;padding:10px 0;font-size:34px;font-weight:700;margin:0;font-variant-numeric:tabular-nums}
+.dn-chips-c{display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px}
+.dn-chips{display:flex;flex-wrap:wrap;gap:7px}
+.dn-chips button{min-height:42px;padding:0 15px;border-radius:99px;border:1px solid var(--linea);background:#fff;font-size:15px;font-weight:500}
+.dn-chips button.on{background:var(--tinta);border-color:var(--tinta);color:#fff}
+.dn-mas{display:grid;grid-template-columns:1.4fr 1fr;gap:8px;margin-top:14px}
+.dn-borrar{display:block;margin:14px auto 0;color:var(--rojo);font-size:14.5px;font-weight:600;padding:8px}
+.dn-ecats{display:grid;gap:7px;margin-bottom:10px}
+.dn-ecats div{display:flex;gap:6px}.dn-ecats button{width:44px;flex:none;border-radius:10px;border:1px solid var(--linea);background:#fff;color:var(--rojo)}
+.dn-hoja .sub{margin:10px 0 0;font-size:13px}
+@media (max-width:380px){.dn-g{font-size:38px}.dn-mas{grid-template-columns:1fr}}
 </style></head><body>
-<header class="top"><a href="#agenda"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#agenda" data-sec="agenda">Hoy<i class="badge" id="nb-age" hidden></i></a><a href="#clientes" data-sec="clientes">Clientes<i class="badge" id="nb-acc" hidden></i></a><a href="#" data-sec="log">Pedidos</a><a href="#dinero" data-sec="dinero">Dinero</a><a href="#mas" data-sec="mas">Más</a><a href="#" id="salir" hidden>Salir</a></nav></header>
+<header class="top"><a href="#dinero"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#dinero" data-sec="dinero">Dinero</a><a href="#agenda" data-sec="agenda">Hoy<i class="badge" id="nb-age" hidden></i></a><a href="#clientes" data-sec="clientes">Clientes<i class="badge" id="nb-acc" hidden></i></a><a href="#" data-sec="log">Pedidos</a><a href="#mas" data-sec="mas">Más</a><a href="#" id="salir" hidden>Salir</a></nav></header>
 <div id="avisos" class="avisos" hidden></div><main id="m"></main><div id="toast" hidden></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=812a98dc90"></script><script src="js/dkas-api.js?v=30501b8e6b"></script><script src="js/dkas-croquis.js?v=1713142b92"></script><script src="js/disena.js?v=fbf9a608dd"></script><script src="js/estudio.js?v=479b2cfe21"></script><script src="js/agenda.js?v=fa2ce7919c"></script><script src="js/agenda-simple.js?v=d521845bfb"></script><script src="js/panel-interes.js?v=9301d24e91"></script><script src="js/panel.js?v=43c91cdd10"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=812a98dc90"></script><script src="js/dkas-api.js?v=ed222d2727"></script><script src="js/dkas-croquis.js?v=1713142b92"></script><script src="js/disena.js?v=fbf9a608dd"></script><script src="js/estudio.js?v=479b2cfe21"></script><script src="js/agenda.js?v=fa2ce7919c"></script><script src="js/agenda-simple.js?v=d521845bfb"></script><script src="js/dinero.js?v=5f63bb6803"></script><script src="js/panel-interes.js?v=9301d24e91"></script><script src="js/panel.js?v=748ec958f7"></script></body></html>

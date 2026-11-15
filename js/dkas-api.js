@@ -47,6 +47,10 @@
   const nombreLimpio = n => { n = String(n || '').trim(); if (!/@/.test(n)) return n; const yo = n.toLowerCase().split('@')[0]; return yo === OWNER.split('@')[0] ? 'Zury' : yo; };
   // ---------- Firebase ----------
   const TS = { '.sv': 'timestamp' };
+  // modo demo: un árbol en localStorage para los nodos del panel (sv timestamp → ahora)
+  const sinTS = x => x && typeof x === 'object' ? (x['.sv'] === 'timestamp' ? Date.now() : Object.fromEntries(Object.entries(x).map(([k, v]) => [k, sinTS(v)]))) : x;
+  const nodoGet = p => p.split('/').filter(Boolean).reduce((v, k) => v == null ? v : v[k], load('dazk-demo-nodos', {})) ?? null;
+  function nodoSet(p, x) { const r = load('dazk-demo-nodos', {}), ks = p.split('/').filter(Boolean); let v = r; ks.slice(0, -1).forEach(k => { if (!v[k] || typeof v[k] !== 'object') v[k] = {}; v = v[k]; }); if (x == null) delete v[ks[ks.length - 1]]; else v[ks[ks.length - 1]] = sinTS(x); save('dazk-demo-nodos', r); }
   let ses = load('dazk-ses', null), yoCache = null;
   async function jfetch(url, opt) {
     let r;
@@ -209,6 +213,13 @@
     async borrarIngreso(id) { await db('ingresos/' + id, 'DELETE', undefined, true); },
     // what the public page shows: notice, WhatsApp numbers, hidden models and stones
     // the owner's costs and monthly goal (staff only)
+    // nodos del panel (Dinero, Piedra): leer, poner, cambiar, agregar, borrar y varios a la vez; las reglas solo dejan al equipo
+    async nodo(p) { return await db(p, 'GET', undefined, true); },
+    async nodoPon(p, x) { await db(p, 'PUT', x, true); },
+    async nodoCambia(p, x) { await db(p, 'PATCH', Object.assign({}, x, { editado: TS }), true); },
+    async nodoAgrega(p, x) { const me = await this.yo(); const r = await db(p, 'POST', Object.assign({}, x, { por: me.nombre, creado: TS }), true); return r && r.name; },
+    async nodoBorra(p) { await db(p, 'DELETE', undefined, true); },
+    async nodoVarios(u) { await db('', 'PATCH', u, true); },
     async config() { return (await db('config/tarifa', 'GET', undefined, true)) || {}; },
     async guardarConfig(c) { await db('config/tarifa', 'PUT', Object.assign({}, c, { actualizado: TS }), true); },
     async publico() { return (await db('publico')) || {}; },
@@ -341,6 +352,12 @@
     async ingresos() { return load('dazk-demo-ingresos', []).slice().sort((a, b) => b.fecha.localeCompare(a.fecha) || b.creado - a.creado); },
     async agregarIngreso(x) { save('dazk-demo-ingresos', load('dazk-demo-ingresos', []).concat(Object.assign({ id: rnd() }, x, { por: who().nombre, creado: Date.now() }))); },
     async borrarIngreso(id) { save('dazk-demo-ingresos', load('dazk-demo-ingresos', []).filter(x => x.id !== id)); },
+    async nodo(p) { return nodoGet(p); },
+    async nodoPon(p, x) { nodoSet(p, x); },
+    async nodoCambia(p, x) { nodoSet(p, Object.assign({}, nodoGet(p) || {}, x, { editado: Date.now() })); },
+    async nodoAgrega(p, x) { const id = '-' + Date.now().toString(36) + rnd().slice(0, 8); nodoSet(p + '/' + id, Object.assign({}, x, { por: who().nombre, creado: Date.now() })); return id; },
+    async nodoBorra(p) { nodoSet(p, null); },
+    async nodoVarios(u) { Object.entries(u).forEach(([p, x]) => nodoSet(p, x)); },
     async config() { return load('dazk-demo-config', {}); },
     async guardarConfig(c) { save('dazk-demo-config', c); },
     async publico() { return load('dazk-demo-publico', {}); },
@@ -397,7 +414,7 @@
     async staffEstado(id, est) { edit(x => x.id === id, (p, ev) => { p.estado = est; ev({ autor: 'dazk', autor_nombre: who().nombre, tipo: 'estado', texto: estado(est) }); }); },
   };
 
-  window.DAZK_API = Object.assign(FB ? real : demo, { demo: !FB, rnd, canal: canalDe, ESTADOS, estado, waNum, load, save,
+  window.DAZK_API = Object.assign(FB ? real : demo, { demo: !FB, rnd, TS, canal: canalDe, ESTADOS, estado, waNum, load, save,
     esc: s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
     fecha: t => new Date(t).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
     pesos, OWNER,

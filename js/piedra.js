@@ -204,7 +204,7 @@
   const STD = { w: 320, h: 160 };
 
   let X, A, main, inv = { placas: [], retazos: [] }, piezas = [], cfg = Object.assign({}, C.DEF), cortes = [], cargado = false;
-  let sel = { piedra: '', lista: [] }, res = null, editPieza = null;
+  let sel = { piedra: '', lista: [] }, res = null, resultados = null, editPieza = null;
   try { const s = JSON.parse(localStorage.getItem('dkas-piedra-sel')); if (s && Array.isArray(s.lista)) sel = s; } catch (e) {}
   const guardaSel = () => { try { localStorage.setItem('dkas-piedra-sel', JSON.stringify(sel)); } catch (e) {} };
   const lista = o => Object.entries(o || {}).map(([id, x]) => Object.assign({ id }, x));
@@ -238,19 +238,15 @@
 
   // ---------- ¿Me cabe? ----------
   function invDe(p) { return { placas: inv.placas.filter(x => mismo(x.piedra, p)), retazos: inv.retazos.filter(x => mismo(x.piedra, p)) }; }
+  // piedras que tienen algo en inventario
+  const conInventario = () => nombresPiedra().filter(n => { const i = invDe(n); return i.retazos.length || i.placas.some(p => +p.cant > 0); });
   function meCabe() {
-    const nombres = nombresPiedra(), cuenta = p => { const i = invDe(p), n = i.placas.reduce((s, x) => s + (+x.cant || 0), 0); return n || i.retazos.length ? ' · ' + n + (n === 1 ? ' placa' : ' placas') + (i.retazos.length ? ', ' + i.retazos.length + (i.retazos.length === 1 ? ' retazo' : ' retazos') : '') : ''; };
-    const con = nombres.filter(n => cuenta(n)), sin = nombres.filter(n => !cuenta(n));
-    if (!sel.piedra || (!sel.elegida && con.length && !con.some(n => mismo(n, sel.piedra)))) sel.piedra = con[0] || nombres[0] || '';
     main.innerHTML = '<div class="pd">' + tabs('')
-      + '<section class="pd-sec"><label>Piedra<select id="pd-pi">' + (con.length ? '<optgroup label="Las que tienes">' + con.map(n => '<option' + (mismo(n, sel.piedra) ? ' selected' : '') + ' value="' + esc(n) + '">' + esc(n + cuenta(n)) + '</option>').join('') + '</optgroup>' : '')
-      + '<optgroup label="' + (con.length ? 'Sin placas ni retazos' : 'Piedras') + '">' + sin.map(n => '<option' + (mismo(n, sel.piedra) ? ' selected' : '') + ' value="' + esc(n) + '">' + esc(n) + '</option>').join('') + '</optgroup></select></label>'
-      + '<p class="dn-k pd-k">Piezas · toca para agregar</p><div class="pd-cat">' + piezas.map(p => '<button data-add="' + esc(p.id) + '"><b>' + esc(p.nombre) + '</b>' + esc(C.medida(p)) + '</button>').join('') + '<button class="pd-esp" id="pd-esp">＋ Medida especial</button></div>'
+      + '<section class="pd-sec"><h2 class="pd-h">¿Qué quieres cortar?</h2><div class="pd-cat">' + piezas.map(p => '<button data-add="' + esc(p.id) + '"><b>' + esc(p.nombre) + '</b>' + esc(C.medida(p)) + '</button>').join('') + '<button class="pd-esp" id="pd-esp">＋ Otra medida</button></div>'
       + '<div id="pd-espf" hidden class="pd-espf"><div class="dn-per pd-forma"><button data-fm="rect" class="on">Rectangular</button><button data-fm="red">Redonda</button></div>'
       + '<div class="pd-med"><label id="pd-l1">Largo (cm)<input id="pd-ew" inputmode="decimal"></label><label id="pd-l2">Ancho (cm)<input id="pd-eh" inputmode="decimal"></label><label>Nombre (opcional)<input id="pd-en" maxlength="40" placeholder="ej. Mesa Juan"></label></div><button class="btn negro" id="pd-eok">Agregar</button></div>'
       + '<div id="pd-sel"></div><button class="btn negro grande" id="pd-ok">¿Me cabe?</button></section>'
       + '<div id="pd-res"></div></div>';
-    $('#pd-pi').onchange = e => { sel.piedra = e.target.value; sel.elegida = true; guardaSel(); res = null; $('#pd-res').innerHTML = ''; };
     $$('[data-add]').forEach(b => b.onclick = () => { const p = piezas.find(x => x.id === b.dataset.add); const ya = sel.lista.find(x => x.pieza.id === p.id); if (ya) ya.cant++; else sel.lista.push({ pieza: p, cant: 1 }); guardaSel(); pintarSel(); limpiarRes(); });
     let forma = 'rect';
     $('#pd-esp').onclick = () => { $('#pd-espf').hidden = !$('#pd-espf').hidden; if (!$('#pd-espf').hidden) $('#pd-ew').focus(); };
@@ -263,9 +259,9 @@
     };
     $('#pd-ok').onclick = calcular;
     pintarSel();
-    if (res) pintarRes();
+    if (resultados) pintarRes();
   }
-  const limpiarRes = () => { res = null; const r = $('#pd-res'); if (r) r.innerHTML = ''; };
+  const limpiarRes = () => { res = null; resultados = null; const r = $('#pd-res'); if (r) r.innerHTML = ''; };
   function pintarSel() {
     const el = $('#pd-sel'); if (!el) return;
     el.innerHTML = sel.lista.length ? '<div class="pd-lista">' + sel.lista.map((x, i) => '<div><span>' + esc(C.etiqueta(x.pieza)) + (x.pieza.id && String(x.pieza.id).startsWith('esp') ? ' <small>especial</small>' : '') + '</span><button data-m="' + i + '" aria-label="Una menos">−</button><b>' + x.cant + '</b><button data-p="' + i + '" aria-label="Una más">＋</button><button data-q="' + i + '" class="pd-q" aria-label="Quitar">✕</button></div>').join('') + '</div>'
@@ -276,26 +272,40 @@
     const ok = $('#pd-ok'); if (ok) ok.disabled = !sel.lista.length;
   }
   function calcular() {
-    if (!sel.lista.length) return X.alerta('Elige al menos una pieza.');
-    if (!sel.piedra) return X.alerta('Elige la piedra.');
-    res = C.meCabe(sel.lista, invDe(sel.piedra), cfg, STD); res.piedra = sel.piedra; res.pedido = sel.lista.map(x => ({ et: C.etiqueta(x.pieza), cant: x.cant }));
+    if (!sel.lista.length) return X.alerta('Toca las piezas que quieres cortar.');
+    const pedido = sel.lista.map(x => ({ et: C.etiqueta(x.pieza), cant: x.cant })), ps = conInventario();
+    resultados = (ps.length ? ps : ['']).map(n => Object.assign(C.meCabe(sel.lista, n ? invDe(n) : { placas: [], retazos: [] }, cfg, STD), { piedra: n, pedido }));
+    const rango = r => ({ retazo: 0, placa: 1, falta: 2, error: 3 })[r.estado], area = r => r.estado === 'retazo' ? r.espacios[0].esp.w * r.espacios[0].esp.h : 0;
+    resultados.sort((a, b) => rango(a) - rango(b) || area(a) - area(b) || (a.placasFaltan || 0) - (b.placasFaltan || 0));
+    res = resultados[0]; sel.piedra = res.piedra;
     pintarRes(); $('#pd-res').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  const nombreEsp = e => (e.esp.tipo === 'retazo' ? 'Retazo ' : e.esp.nueva ? 'Placa nueva ' : 'Placa ') + e.esp.w + '×' + e.esp.h;
+  const nombreEsp = e => (e.esp.tipo === 'retazo' ? 'Sobrante ' : e.esp.nueva ? 'Placa nueva ' : 'Placa ') + e.esp.w + '×' + e.esp.h;
+  const cuanto = p => p < 30 ? 'un pedazo (' + p + '%)' : p < 60 ? 'como la mitad (' + p + '%)' : p < 85 ? 'casi toda (' + p + '%)' : 'toda (' + p + '%)';
+  function frase(r) {
+    if (r.estado === 'retazo') return ['verde', '✅', 'Sí cabe en un sobrante de ' + r.espacios[0].esp.w + '×' + r.espacios[0].esp.h];
+    if (r.estado === 'placa') { const n = r.espacios.length; return ['ambar', '🟡', n === 1 ? 'Usa 1 placa · ocupas ' + cuanto(r.pctPlaca) : 'Usa ' + n + ' placas · ocupas ' + r.pctPlaca + '%']; }
+    return ['rojo', '❌', r.piedra ? 'No te alcanza: te ' + (r.placasFaltan === 1 ? 'falta 1 placa' : 'faltan ' + r.placasFaltan + ' placas') : 'Necesitas ' + (r.placasFaltan === 1 ? '1 placa' : r.placasFaltan + ' placas') + ' · no tienes placas registradas'];
+  }
   function pintarRes() {
-    const el = $('#pd-res'); if (!el || !res) return;
-    if (res.estado === 'error') { el.innerHTML = '<section class="pd-r rojo"><p class="pd-r-t">⚠ ' + esc(res.msg) + '</p></section>'; return; }
-    const placasUs = res.espacios.filter(e => e.esp.tipo === 'placa' && !e.esp.nueva).length;
-    const t = res.estado === 'retazo' ? ['verde', '🟢 Sí cabe en el retazo de ' + res.espacios[0].esp.w + '×' + res.espacios[0].esp.h, 'Usa ' + res.espacios[0].pct + '% del retazo.']
-      : res.estado === 'placa' ? ['ambar', '🟡 No cabe en sobrantes; ocupa ' + (placasUs === 1 ? 'una placa nueva' : placasUs + ' placas nuevas'), 'Usarías el ' + res.pctPlaca + '% de ' + (placasUs === 1 ? 'la placa' : 'las placas') + '.']
-      : ['rojo', '🔴 No te alcanza la piedra', 'Te ' + (res.placasFaltan === 1 ? 'falta 1 placa' : 'faltan ' + res.placasFaltan + ' placas') + ' de ' + STD.w + '×' + STD.h + ' de ' + res.piedra + ' (tienes ' + res.tienes + (res.tienes === 1 ? ' placa' : ' placas') + '; quedan ' + res.piezasFaltan + ' de ' + res.total + ' piezas sin lugar).'];
-    const sug = C.sugerir(res.espacios.filter(e => !e.esp.nueva), piezas, cfg).slice(0, 3);
-    el.innerHTML = '<section class="pd-r ' + t[0] + '"><p class="pd-r-t">' + esc(t[1]) + '</p><p class="pd-r-s">' + esc(t[2]) + '</p></section>'
-      + res.espacios.map((e, i) => '<section class="pd-sec"><h3>' + esc(nombreEsp(e)) + (e.esp.nueva ? ' <small class="pd-falta">no la tienes</small>' : '') + '</h3>' + dibujo(e) + posiciones(e) + '</section>').join('')
-      + (sug.length && res.estado !== 'falta' ? '<section class="pd-sec pd-sug"><p>Con lo que sobra te ' + (sug[0].n === 1 ? 'sale ' : 'salen ') + sug.map((s, i) => (i ? 'o ' : '') + '<b>' + s.n + ' ' + esc(s.et) + '</b>').join(' · ') + '</p></section>' : '')
-      + '<section class="pd-sec pd-acc">' + (res.estado !== 'falta' ? '<label>Nota del corte (opcional)<input id="pd-nota" maxlength="200" placeholder="ej. Pedido #1012, mesa Juan"></label><button class="btn negro grande" id="pd-cortar">Cortar</button>' : '')
-      + '<a class="btn grande" href="#piedra/hoja">Ver hoja de corte</a></section>';
-    if ($('#pd-cortar')) $('#pd-cortar').onclick = cortar;
+    const el = $('#pd-res'); if (!el || !resultados) return;
+    if (resultados[0].estado === 'error') { el.innerHTML = '<section class="pd-r rojo"><p class="pd-r-t">❌ Esa pieza es más grande que la placa</p><p class="pd-r-s">Lo más grande que sale de una placa es ' + (STD.w - 2 * cfg.refilado) + ' × ' + (STD.h - 2 * cfg.refilado) + ' cm.</p></section>'; return; }
+    el.innerHTML = '<h2 class="pd-h pd-h2t">¿Dónde te cabe?</h2><div class="pd-opc">' + resultados.map((r, i) => { const t = frase(r); return '<button class="pd-op ' + t[0] + (r === res ? ' on' : '') + '" data-op="' + i + '"><i>' + t[1] + '</i><span><b>' + esc(r.piedra || 'Placa nueva') + '</b>' + esc(t[2]) + '</span></button>'; }).join('') + '</div>'
+      + '<div id="pd-det"></div>';
+    $$('[data-op]', el).forEach(b => b.onclick = () => { res = resultados[+b.dataset.op]; sel.piedra = res.piedra; $$('[data-op]', el).forEach(o => o.classList.toggle('on', o === b)); detalle(); });
+    detalle();
+  }
+  // lo que ves al tocar una piedra: el dibujo, lo que te sobra y Cortar
+  function detalle() {
+    const el = $('#pd-det'), r = res; if (!el || !r) return;
+    if (r.estado === 'falta') { el.innerHTML = '<section class="pd-sec pd-det"><p>' + (r.piedra ? 'Con lo que tienes de <b>' + esc(r.piedra) + '</b> no salen todas las piezas.' : 'Agrega tus placas en <a href="#piedra/placas">Mis placas</a> para saber si te cabe.') + '</p><a class="pd-taller" href="#piedra/hoja">Ver cómo quedaría →</a></section>'; return; }
+    const sob = r.espacios.flatMap(e => e.sobrantes).sort((a, b) => b.w * b.h - a.w * a.h)[0];
+    const sug = sob ? C.sugerir(r.espacios, piezas, cfg)[0] : null;
+    el.innerHTML = '<section class="pd-sec pd-det">' + r.espacios.map(e => '<p class="pd-et">' + esc(nombreEsp(e)) + '</p>' + dibujo(e, 'simple')).join('')
+      + '<p class="pd-sobra">' + (sob ? 'Te sobra un pedazo de <b>' + sob.w + '×' + sob.h + '</b>' + (sug ? ' · ahí sale ' + sug.n + ' ' + esc(sug.et) : '') + '. Se guarda solo.' : 'No te sobra nada que sirva.') + '</p>'
+      + '<input id="pd-nota" maxlength="200" placeholder="Nota (opcional): ej. mesa Juan"><button class="btn negro grande" id="pd-cortar">Cortar</button>'
+      + '<a class="pd-taller" href="#piedra/hoja">Medidas para el taller →</a></section>';
+    $('#pd-cortar').onclick = cortar;
   }
   function posiciones(e) {
     return '<ol class="pd-pos">' + e.puestas.map(p => '<li><b>' + esc(p.et) + '</b>' + (p.rot ? ' <small>(girada)</small>' : '') + '<span>Esquina a ' + p.x + ' cm del lado izquierdo y ' + p.y + ' cm de arriba</span></li>').join('') + '</ol>'
@@ -308,18 +318,18 @@
     let s = '<svg class="pd-svg" xmlns="http://www.w3.org/2000/svg" viewBox="' + (-pad) + ' ' + (-pad) + ' ' + (W + pad * 2) + ' ' + (H + pad * 2) + '" font-family="Inter,Arial,sans-serif" role="img" aria-label="' + esc(nombreEsp(e)) + ' con ' + e.puestas.length + ' piezas">'
       + '<rect x="' + (-pad) + '" y="' + (-pad) + '" width="' + (W + pad * 2) + '" height="' + (H + pad * 2) + '" fill="#ffffff"/>'
       + '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="' + (e.esp.nueva ? '#f6e9e7' : '#e7e2d9') + '" stroke="#8d867b" stroke-width="0.6"/>'
-      + (e.ref ? '<rect x="' + e.ref + '" y="' + e.ref + '" width="' + (W - 2 * e.ref) + '" height="' + (H - 2 * e.ref) + '" fill="none" stroke="#b9b1a4" stroke-width="0.4" stroke-dasharray="2 1.5"/>' : '')
+      + (e.ref && grande !== 'simple' ? '<rect x="' + e.ref + '" y="' + e.ref + '" width="' + (W - 2 * e.ref) + '" height="' + (H - 2 * e.ref) + '" fill="none" stroke="#b9b1a4" stroke-width="0.4" stroke-dasharray="2 1.5"/>' : '')
       + '<text x="' + W / 2 + '" y="' + (-4) + '" font-size="6" text-anchor="middle" fill="#6b665e">' + W + ' cm</text>'
       + '<text x="' + (-4) + '" y="' + H / 2 + '" font-size="6" text-anchor="middle" fill="#6b665e" transform="rotate(-90 ' + (-4) + ' ' + H / 2 + ')">' + H + ' cm</text>';
-    e.sobrantes.forEach(r => { s += '<rect x="' + r.x + '" y="' + r.y + '" width="' + r.w + '" height="' + r.h + '" fill="#e3f1e7" stroke="#2e9e5e" stroke-width="0.5" stroke-dasharray="2.5 1.5"/>' + (Math.min(r.w, r.h) > 18 ? '<text x="' + (r.x + r.w / 2) + '" y="' + (r.y + r.h / 2 + 2) + '" font-size="' + f(r.w, r.h) * 0.8 + '" text-anchor="middle" fill="#1d6e41">Sobrante ' + r.w + '×' + r.h + '</text>' : ''); });
+    e.sobrantes.forEach(r => { s += '<rect x="' + r.x + '" y="' + r.y + '" width="' + r.w + '" height="' + r.h + '" fill="#e3f1e7" stroke="#2e9e5e" stroke-width="0.5" stroke-dasharray="2.5 1.5"/>' + (Math.min(r.w, r.h) > 18 && (grande !== 'simple' || r === e.sobrantes.reduce((m, q) => q.w * q.h > m.w * m.h ? q : m)) ? '<text x="' + (r.x + r.w / 2) + '" y="' + (r.y + r.h / 2 + 2) + '" font-size="' + f(r.w, r.h) * 0.8 + '" text-anchor="middle" fill="#1d6e41">' + (grande === 'simple' ? 'Te sobra ' : 'Sobrante ') + r.w + '×' + r.h + '</text>' : ''); });
     e.puestas.forEach((p, i) => {
       const cx = p.x + p.w / 2, cy = p.y + p.h / 2, fs = f(p.w, p.h);
       s += '<rect x="' + p.x + '" y="' + p.y + '" width="' + p.w + '" height="' + p.h + '" fill="#ffffff" stroke="#16140f" stroke-width="0.6"' + (p.forma === 'red' ? ' stroke-dasharray="1.6 1.2"' : '') + '/>'
         + (p.forma === 'red' ? '<circle cx="' + cx + '" cy="' + cy + '" r="' + p.w / 2 + '" fill="#f4efe6" stroke="#a8844f" stroke-width="0.7"/>' : '')
-        + '<text x="' + cx + '" y="' + (cy - fs * 0.25) + '" font-size="' + fs + '" font-weight="700" text-anchor="middle" fill="#16140f">' + (i + 1) + '. ' + esc(p.nombre || 'Pieza') + '</text>'
+        + '<text x="' + cx + '" y="' + (cy - fs * 0.25) + '" font-size="' + fs + '" font-weight="700" text-anchor="middle" fill="#16140f">' + (grande === 'simple' ? '' : (i + 1) + '. ') + esc(p.nombre || 'Pieza') + '</text>'
         + '<text x="' + cx + '" y="' + (cy + fs * 0.95) + '" font-size="' + fs * 0.85 + '" text-anchor="middle" fill="#6b665e">' + esc(p.forma === 'red' ? 'Ø' + p.w : p.w + '×' + p.h) + '</text>';
     });
-    if (grande) { // números del orden de corte
+    if (grande === true) { // números del orden de corte
       let k = 0; e.cortes.forEach(c => { if (c.o === 'ref') { k++; return; } k++; const x = c.o === 'h' ? (c.a + c.b) / 2 : c.pos, y = c.o === 'h' ? c.pos : (c.a + c.b) / 2;
         s += '<line x1="' + (c.o === 'h' ? c.a : c.pos) + '" y1="' + (c.o === 'h' ? c.pos : c.a) + '" x2="' + (c.o === 'h' ? c.b : c.pos) + '" y2="' + (c.o === 'h' ? c.pos : c.b) + '" stroke="#c2362b" stroke-width="0.5"/>'
           + '<circle cx="' + x + '" cy="' + y + '" r="3.4" fill="#c2362b"/><text x="' + x + '" y="' + (y + 1.6) + '" font-size="4.3" font-weight="700" text-anchor="middle" fill="#fff">' + k + '</text>'; });
@@ -342,7 +352,7 @@
     try {
       await cargar(); // por si alguien más cortó mientras tanto
       const r2 = C.meCabe(sel.lista, invDe(sel.piedra), cfg, STD), ids = r => r.espacios.map(e => e.esp.tipo + ':' + e.esp.id).join(',');
-      if (r2.estado !== res.estado || ids(r2) !== ids(res)) { r2.piedra = res.piedra; r2.pedido = res.pedido; res = r2; meCabe(); return X.alerta('El inventario cambió. Revisa el cálculo nuevo y vuelve a tocar Cortar.'); }
+      if (r2.estado !== res.estado || ids(r2) !== ids(res)) { limpiarRes(); meCabe(); calcular(); return X.alerta('El inventario cambió. Revisa el cálculo nuevo y vuelve a tocar Cortar.'); }
       const usaTxt = res.espacios.map(nombreEsp).join(' y ');
       if (!confirm('¿Cortar ' + res.total + (res.total === 1 ? ' pieza' : ' piezas') + ' de ' + res.piedra + ' en ' + usaTxt + '? Se descuenta del inventario' + (res.espacios.some(e => e.sobrantes.length) ? ' y se guardan los sobrantes.' : '.'))) { b.disabled = false; b.textContent = 'Cortar'; return; }
       const id = nid('c'), me = X.me() || {}, por = (me.nombre || 'DKAS').slice(0, 60), u = {}, menos = {};

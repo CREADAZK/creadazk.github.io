@@ -700,6 +700,43 @@ a.rg{text-decoration:none;color:inherit}
 .dn-ecats div{display:flex;gap:6px}.dn-ecats button{width:44px;flex:none;border-radius:10px;border:1px solid var(--linea);background:#fff;color:var(--rojo)}
 .dn-hoja .sub{margin:10px 0 0;font-size:13px}
 @media (max-width:380px){.dn-g{font-size:38px}.dn-mas{grid-template-columns:1fr}}
+/* exportar */
+.dn-exp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.dn-rap{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
+.dn-rap button{min-height:36px;padding:0 13px;border-radius:99px;border:1px solid var(--linea);background:#fff;font-size:13.5px;font-weight:500}
+/* estado de cuenta: solo existe al imprimir / guardar como PDF */
+#dn-ec{display:none}
+@media print{
+  @page{size:letter;margin:14mm 12mm}
+  body.dn-imprime{background:#fff!important}
+  body.dn-imprime>*:not(#dn-ec){display:none!important}
+  /* estudio.css esconde todo al imprimir (body *{visibility:hidden}); el estado de cuenta se vuelve a mostrar */
+  body.dn-imprime #dn-ec,body.dn-imprime #dn-ec *{visibility:visible}
+  body.dn-imprime #dn-ec{display:block;color:#16140f;font:10pt/1.4 Inter,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #dn-ec .ec-h{display:flex;align-items:center;gap:16px;border-bottom:1.5pt solid #16140f;padding-bottom:10px;margin-bottom:12px}
+  #dn-ec .ec-h img{height:42px;width:auto}
+  #dn-ec h1{font-size:18pt;letter-spacing:-.01em}
+  #dn-ec .ec-h p{color:#555;font-size:10pt}#dn-ec .ec-f{font-size:9pt}
+  #dn-ec .ec-res{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:6px;margin-bottom:12px}
+  #dn-ec .ec-k{border:.75pt solid #cfc9bf;border-radius:4px;padding:6px 8px}
+  #dn-ec .ec-k span{display:block;font-size:7.5pt;text-transform:uppercase;letter-spacing:.06em;color:#6b665e}
+  #dn-ec .ec-k b{font-size:12pt;font-variant-numeric:tabular-nums}
+  #dn-ec .ec-k.v b{color:#1d6e41}#dn-ec .ec-k.r b{color:#8a1f18}#dn-ec .ec-k.fin{background:#f3f1ec}
+  #dn-ec .ec-cats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  #dn-ec h2{font-size:11pt;margin:4px 0 6px}#dn-ec h2 small{font-weight:400;color:#6b665e}
+  #dn-ec table{width:100%;border-collapse:collapse;font-size:8.8pt}
+  #dn-ec th{text-align:left;font-size:7.5pt;text-transform:uppercase;letter-spacing:.05em;color:#6b665e;border-bottom:1pt solid #16140f;padding:4px 5px}
+  #dn-ec td{padding:4px 5px;border-bottom:.5pt solid #e2ddd4;vertical-align:top}
+  #dn-ec tfoot td{font-weight:700;border-top:1pt solid #16140f;border-bottom:0}
+  #dn-ec .ec-cat td:nth-child(n+2),#dn-ec .ec-cat th:nth-child(n+2),#dn-ec .ec-det td:nth-child(n+6),#dn-ec .ec-det th:nth-child(n+6){text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #dn-ec .ec-det td:nth-child(1),#dn-ec .ec-det td:nth-child(2){white-space:nowrap;color:#555}
+  #dn-ec .ec-det tfoot td:not(:first-child){text-align:right;white-space:nowrap}
+  #dn-ec .ec-det td.v{color:#1d6e41}#dn-ec .ec-det td.r{color:#8a1f18}
+  #dn-ec .ec-ant td{color:#555;font-style:italic}
+  #dn-ec .ec-n{color:#999}
+  #dn-ec thead{display:table-header-group}#dn-ec tr{break-inside:avoid}
+  #dn-ec .ec-pie{margin-top:14px;padding-top:6px;border-top:.5pt solid #cfc9bf;font-size:7.5pt;color:#6b665e}
+}
 /* DKAS · Piedra */
 .pd{max-width:760px;margin:0 auto;padding-bottom:30px}
 .pd-tabs{display:flex;gap:4px;padding:4px;background:#ebe8e2;border-radius:12px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none}
@@ -760,6 +797,7 @@ a.rg{text-decoration:none;color:inherit}
 @media (max-width:400px){.pd-add{grid-template-columns:1fr 1fr}.pd-add label:nth-child(4){grid-column:1/-1}}
 @media print{
   body{background:#fff}.top,#avisos,#toast,.pd-np,.dn-reg{display:none!important}
+  .pd,.pd *{visibility:visible}
   #m{padding:0;max-width:none}.pd{max-width:none}
   .pd-sec{box-shadow:none;border-color:#bbb;break-inside:avoid}
   .pd-h2{grid-template-columns:1fr 1fr}
@@ -767,4 +805,4 @@ a.rg{text-decoration:none;color:inherit}
 </style></head><body>
 <header class="top"><a href="#dinero"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#dinero" data-sec="dinero">Dinero</a><a href="#piedra" data-sec="piedra">Piedra</a><a href="#agenda" data-sec="agenda">Hoy<i class="badge" id="nb-age" hidden></i></a><a href="#clientes" data-sec="clientes">Clientes<i class="badge" id="nb-acc" hidden></i></a><a href="#" data-sec="log">Pedidos</a><a href="#mas" data-sec="mas">Más</a><a href="#" id="salir" hidden>Salir</a></nav></header>
 <div id="avisos" class="avisos" hidden></div><main id="m"></main><div id="toast" hidden></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=4a68d6bfaa"></script><script src="js/dkas-api.js?v=ed222d2727"></script><script src="js/dkas-croquis.js?v=1713142b92"></script><script src="js/disena.js?v=fbf9a608dd"></script><script src="js/estudio.js?v=479b2cfe21"></script><script src="js/agenda.js?v=fa2ce7919c"></script><script src="js/agenda-simple.js?v=d521845bfb"></script><script src="js/dinero.js?v=5f63bb6803"></script><script src="js/piedra.js?v=1c0fb74769"></script><script src="js/panel-interes.js?v=1e36a4e717"></script><script src="js/panel.js?v=415dd96496"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=4a68d6bfaa"></script><script src="js/dkas-api.js?v=ed222d2727"></script><script src="js/dkas-croquis.js?v=1713142b92"></script><script src="js/disena.js?v=fbf9a608dd"></script><script src="js/estudio.js?v=479b2cfe21"></script><script src="js/agenda.js?v=fa2ce7919c"></script><script src="js/agenda-simple.js?v=d521845bfb"></script><script src="js/dinero.js?v=c810f9f6c0"></script><script src="js/piedra.js?v=1c0fb74769"></script><script src="js/panel-interes.js?v=1e36a4e717"></script><script src="js/panel.js?v=3256825e19"></script></body></html>

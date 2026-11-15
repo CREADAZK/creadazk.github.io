@@ -143,7 +143,7 @@
     if (h === '#clientes') return clientes();
     if (h === '#mas') return mas();
     if (/^#prop=[0-9a-f]{32}$/.test(h)) return propuesta(h.slice(6));
-    if (h === '#dinero' || h === '#dinero/todos') return DKAS_DINERO.pantalla(main, { A, toast, alerta }, h.slice(8));
+    if (h === '#dinero' || h === '#dinero/todos') return DKAS_DINERO.pantalla(main, { A, toast, alerta, me: () => me }, h.slice(8));
     if (h === '#piedra' || /^#piedra\/(placas|piezas|historial|hoja(=[\w-]+)?)$/.test(h)) return DKAS_PIEDRA.pantalla(main, { A, toast, alerta, me: () => me }, h.slice(8));
     if (h === '#agenda') return DKAS_AGENDA.pantalla('agenda');
     if (h === '#dinero-anterior') return DKAS_AGENDA.pantalla('dinero');

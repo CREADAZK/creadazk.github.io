@@ -61,7 +61,18 @@
   }
   const ordenar = l => l.slice().sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.creado || 0) - (a.creado || 0));
   const monto = t => { const n = Number(String(t || '').replace(/[$,\s]/g, '')); return isFinite(n) && n > 0 && n < 1e8 ? Math.round(n * 100) / 100 : 0; };
-  const calc = { CATS0, periodo, totales, porCategoria, comparar, resumen, csv, ordenar, monto, ymd, mas };
+  // estado de cuenta: movimientos del más viejo al más nuevo con su saldo; con saldo anterior solo si no hay filtro de tipo/categoría/búsqueda
+  function estado(movs, f) {
+    f = Object.assign({ tipo: '', cat: '', desde: '', hasta: '', q: '' }, f);
+    const q = String(f.q || '').trim().toLowerCase(), conSaldo = !f.tipo && !f.cat && !q;
+    const pasa = x => (!f.tipo || x.tipo === f.tipo) && (!f.cat || x.cat === f.cat) && (!f.desde || x.fecha >= f.desde) && (!f.hasta || x.fecha <= f.hasta) && (!q || (x.cat + ' ' + (x.nota || '') + ' ' + (x.por || '')).toLowerCase().includes(q));
+    const asc = movs.slice().sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.creado || 0) - (b.creado || 0));
+    const saldoAnt = conSaldo && f.desde ? asc.filter(x => x.fecha < f.desde).reduce((s, x) => s + (x.tipo === 'in' ? 1 : -1) * (+x.monto || 0), 0) : 0;
+    let saldo = saldoAnt; const lista = asc.filter(pasa).map(x => { saldo += (x.tipo === 'in' ? 1 : -1) * (+x.monto || 0); return Object.assign({}, x, { saldo }); });
+    const T = totales(lista), porCat = t => { const o = {}; lista.filter(x => x.tipo === t).forEach(x => { o[x.cat] = (o[x.cat] || 0) + (+x.monto || 0); }); const tot = t === 'in' ? T.entro : T.salio; return Object.entries(o).sort((a, b) => b[1] - a[1]).map(([cat, monto]) => ({ cat, monto, pct: tot ? monto / tot * 100 : 0 })); };
+    return { lista, conSaldo, saldoAnt, saldoFin: saldoAnt + T.ganancia, T, catsIn: porCat('in'), catsOut: porCat('out'), desde: f.desde || (lista[0] || {}).fecha || '', hasta: f.hasta || (lista[lista.length - 1] || {}).fecha || '' };
+  }
+  const calc = { CATS0, estado, periodo, totales, porCategoria, comparar, resumen, csv, ordenar, monto, ymd, mas };
   if (typeof module !== 'undefined' && module.exports) { module.exports = calc; return; }
 
   // ---------- pantalla ----------
@@ -132,10 +143,11 @@
   }
   function todos() {
     const usadas = [...new Set(cats.in.concat(cats.out).concat(movs.map(x => x.cat)))];
-    main.innerHTML = '<div class="dn"><a href="#dinero" class="volver">← Dinero</a><div class="dn-sec-c"><h1>Movimientos</h1><button class="btn" id="dn-csv">Exportar a Excel</button></div>'
+    main.innerHTML = '<div class="dn"><a href="#dinero" class="volver">← Dinero</a><div class="dn-sec-c"><h1>Movimientos</h1></div><div class="dn-exp"><button class="btn negro" id="dn-pdf">Estado de cuenta (PDF)</button><button class="btn" id="dn-csv">Exportar a Excel</button></div>'
       + '<div class="dn-fil"><div class="dn-per">' + [['', 'Todo'], ['in', 'Entró'], ['out', 'Salió']].map(([k, t]) => '<button data-ft="' + k + '"' + (filtro.tipo === k ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div>'
       + '<input id="dn-q" type="search" placeholder="Buscar nota o categoría" value="' + esc(filtro.q) + '">'
       + '<select id="dn-fc"><option value="">Todas las categorías</option>' + usadas.map(c => '<option' + (filtro.cat === c ? ' selected' : '') + '>' + esc(c) + '</option>').join('') + '</select>'
+      + '<div class="dn-rap">' + [['mes', 'Este mes'], ['ant', 'Mes pasado'], ['anio', 'Este año'], ['todo', 'Todo']].map(([k, t]) => '<button data-rap="' + k + '">' + t + '</button>').join('') + '</div>'
       + '<label>Desde<input type="date" id="dn-fd" value="' + filtro.desde + '"></label><label>Hasta<input type="date" id="dn-fh" value="' + filtro.hasta + '"></label></div>'
       + '<p class="dn-tot" id="dn-tot"></p><div class="dn-lista" id="dn-todos"></div>' + botonRegistrar() + '</div>';
     const pintar = () => { const l = filtrados(), t = totales(l); $('#dn-tot').innerHTML = l.length + (l.length === 1 ? ' movimiento' : ' movimientos') + ' · entró <b class="v">' + pesos(t.entro) + '</b> · salió <b class="r">' + pesos(t.salio) + '</b> · ganancia <b>' + pesos(t.ganancia) + '</b>'; $('#dn-todos').innerHTML = l.length ? l.map(filaMov).join('') : '<p class="sub">Nada con estos filtros.</p>'; };
@@ -145,6 +157,10 @@
     $('#dn-fd').onchange = e => { filtro.desde = e.target.value; pintar(); };
     $('#dn-fh').onchange = e => { filtro.hasta = e.target.value; pintar(); };
     $('#dn-csv').onclick = () => exportar(filtrados());
+    $('#dn-pdf').onclick = () => estadoPDF();
+    $$('[data-rap]').forEach(b => b.onclick = () => { const h = hoy(), d = dte(h), k = b.dataset.rap, pm = new Date(d.getFullYear(), d.getMonth() - 1, 1, 12);
+      [filtro.desde, filtro.hasta] = k === 'mes' ? [h.slice(0, 8) + '01', h] : k === 'ant' ? [ymd(pm), ymd(new Date(d.getFullYear(), d.getMonth(), 0, 12))] : k === 'anio' ? [h.slice(0, 5) + '01-01', h] : ['', ''];
+      $('#dn-fd').value = filtro.desde; $('#dn-fh').value = filtro.hasta; pintar(); });
     pintar(); enlazar();
   }
   async function exportar(l) {
@@ -154,6 +170,34 @@
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
     X.toast('Listo: ' + nombre);
   }
+  const fLarga = f => { const d = dte(f); return d.getDate() + ' de ' + MESES[d.getMonth()] + ' de ' + d.getFullYear(); };
+  function estadoPDF() {
+    const E = estado(movs, filtro);
+    if (!E.lista.length) return X.alerta('No hay movimientos con estos filtros.');
+    const ahora = new Date(), quien = ((X.me && X.me()) || {}).nombre || '';
+    const filtros = [filtro.tipo ? (filtro.tipo === 'in' ? 'solo entradas' : 'solo salidas') : '', filtro.cat ? 'categoría ' + filtro.cat : '', filtro.q.trim() ? 'búsqueda «' + filtro.q.trim() + '»' : ''].filter(Boolean);
+    const tablaCat = (t, l, tot) => '<table class="ec-cat"><thead><tr><th>' + t + '</th><th>Monto</th><th>%</th></tr></thead><tbody>' + (l.length ? l.map(c => '<tr><td>' + esc(c.cat) + '</td><td>' + pesos(c.monto) + '</td><td>' + c.pct.toFixed(1) + '%</td></tr>').join('') : '<tr><td colspan="3" class="ec-n">Sin movimientos</td></tr>') + '</tbody><tfoot><tr><td>Total</td><td>' + pesos(tot) + '</td><td>' + (l.length ? '100%' : '') + '</td></tr></tfoot></table>';
+    const caja = (t, v, cl) => '<div class="ec-k' + (cl ? ' ' + cl : '') + '"><span>' + t + '</span><b>' + v + '</b></div>';
+    const html = '<header class="ec-h"><img src="img/dkas-oscuro.png" alt="DKAS"><div><h1>Estado de cuenta</h1><p>' + (E.desde ? 'Del ' + fLarga(E.desde) + ' al ' + fLarga(E.hasta) : 'Sin movimientos') + '</p>'
+      + (filtros.length ? '<p class="ec-f">Filtrado: ' + esc(filtros.join(' · ')) + '</p>' : '') + '</div></header>'
+      + '<section class="ec-res">' + (E.conSaldo ? caja('Saldo anterior', pesos(E.saldoAnt)) : '') + caja('Entradas', pesos(E.T.entro), 'v') + caja('Salidas', pesos(E.T.salio), 'r') + caja('Resultado del periodo', pesos(E.T.ganancia)) + (E.conSaldo ? caja('Saldo final', pesos(E.saldoFin), 'fin') : '') + '</section>'
+      + '<section class="ec-cats">' + tablaCat('Entradas por categoría', E.catsIn, E.T.entro) + tablaCat('Salidas por categoría', E.catsOut, E.T.salio) + '</section>'
+      + '<h2>Detalle de movimientos <small>(' + E.lista.length + ')</small></h2><table class="ec-det"><thead><tr><th>#</th><th>Fecha</th><th>Categoría</th><th>Nota</th><th>Registró</th><th>Entrada</th><th>Salida</th>' + (E.conSaldo ? '<th>Saldo</th>' : '') + '</tr></thead><tbody>'
+      + (E.conSaldo && filtro.desde ? '<tr class="ec-ant"><td></td><td>' + fCortaPDF(filtro.desde) + '</td><td colspan="5">Saldo anterior</td><td>' + pesos(E.saldoAnt) + '</td></tr>' : '')
+      + E.lista.map((x, i) => '<tr><td>' + (i + 1) + '</td><td>' + fCortaPDF(x.fecha) + '</td><td>' + esc(x.cat) + '</td><td>' + esc(x.nota || '') + '</td><td>' + esc(x.por || '') + '</td><td class="v">' + (x.tipo === 'in' ? pesos(x.monto) : '') + '</td><td class="r">' + (x.tipo === 'out' ? pesos(x.monto) : '') + '</td>' + (E.conSaldo ? '<td>' + pesos(x.saldo) + '</td>' : '') + '</tr>').join('')
+      + '</tbody><tfoot><tr><td colspan="5">Totales</td><td>' + pesos(E.T.entro) + '</td><td>' + pesos(E.T.salio) + '</td>' + (E.conSaldo ? '<td>' + pesos(E.saldoFin) + '</td>' : '') + '</tr></tfoot></table>'
+      + '<footer class="ec-pie">Generado el ' + fLarga(ymd(ahora)) + ' a las ' + p2(ahora.getHours()) + ':' + p2(ahora.getMinutes()) + (quien ? ' por ' + esc(quien) : '') + ' desde el panel DKAS. Montos en pesos mexicanos (MXN). Solo incluye lo registrado en el panel.</footer>';
+    let d = document.getElementById('dn-ec'); if (!d) { d = document.createElement('div'); d.id = 'dn-ec'; document.body.appendChild(d); }
+    d.innerHTML = html;
+    const titulo = document.title; document.title = 'DKAS estado de cuenta ' + (E.desde ? E.desde + ' a ' + E.hasta : hoy());
+    document.body.classList.add('dn-imprime');
+    // la hoja solo se ve al imprimir (#dn-ec está oculto en pantalla), así que se queda lista hasta que se salga de Movimientos
+    const fin = () => { document.body.classList.remove('dn-imprime'); document.title = titulo; removeEventListener('afterprint', fin); removeEventListener('hashchange', fin); };
+    addEventListener('afterprint', fin); addEventListener('hashchange', fin);
+    const img = d.querySelector('img'); const ir = () => setTimeout(() => print(), 60);
+    if (img.complete) ir(); else { img.onload = img.onerror = ir; }
+  }
+  const fCortaPDF = f => { const d = dte(f); return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear(); };
   function enlazar() {
     $('#dn-reg').onclick = () => hoja();
     $$('[data-mov]').forEach(b => b.onclick = () => hoja(movs.find(x => x.id === b.dataset.mov)));

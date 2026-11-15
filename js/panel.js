@@ -111,7 +111,7 @@
     if (!me.nombre) return nombre();
     $('#top-nav').hidden = false;
     main.innerHTML = '<p class="cargando">Cargando…</p>';
-    await recargar(); if (!location.hash) history.replaceState(null, '', '#agenda'); ruta(); barraAvisos(); vigilar();
+    await recargar(); if (!location.hash) history.replaceState(null, '', '#dinero'); ruta(); barraAvisos(); vigilar();
   }
   function login(err) {
     $('#top-nav').hidden = true;
@@ -134,16 +134,18 @@
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = h === '#agenda' ? 'agenda' : h === '#dinero' ? 'dinero' : h === '#clientes' || /^#prop=/.test(h) ? 'clientes' : h === '' || h === '#' || h === '#nuevo' || /^#[pt]=/.test(h) ? 'log' : 'mas';
+    const h = location.hash, sec = h === '#agenda' ? 'agenda' : h === '#dinero' || h === '#dinero/todos' ? 'dinero' : /^#piedra/.test(h) ? 'piedra' : h === '#clientes' || /^#prop=/.test(h) ? 'clientes' : h === '' || h === '#' || h === '#nuevo' || /^#[pt]=/.test(h) ? 'log' : 'mas';
     if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
     if (h !== '#estudio' && window.DKAS_ESTUDIO) DKAS_ESTUDIO.salir();
     $$('#top-nav a[data-sec]').forEach(a => { a.classList.toggle('on', a.dataset.sec === sec); if (a.dataset.sec === sec && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'center' }); });
     if (h === '#precios') return precios();
-    main.onclick = null; contarSolicitudes(); if (h !== '#agenda' && h !== '#dinero') contarAgenda();
+    main.onclick = null; contarSolicitudes(); if (h !== '#agenda' && h !== '#dinero-anterior') contarAgenda();
     if (h === '#clientes') return clientes();
     if (h === '#mas') return mas();
     if (/^#prop=[0-9a-f]{32}$/.test(h)) return propuesta(h.slice(6));
-    if (h === '#agenda' || h === '#dinero') return DKAS_AGENDA.pantalla(h.slice(1));
+    if (h === '#dinero' || h === '#dinero/todos') return DKAS_DINERO.pantalla(main, { A, toast, alerta }, h.slice(8));
+    if (h === '#agenda') return DKAS_AGENDA.pantalla('agenda');
+    if (h === '#dinero-anterior') return DKAS_AGENDA.pantalla('dinero');
     if (h === '#visitas') return visitas();
     if (h === '#portada') return portada();
     if (h === '#accesos') return accesos();
@@ -702,6 +704,7 @@
     const G = [
       ['Clientes y seguridad', [['#visitas', 'Auditoría y bloqueos', 'Quién entra a dkas.mx, qué ve y qué hace · bloquear o desbloquear'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza']]],
       ['Taller', [['#taller', 'Mesas en el taller', 'Costos, cortes, croquis y orden de compra de cada mesa'], ['#precios', 'Precios', 'Costos y margen'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#estudio', 'Estudio de diseño', 'Crea mesas completas: piedra, recorte, base y medidas']]],
+      ['Dinero', [['#dinero-anterior', 'Dinero anterior (archivo)', 'Gastos e ingresos que se anotaron antes del nuevo Dinero · solo para consultar']]],
       ['Página', [['#portada', 'Presentación de la página', 'Escoge cómo se ve el inicio de dkas.mx'], ['https://dkas.mx/cotiza.html', 'Cotizador express', 'Lo que ven los clientes']]],
       ['Equipo', [['#equipo', 'Administradores', (me && (me.jefe || me.duenio)) ? 'Crea cuentas para tu equipo, cada quien con su código' : 'Quién más tiene acceso al panel']]]];
     main.innerHTML = '<h1>Más</h1>' + G.map(([g, l]) => '<p class="mas-g">' + g + '</p><div class="mas">' + l.map(([h, t, d]) => '<a href="' + h + '"' + (/^http/.test(h) ? ' target="_blank" rel="noopener"' : '') + '><b>' + t + '</b><small>' + d + '</small></a>').join('') + '</div>').join('')
@@ -1135,7 +1138,7 @@
         l.filter(p => antes.ped[p.id] && ahora.msg[p.id] > (antes.msg[p.id] || 0)).forEach(p => hay.push(['Mensaje de ' + p.nombre, 'Pedido #' + p.folio, '#p=' + p.id]));
         pend.filter(x => !antes.sol[x.id]).forEach(x => hay.push(['Solicitud nueva · por aprobar', (x.nombre + ' ' + (x.apellido === '(web)' ? '' : x.apellido || '')).trim() + (x.quiere ? ' · ' + x.quiere : ''), '#clientes']));
         hay.slice(0, 5).forEach(a => avisar(a[0], a[1], a[2], true)); if (hay.length) toast(hay.length === 1 ? hay[0][0] + ' · ' + hay[0][1] : hay.length + ' avisos: ' + hay.map(a => a[0]).join(' · ')); if (hay.length > 5) avisar('Y ' + (hay.length - 5) + ' avisos más', 'Abre el panel', '');
-        if (hay.length) { sonido(); todos = l; if (['', '#', '#taller', '#accesos', '#clientes', '#agenda', '#dinero'].includes(location.hash) && !(document.activeElement && document.activeElement.id === 'ag-tx')) ruta(); }
+        if (hay.length) { sonido(); todos = l; if (['', '#', '#taller', '#accesos', '#clientes', '#agenda'].includes(location.hash) && !(document.activeElement && document.activeElement.id === 'ag-tx')) ruta(); }
       }
       A.save(AV_K, ahora);
       const b = $('#nb-acc'); if (b) { b.textContent = pend.length; b.hidden = !pend.length; }

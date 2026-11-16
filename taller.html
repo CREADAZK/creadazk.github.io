@@ -817,7 +817,52 @@ a.rg{text-decoration:none;color:inherit}
 .pd-sobra{font-size:15px;margin:12px 0 4px}
 .pd-det input{margin-top:10px}
 .pd-taller{display:block;text-align:center;margin-top:14px;color:var(--oro);font-weight:600;text-decoration:none}
+/* DKAS · Cotizar */
+.cz{max-width:760px;margin:0 auto;padding-bottom:30px}
+.cz-t{margin:0 0 12px}
+.cz-f,.cz-c{background:var(--card);border:1px solid var(--linea);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sombra);margin-top:12px}
+.cz-f{margin-top:0}
+.cz-c h2{margin:0 0 10px;font-size:17px}
+.cz-k{font-size:12.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gris);margin:12px 0 6px}.cz-k:first-child{margin-top:0}
+.cz-ch{display:flex;flex-wrap:wrap;gap:6px}
+.cz-ch button,.cz-std button{min-height:40px;padding:0 14px;border-radius:99px;border:1px solid var(--linea);background:#fff;font-size:14.5px;font-weight:600;color:var(--tinta)}
+.cz-ch button.on,.cz-std button.on{background:var(--tinta);border-color:var(--tinta);color:#fff}
+.cz-med{display:grid;grid-template-columns:1fr 1fr 90px;gap:8px;margin-top:14px}
+.cz-med label{display:grid;gap:4px;font-size:13px;font-weight:600;color:var(--gris)}
+.cz-med input{font-size:20px;font-weight:700;min-height:50px;text-align:center}
+.cz-med label[hidden]{display:none}
+.cz-ayuda{margin:6px 0 0;font-size:12.5px;color:var(--gris2)}
+.cz-std{display:flex;flex-wrap:wrap;gap:6px}
+.cz-std button{min-height:36px;padding:0 11px;font-size:13.5px;font-variant-numeric:tabular-nums}.cz-std small{color:var(--oro);font-weight:500}.cz-std .on small{color:var(--oro2)}
+.cz-nada,.cz-vacio{color:var(--gris);font-size:14px}.cz-vacio{text-align:center;margin:20px 0}
+.cz-err{margin-top:12px;padding:14px 16px;border-radius:var(--r);background:#f8ecea;border:2px solid var(--rojo);font-weight:600}
+.cz-precio{border:2px solid var(--tinta)}
+.cz-que{font-weight:600;color:var(--gris)}
+.cz-big{font-size:44px;font-weight:800;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.cz-sub{color:var(--gris);font-size:14px}
+.cz-filas,.cz-lista{display:grid;margin-top:10px;border-top:1px solid var(--linea)}
+.cz-filas>div,.cz-lista>div{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px solid var(--linea);flex-wrap:wrap}
+.cz-filas span,.cz-lista span{color:var(--gris)}.cz-filas b,.cz-lista b{font-variant-numeric:tabular-nums;text-align:right}
+.cz-filas small,.cz-lista small{font-weight:500;color:var(--gris);font-size:12.5px}
+.cz-lista span small{display:block}
+.cz-tot b{font-size:18px}.cz-tot span{color:var(--tinta)!important;font-weight:600}
+.cz-d10,.cz-ds{margin:4px -8px 0;padding:9px 8px!important;border-radius:8px;border-bottom:0!important}
+.cz-d10 em,.cz-ds em{flex-basis:100%;font-style:normal;font-size:13px;font-weight:600}
+.ok.cz-d10,.ok.cz-ds{background:#eaf5ee}.ok.cz-d10 *,.ok.cz-ds *{color:#17663a!important}
+.meh.cz-d10,.meh.cz-ds{background:#fbf4e4}.meh.cz-d10 *,.meh.cz-ds *{color:#7a5a10!important}
+.no.cz-d10,.no.cz-ds{background:#f8ecea}.no.cz-d10 *,.no.cz-ds *{color:#a3271e!important}
+.cz-ds.reco b,.cz-ds.reco span{font-weight:800}
+.cz-sw{display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:600}.cz-sw input{width:20px;height:20px}
+.cz-svg{width:100%;height:auto;display:block}
+.cz-pl{fill:#f2efe8;stroke:#a19c92;stroke-width:1}.cz-m{fill:#16140f}.cz-x{fill:#c2a273}
+.cz-svg text{fill:#fff;text-anchor:middle;font-weight:700;font-family:inherit}
+.cz-p{margin:10px 0 0;color:var(--tinta);font-size:14.5px}.cz-chico{font-size:12.5px;color:var(--gris2)}
+.cz-frase{margin:12px 0 8px;padding:10px 12px;background:var(--suave);border-left:3px solid var(--oro2);border-radius:6px;font-style:italic}
+.cz-det summary{cursor:pointer;font-weight:700;font-size:16px;list-style:none}.cz-det summary::-webkit-details-marker{display:none}
+.cz-det summary::after{content:' ▾';color:var(--oro)}.cz-det[open] summary::after{content:' ▴'}
+.cz-pq b{display:grid;justify-items:end}.cz-pq s{color:var(--gris2);font-weight:500;font-size:13px}.cz-pq span b{display:block;justify-items:start;color:var(--tinta);text-align:left}
+@media (max-width:520px){.cz-med{grid-template-columns:1fr 1fr}.cz-med .cz-cant{grid-column:1/-1}.cz-big{font-size:38px}}
 </style></head><body>
-<header class="top"><a href="#dinero"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#dinero" data-sec="dinero">Dinero</a><a href="#piedra" data-sec="piedra">Piedra</a><a href="#agenda" data-sec="agenda">Hoy<i class="badge" id="nb-age" hidden></i></a><a href="#clientes" data-sec="clientes">Clientes<i class="badge" id="nb-acc" hidden></i></a><a href="#" data-sec="log">Pedidos</a><a href="#mas" data-sec="mas">Más</a><a href="#" id="salir" hidden>Salir</a></nav></header>
+<header class="top"><a href="#dinero"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#dinero" data-sec="dinero">Dinero</a><a href="#cotizar" data-sec="cotizar">Cotizar</a><a href="#piedra" data-sec="piedra">Piedra</a><a href="#agenda" data-sec="agenda">Hoy<i class="badge" id="nb-age" hidden></i></a><a href="#clientes" data-sec="clientes">Clientes<i class="badge" id="nb-acc" hidden></i></a><a href="#" data-sec="log">Pedidos</a><a href="#mas" data-sec="mas">Más</a><a href="#" id="salir" hidden>Salir</a></nav></header>
 <div id="avisos" class="avisos" hidden></div><main id="m"></main><div id="toast" hidden></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=4a68d6bfaa"></script><script src="js/dkas-api.js?v=ed222d2727"></script><script src="js/dkas-croquis.js?v=1713142b92"></script><script src="js/disena.js?v=fbf9a608dd"></script><script src="js/estudio.js?v=479b2cfe21"></script><script src="js/agenda.js?v=fa2ce7919c"></script><script src="js/agenda-simple.js?v=d521845bfb"></script><script src="js/dinero.js?v=c810f9f6c0"></script><script src="js/piedra.js?v=535d5408db"></script><script src="js/panel-interes.js?v=1e36a4e717"></script><script src="js/panel.js?v=3256825e19"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=4a68d6bfaa"></script><script src="js/dkas-api.js?v=ed222d2727"></script><script src="js/dkas-croquis.js?v=1713142b92"></script><script src="js/disena.js?v=fbf9a608dd"></script><script src="js/estudio.js?v=479b2cfe21"></script><script src="js/agenda.js?v=fa2ce7919c"></script><script src="js/agenda-simple.js?v=d521845bfb"></script><script src="js/dinero.js?v=c810f9f6c0"></script><script src="js/piedra.js?v=535d5408db"></script><script src="js/cotizador.js?v=5c64cf5c33"></script><script src="js/panel-interes.js?v=1e36a4e717"></script><script src="js/panel.js?v=a1e8b62313"></script></body></html>

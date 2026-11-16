@@ -134,7 +134,7 @@
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = h === '#agenda' ? 'agenda' : h === '#dinero' || h === '#dinero/todos' ? 'dinero' : /^#piedra/.test(h) ? 'piedra' : h === '#clientes' || /^#prop=/.test(h) ? 'clientes' : h === '' || h === '#' || h === '#nuevo' || /^#[pt]=/.test(h) ? 'log' : 'mas';
+    const h = location.hash, sec = h === '#agenda' ? 'agenda' : h === '#dinero' || h === '#dinero/todos' ? 'dinero' : /^#piedra/.test(h) ? 'piedra' : h === '#cotizar' ? 'cotizar' : h === '#clientes' || /^#prop=/.test(h) ? 'clientes' : h === '' || h === '#' || h === '#nuevo' || /^#[pt]=/.test(h) ? 'log' : 'mas';
     if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
     if (h !== '#estudio' && window.DKAS_ESTUDIO) DKAS_ESTUDIO.salir();
     $$('#top-nav a[data-sec]').forEach(a => { a.classList.toggle('on', a.dataset.sec === sec); if (a.dataset.sec === sec && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'center' }); });
@@ -145,6 +145,7 @@
     if (/^#prop=[0-9a-f]{32}$/.test(h)) return propuesta(h.slice(6));
     if (h === '#dinero' || h === '#dinero/todos') return DKAS_DINERO.pantalla(main, { A, toast, alerta, me: () => me }, h.slice(8));
     if (h === '#piedra' || /^#piedra\/(placas|piezas|historial|hoja(=[\w-]+)?)$/.test(h)) return DKAS_PIEDRA.pantalla(main, { A, toast, alerta, me: () => me }, h.slice(8));
+    if (h === '#cotizar') return DKAS_COTIZAR.pantalla(main, { toast, alerta });
     if (h === '#agenda') return DKAS_AGENDA.pantalla('agenda');
     if (h === '#dinero-anterior') return DKAS_AGENDA.pantalla('dinero');
     if (h === '#visitas') return visitas();

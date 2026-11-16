@@ -145,7 +145,7 @@
     if (/^#prop=[0-9a-f]{32}$/.test(h)) return propuesta(h.slice(6));
     if (h === '#dinero' || h === '#dinero/todos') return DKAS_DINERO.pantalla(main, { A, toast, alerta, me: () => me }, h.slice(8));
     if (h === '#piedra' || /^#piedra\/(placas|piezas|historial|hoja(=[\w-]+)?)$/.test(h)) return DKAS_PIEDRA.pantalla(main, { A, toast, alerta, me: () => me }, h.slice(8));
-    if (h === '#cotizar') return DKAS_COTIZAR.pantalla(main, { toast, alerta });
+    if (h === '#cotizar') return DKAS_COTIZAR.pantalla(main, { toast, alerta, compartir, foto3d, cargarImg, A, me: () => me });
     if (h === '#agenda') return DKAS_AGENDA.pantalla('agenda');
     if (h === '#dinero-anterior') return DKAS_AGENDA.pantalla('dinero');
     if (h === '#visitas') return visitas();

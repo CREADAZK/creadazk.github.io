@@ -34,7 +34,7 @@
   document.addEventListener('visibilitychange', () => { if (document.hidden) clearTimeout(t); else ir(si); });
 
   // ---------- fotos que se revelan al llegar ----------
-  $$('.at-man-f,.at-card .ph,.at-tal-f,.at-tal-d,.at-pro-g figure,.at-bs-g .ph').forEach(el => el.classList.add('at-rev'));
+  $$('.at-man-f,.at-card .ph,.at-tal-f,.at-tal-d,.at-pro-g figure,.at-bs-g .ph,.at-gc .ph,.at-dos-c').forEach(el => el.classList.add('at-rev'));
   const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -6% 0px' });
   $$('.at-rev').forEach(el => quieto ? el.classList.add('in') : io.observe(el));
 
@@ -56,6 +56,29 @@
       addEventListener('pointerup', () => { if (x0 == null) return; x0 = null; pista.classList.remove('arrastra'); });
       pista.addEventListener('click', e => { if (movio) { e.preventDefault(); e.stopPropagation(); movio = false; } }, true);
     }
+  }
+
+  // ---------- grapas: filtros, flechas, avance y medida elegida → WhatsApp ----------
+  const gr = $('#at-gr'), grb = $('.at-gr-b i');
+  if (gr) {
+    const marcaG = () => { const m = gr.scrollWidth - gr.clientWidth; grb.style.width = Math.max(8, m > 0 ? gr.scrollLeft / m * 100 : 100) + '%'; };
+    gr.addEventListener('scroll', () => requestAnimationFrame(marcaG), { passive: true }); marcaG();
+    $$('[data-gg]').forEach(b => b.onclick = () => gr.scrollBy({ left: +b.dataset.gg * ((gr.querySelector('.at-gc:not([hidden])') || gr).offsetWidth + 20), behavior: 'smooth' }));
+    $$('[data-gf]').forEach(b => b.onclick = () => {
+      $$('[data-gf]').forEach(x => x.classList.toggle('on', x === b));
+      $$('.at-gc').forEach(c => { c.hidden = b.dataset.gf !== 'todo' && c.dataset.g !== b.dataset.gf; if (!c.hidden) c.querySelector('.ph').classList.add('in'); });
+      gr.scrollTo({ left: 0, behavior: 'smooth' }); setTimeout(marcaG, 400);
+    });
+    const num = (window.DKAS_WA && DKAS_WA[0] && DKAS_WA[0].num) || '';
+    const link = c => {
+      const on = c.querySelector('.at-gm .on'), m = on ? on.dataset.m : '';
+      const t = 'Hola DKAS, me interesa el modelo ' + c.dataset.cod + ' (' + c.dataset.t + ')' + (m ? ' en ' + m + ' cm' : '') + '. ¿Me pasan precio?';
+      c.querySelector('.lk a').href = 'https://wa.me/' + num + '?text=' + encodeURIComponent(t);
+    };
+    $$('.at-gc').forEach(c => {
+      link(c);
+      c.querySelectorAll('.at-gm button').forEach(b => b.onclick = () => { c.querySelectorAll('.at-gm button').forEach(x => x.classList.toggle('on', x === b)); link(c); window.DKAS_INT = 'Grapa ' + c.dataset.cod + ' ' + b.dataset.m; });
+    });
   }
 
   // ---------- piedras: lista, foto grande y lupa ----------

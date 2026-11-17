@@ -66,7 +66,7 @@
   if (mod) { modSel = mod; m = D.normalizar(Object.assign({}, mod, { modelo: mod.id })); origen = 'Modelo ' + mod.nombre; ruta = ['personas', 'piedra', 'base', 'revisa', 'datos']; }
   else if (q.get('u') && D.USOS[q.get('u')]) {
     const u = q.get('u'), f = D.formasDe(u).includes(q.get('f')) ? q.get('f') : D.formasDe(u)[0];
-    m = D.normalizar(Object.assign({ uso: u, forma: f, base: q.get('b') || 'patas', piedra: D.PIEDRAS.some(p => p.id === q.get('p')) ? q.get('p') : 'statuario' }, tamano(u, f, u === 'comedor' ? 8 : 4)));
+    m = D.normalizar(Object.assign({ uso: u, forma: f, base: q.get('b') || 'patas', piedra: D.PIEDRAS.some(p => p.id === q.get('p')) ? q.get('p') : 'statuario' }, tamano(u, f, Math.min(20, Math.max(2, +q.get('n') || 0)) || (u === 'comedor' ? 8 : 4))));
     origen = 'Quiero una así: ' + (q.get('t') || 'foto de la página').slice(0, 60); ruta = ['personas', 'piedra', 'base', 'revisa', 'datos'];
   } else ruta = ['inicio', 'uso', 'personas', 'forma', 'piedra', 'base', 'revisa', 'datos'];
 

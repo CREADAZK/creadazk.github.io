@@ -197,7 +197,8 @@
   }, 'image/png');
 
   // ---------- pantallas: cada sección se abre sola (con el #) ----------
-  const PANT = { inicio: ['#portada', '#accesos', '.sellos', '#revista'], crea: ['#disena', '#acceso', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
+  const UNA = !!window.DKAS_UNA; // Atelier: una sola página larga (los # bajan a su sección), y Crea tu mesa aparte
+  const PANT = UNA ? { inicio: ['#portada', '.at-marq', '#atelier', '#espacios', '#piedras', '#medida', '#dia', '#showroom', '#taller', '#bases', '#proyectos', '#disena', '#preguntas', '#contacto'], crea: ['#acceso', '#app'] } : { inicio: ['#portada', '#accesos', '.sellos', '#revista'], crea: ['#disena', '#acceso', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
     bases: ['#bases'], proyectos: ['#proyectos'], arquitectos: ['#arquitectos'], nosotros: ['#casa', '#como', '#preguntas'], contacto: ['#contacto'] };
   const ALIAS = { app: 'crea', disena: 'crea', casa: 'nosotros', como: 'nosotros', preguntas: 'nosotros', porque: 'piedras', espacios: 'proyectos', revista: 'inicio' };
   const ORDEN = ['inicio', 'crea', 'coleccion', 'piedras', 'bases', 'proyectos', 'arquitectos', 'nosotros', 'contacto'];
@@ -205,7 +206,7 @@
   const HREF = p => p === 'crea' ? '#app' : p === 'inicio' ? '#' : '#' + p;
   const todas = [...new Set(Object.values(PANT).flat())].map(s => $(s)).filter(Boolean);
   // al final de cada pantalla: ir a la siguiente o volver al inicio
-  ORDEN.forEach((p, i) => {
+  if (!UNA) ORDEN.forEach((p, i) => {
     const ult = $(PANT[p][PANT[p].length - 1]), sig = ORDEN[(i + 1) % ORDEN.length]; if (!ult) return;
     const n = document.createElement('nav'); n.className = 'sig-pant';
     n.innerHTML = (p === 'inicio' ? '' : '<a href="#">← Inicio</a>') + '<a class="sig" href="' + HREF(sig) + '"><small>Siguiente</small>' + NOMBRE[sig] + ' →</a>';
@@ -213,14 +214,15 @@
   });
   function pantalla() {
     const h = location.hash.slice(1);
-    let p = h.startsWith('d=') ? 'crea' : (ALIAS[h] || h || 'inicio'); if (!PANT[p]) p = 'inicio';
+    let p = h.startsWith('d=') ? 'crea' : UNA && h !== 'app' && h !== 'disena' ? 'inicio' : (ALIAS[h] || h || 'inicio'); if (!PANT[p]) p = 'inicio';
+    const destino = UNA && p === 'inicio' && h && !h.startsWith('d=') ? document.getElementById(h) : null;
     document.body.dataset.p = p;
     const bar = $('#bar'); if (bar) bar.hidden = p !== 'crea'; // la barra Atrás/Siguiente solo en Crea tu mesa
     const ver = new Set(PANT[p].map(s => typeof s === 'string' ? $(s) : s));
     todas.concat($$('.sig-pant')).forEach(el => { el.hidden = !ver.has(el); });
     $$('.top nav .ln').forEach(a => a.classList.toggle('on', a.getAttribute('href') === (h === 'revista' ? '#revista' : HREF(p))));
     // la revista vive en la pantalla de inicio: su link baja hasta ella; lo demás abre arriba
-    const sube = () => h === 'revista' ? $('#revista').scrollIntoView() : scrollTo(0, 0);
+    const sube = () => destino ? destino.scrollIntoView() : h === 'revista' && $('#revista') ? $('#revista').scrollIntoView() : scrollTo(0, 0);
     sube(); setTimeout(sube, 0); requestAnimationFrame(sube); // el navegador salta al # después
     ver.forEach(el => el.querySelectorAll && el.querySelectorAll('.rv').forEach(x => x.classList.add('in')));
     verFlota();

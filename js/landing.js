@@ -198,7 +198,7 @@
 
   // ---------- pantallas: cada sección se abre sola (con el #) ----------
   const UNA = !!window.DKAS_UNA; // Atelier: una sola página larga (los # bajan a su sección), y Crea tu mesa aparte
-  const PANT = UNA ? { inicio: ['#portada', '.at-marq', '#atelier', '#espacios', '#piedras', '#medida', '#dia', '#showroom', '#taller', '#bases', '#proyectos', '#disena', '#preguntas', '#contacto'], crea: ['#acceso', '#app'] } : { inicio: ['#portada', '#accesos', '.sellos', '#revista'], crea: ['#disena', '#acceso', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
+  const PANT = UNA ? { inicio: Array.isArray(window.DKAS_UNA) ? window.DKAS_UNA : ['#portada', '.at-marq', '#atelier', '#espacios', '#piedras', '#medida', '#dia', '#showroom', '#taller', '#bases', '#proyectos', '#disena', '#preguntas', '#contacto'], crea: ['#acceso', '#app'] } : { inicio: ['#portada', '#accesos', '.sellos', '#revista'], crea: ['#disena', '#acceso', '#app'], coleccion: ['#coleccion'], piedras: ['#piedras', '#porque'],
     bases: ['#bases'], proyectos: ['#proyectos'], arquitectos: ['#arquitectos'], nosotros: ['#casa', '#como', '#preguntas'], contacto: ['#contacto'] };
   const ALIAS = { app: 'crea', disena: 'crea', casa: 'nosotros', como: 'nosotros', preguntas: 'nosotros', porque: 'piedras', espacios: 'proyectos', revista: 'inicio' };
   const ORDEN = ['inicio', 'crea', 'coleccion', 'piedras', 'bases', 'proyectos', 'arquitectos', 'nosotros', 'contacto'];

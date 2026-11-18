@@ -3,6 +3,17 @@
   const D = window.DKAS, $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
   const quieto = matchMedia('(prefers-reduced-motion:reduce)').matches, fino = matchMedia('(hover:hover) and (pointer:fine)').matches;
 
+  // ---------- cada día cambia: el orden de las secciones rota y la portada empieza en otra foto (hora CDMX) ----------
+  const DIA = (() => { try { const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date()).split('-').map(Number); return Math.floor(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5); } catch (e) { return Math.floor(Date.now() / 864e5); } })();
+  (function rotar() {
+    const ids = [['#atelier'], ['#espacios', '.at-dos'], ['#piedras'], ['#medida'], ['#dia'], ['#showroom'], ['#taller'], ['#bases'], ['#grapas'], ['#proyectos']];
+    const bloques = ids.map(g => g.map(s => document.querySelector(s)).filter(Boolean)).filter(g => g.length), fin = document.querySelector('#disena');
+    if (!fin || bloques.length < 2) return;
+    const k = DIA % bloques.length, orden = bloques.slice(k).concat(bloques.slice(0, k));
+    orden.forEach(g => g.forEach(el => fin.parentNode.insertBefore(el, fin)));
+    let n = 0; orden.forEach(g => g.forEach(el => { const e = el.querySelector('.at-k'); if (e && /^\d\d —/.test(e.textContent)) e.textContent = e.textContent.replace(/^\d\d/, String(++n).padStart(2, '0')); }));
+  })();
+
   // ---------- encabezado y barra de avance ----------
   const top = $('#top'), av = document.createElement('div'); av.className = 'at-avance'; document.body.appendChild(av);
   let pide = false;
@@ -30,7 +41,7 @@
   }
   document.documentElement.style.setProperty('--dur', DUR / 1000 + 's');
   bars.forEach((b, k) => b.onclick = () => ir(k));
-  if (figs.length) ir(0);
+  if (figs.length) ir(DIA % figs.length);
   document.addEventListener('visibilitychange', () => { if (document.hidden) clearTimeout(t); else ir(si); });
 
   // ---------- fotos que se revelan al llegar ----------

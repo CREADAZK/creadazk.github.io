@@ -39,9 +39,9 @@
   function mesa3D() {
     if (!window.THREE || !caja) return null;
     const T = THREE; let r;
-    try { r = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' }); } catch (e) { return null; }
+    try { r = new T.WebGLRenderer({ antialias: !cel(), alpha: true, powerPreference: 'high-performance' }); } catch (e) { return null; }
     if (!r.getContext()) return null;
-    r.setPixelRatio(Math.min(devicePixelRatio || 1, cel() ? 1.6 : 2)); r.outputEncoding = T.sRGBEncoding; r.toneMapping = T.ACESFilmicToneMapping; r.toneMappingExposure = .74;
+    r.setPixelRatio(Math.min(devicePixelRatio || 1, cel() ? 1 : 2)); r.outputEncoding = T.sRGBEncoding; r.toneMapping = T.ACESFilmicToneMapping; r.toneMappingExposure = .74;
     r.shadowMap.enabled = true; r.shadowMap.type = T.PCFSoftShadowMap; r.physicallyCorrectLights = false;
     caja.appendChild(r.domElement);
     const esc = new T.Scene(), cam = new T.PerspectiveCamera(30, 1, .05, 60);

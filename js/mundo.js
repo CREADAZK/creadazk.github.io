@@ -188,8 +188,10 @@
   function alBajar() {
     pide = false; const y = scrollY, enInicio = document.body.dataset.p !== 'crea';
     if (hero && enInicio) {
-      const r = hero.getBoundingClientRect(), largo = r.height - innerHeight; P = cl(-r.top / (largo || 1), 0, 1);
-      hero.classList.toggle('paso', P > .06);
+      const r = hero.getBoundingClientRect(), largo = r.height - innerHeight;
+      // en el teléfono la portada ya no se queda fija: se ve la mesa terminada y se baja normal
+      P = cel() ? 1 : cl(-r.top / (largo || 1), 0, 1);
+      hero.classList.toggle('paso', !cel() && P > .06);
       const e = P < .1 ? 0 : Math.min(4, Math.floor((P - .1) / .18));
       ets.forEach((el, i) => el.classList.toggle('on', i === e));
       barras.forEach((b, i) => { b.style.height = cl((P - .1 - i * .18) / .18, 0, 1) * 100 + '%'; });

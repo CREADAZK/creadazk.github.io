@@ -419,6 +419,25 @@ a.rg{text-decoration:none;color:inherit}
 .pres-op iframe{display:block;width:100%;aspect-ratio:9/12;border:0;pointer-events:none;background:#14110e}
 .pres-op>div{padding:12px 14px}.pres-op b{display:block}.pres-op b i{font-style:normal;color:#8f7043;font-weight:500}
 .pres-op small{display:block;color:#6b6258;margin:4px 0 10px}.pres-bot{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Enviarle su mesa */
+.em-a{margin:6px 0 14px;font-size:15px}.em-a b{font-size:17px;letter-spacing:.02em;color:var(--verde,#1f8a4c)}
+.em-mal{color:#b3261e;font-weight:600}
+.em-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:0 0 14px}
+.em-f{position:relative;padding:0;border:2px solid transparent;border-radius:12px;overflow:hidden;background:#eee;cursor:pointer;opacity:.4;transition:opacity .2s,border-color .2s}
+.em-f.on{opacity:1;border-color:var(--oro,#b8954f)}
+.em-f img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+.em-f span{display:block;padding:6px 8px;font-size:12px;text-align:left;background:#fff;color:#222}
+.em-f i{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:13px;background:var(--oro,#b8954f);color:#fff}
+.em-f:not(.on) i{background:#999}
+.em-d{list-style:none;padding:0;margin:0 0 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.em-d li{background:rgba(0,0,0,.04);border-radius:10px;padding:8px 10px}.em-d span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.65}.em-d b{font-size:14px}
+.em-pasos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.em-pasos .btn{min-height:52px;font-size:15px;gap:8px}
+.em-pasos i{font-style:normal;width:22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;background:rgba(0,0,0,.12);font-size:12px;font-weight:700}
+.em-pasos .btn.hecho{opacity:.6}
+.em-n{margin-top:10px}
+@media (max-width:560px){.em-pasos{grid-template-columns:1fr}.em-d{grid-template-columns:1fr}}
 /* DKAS · Estudio de diseño (panel, solo administración) */
 .es-cab{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
 .es-acc{display:flex;flex-wrap:wrap;gap:8px}
@@ -900,4 +919,4 @@ a.rg{text-decoration:none;color:inherit}
 </style></head><body>
 <header class="top"><a href="#dinero"><img src="img/dkas-claro.png" alt="DKAS"></a><nav id="top-nav" hidden><a href="#dinero" data-sec="dinero">Dinero</a><a href="#cotizar" data-sec="cotizar">Cotizar</a><a href="#piedra" data-sec="piedra">Piedra</a><a href="#agenda" data-sec="agenda">Hoy<i class="badge" id="nb-age" hidden></i></a><a href="#clientes" data-sec="clientes">Clientes<i class="badge" id="nb-acc" hidden></i></a><a href="#" data-sec="log">Pedidos</a><a href="#mas" data-sec="mas">Más</a><a href="#" id="salir" hidden>Salir</a></nav></header>
 <div id="avisos" class="avisos" hidden></div><main id="m"></main><div id="toast" hidden></div>
-<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=4a68d6bfaa"></script><script src="js/dkas-api.js?v=ed222d2727"></script><script src="js/dkas-croquis.js?v=1713142b92"></script><script src="js/disena.js?v=fbf9a608dd"></script><script src="js/estudio.js?v=479b2cfe21"></script><script src="js/agenda.js?v=fa2ce7919c"></script><script src="js/agenda-simple.js?v=d521845bfb"></script><script src="js/dinero.js?v=c810f9f6c0"></script><script src="js/piedra.js?v=535d5408db"></script><script src="js/cotizador.js?v=b9f0f5a6df"></script><script src="js/panel-interes.js?v=1e36a4e717"></script><script src="js/panel.js?v=b26c14df2b"></script></body></html>
+<script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/three.r128.min.js"></script><script src="js/dkas-core.js?v=4a68d6bfaa"></script><script src="js/dkas-api.js?v=ed222d2727"></script><script src="js/dkas-croquis.js?v=1713142b92"></script><script src="js/disena.js?v=fbf9a608dd"></script><script src="js/estudio.js?v=479b2cfe21"></script><script src="js/agenda.js?v=fa2ce7919c"></script><script src="js/agenda-simple.js?v=d521845bfb"></script><script src="js/dinero.js?v=c810f9f6c0"></script><script src="js/piedra.js?v=535d5408db"></script><script src="js/cotizador.js?v=b9f0f5a6df"></script><script src="js/panel-interes.js?v=1e36a4e717"></script><script src="js/panel.js?v=d248e59c51"></script></body></html>

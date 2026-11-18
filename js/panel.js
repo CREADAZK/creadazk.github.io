@@ -239,7 +239,7 @@
     const cab = '<a class="volver" href="' + (tall ? '#taller' : '#') + '">← ' + (tall ? 'Taller y creación' : 'Pedidos y logística') + '</a>'
       + '<div class="hcab"><div><p class="folio">Pedido #' + p.folio + ' · ' + A.fecha(p.creado) + (p.canal ? ' · ' + esc(p.canal) : '') + (f.bienvenida ? ' · bienvenida enviada ' + A.fecha(f.bienvenida) : '') + '</p><h1>' + esc(p.nombre) + '</h1>'
       + '<p class="sub">' + esc(D.titulo(m)) + (p.tel ? ' · ' + esc(p.tel) : '') + '</p></div>'
-      + (tel ? '<div class="botones"><a class="btn verde" target="_blank" rel="noopener" href="https://wa.me/' + tel + '">WhatsApp</a><button class="btn" id="mlink" title="Le manda su link para ver cómo va su mesa, con su foto y planos">Mandarle su link</button></div>' : '') + '</div>'
+      + (tel ? '<div class="botones"><a class="btn verde" target="_blank" rel="noopener" href="https://wa.me/' + tel + '">WhatsApp</a><button class="btn verde" id="envm">Enviarle su mesa</button><button class="btn" id="mlink" title="Le manda su link para ver cómo va su mesa, con su foto y planos">Mandarle su link</button></div>' : '') + '</div>'
       + etapas(p)
       + (ac ? '<div class="paso-sig"><div><span>Siguiente paso</span><b>' + esc(sigue(p)) + '</b>' + (e.g !== 'fin' ? '<em class="ent ' + e.cls + '">Entrega: ' + esc(e.txt) + (e.f ? ' · ' + fechaCorta(e.f) : '') + '</em>' : '') + '</div><button class="btn oro" id="accion">' + esc(ac.txt) + ' →</button></div>' : '')
       + (tall ? '<div class="tabs"><a href="#p=' + p.id + '">Pedido</a><a href="#t=' + p.id + '" class="on">Taller</a></div>' : '')
@@ -338,6 +338,7 @@
     });
     $$('[data-etapa]').forEach(b => b.onclick = () => ponerEstado(p, b.dataset.etapa, modo));
     if ($('#accion')) $('#accion').onclick = () => ac.run(modo);
+    if ($('#envm')) $('#envm').onclick = async () => enviarMesa({ nombre: p.nombre, tel: p.tel, m: mesaDe(p), gusto: gustoPedido(p), foto: await fotoMesa(p).catch(() => null), folio: p.folio });
     if ($('#mlink')) $('#mlink').onclick = async () => { const b = $('#mlink'); b.disabled = true;
       try { await compartir(await adjuntos(m, gustoPedido(p), { cliente: p.nombre, titulo: 'Tu mesa · pedido #' + p.folio }, 'tu-mesa-' + p.folio), 'Hola ' + p.nombre.split(' ')[0] + ', aquí puedes ver cómo va tu mesa DKAS (pedido #' + p.folio + '): ' + SITE + 'pedido.html#t=' + p.token, tel); } catch (e) { alerta(e.message); }
       b.disabled = false; };
@@ -825,7 +826,8 @@
       + (c.d ? mesaCard(c) : quiereCard(c))
       + (c.p ? '<a class="c-ped" href="#p=' + (c.p.id || '') + '">Pedido #' + c.p.folio + ' · ' + esc(A.estado(c.p.estado)) + ' →</a>' : '')
       + '<div class="l-bot">' + (c.etapa === 'aprobar' ? '<button class="btn verde chico" data-dec="' + c.k + '|aprobada">Aprobar</button><button class="btn chico" data-dec="' + c.k + '|rechazada">Rechazar</button>' : '')
-      + (c.etapa !== 'rech' ? wa(c) : '') + (c.etapa !== 'rech' && c.etapa !== 'aprobar' && /^[0-9a-f]{32}$/.test(c.k) ? '<a class="btn chico oro" href="#prop=' + c.k + '">' + (c.d && c.d.prop ? 'Cambiar su mesa' : 'Armarle su mesa') + '</a>' : '') + (c.etapa !== 'aprobar' && c.etapa !== 'rech' && c.tel ? '<button class="btn chico" data-marca="' + c.k + '">' + (seg[c.k] ? 'Deshacer' : 'Ya le escribí') + '</button>' : '') + '</div></div>';
+      + (c.etapa !== 'rech' && c.tel && (mesaCli(c) || gustoDe(c.quiere)) ? '<button class="btn chico verde" data-envc="' + c.k + '">Enviarle su mesa</button>' : '') + (c.etapa !== 'rech' ? wa(c) : '') + (c.etapa !== 'rech' && c.etapa !== 'aprobar' && /^[0-9a-f]{32}$/.test(c.k) ? '<a class="btn chico oro" href="#prop=' + c.k + '">' + (c.d && c.d.prop ? 'Cambiar su mesa' : 'Armarle su mesa') + '</a>' : '') + (c.etapa !== 'aprobar' && c.etapa !== 'rech' && c.tel ? '<button class="btn chico" data-marca="' + c.k + '">' + (seg[c.k] ? 'Deshacer' : 'Ya le escribí') + '</button>' : '') + '</div></div>';
+    window.DKAS_SEG_MARCA = async k => { if (seg[k]) return; await A.marcarEscrito(k, true); seg[k] = { escrito: Date.now(), por: me.nombre }; setTimeout(clientes, 900); };
     function porCotizar() {
       const l = todos.filter(p => p.estado === 'nuevo').sort((a, b) => b.creado - a.creado); if (!l.length) return '';
       const pid = p => ((p.items[0] || {}).specs || []).find(z => z[0] === 'Pidió');
@@ -843,7 +845,7 @@
       return '<div class="lead cli ' + (modo === 'cotizar' ? 'e-aprobar' : 'e-disena') + '"><div class="l-cab"><div><b>' + esc(p.nombre) + ' · #' + p.folio + '</b><small>' + esc(p.tel || 'sin WhatsApp') + ' · ' + cuando(p.creado) + (pidio(p) ? ' · ' + esc(pidio(p)[1]) : '') + '</small></div></div>'
         + '<button class="c-mesa" data-cotp="' + p.id + '"><img data-foto="' + p.token + '" alt=""><div><small>' + (modo === 'cotizar' ? 'Lo que escogió' : 'Cotizada ' + (c2 ? cuando(c2.enviada) + ' · ' + pesos(c2.total) : '')) + '</small><b>' + esc((p.items[0] || {}).titulo || 'Mesa') + '</b><span>' + esc(resumenCorto(p)) + '</span></div></button>'
         + '<div class="l-bot">' + (modo === 'cotizar' ? '<button class="btn oro chico" data-cotp="' + p.id + '">Cotizar</button>' : '<button class="btn chico" data-segp="' + p.id + '">Darle seguimiento</button><a class="btn chico" href="#p=' + p.id + '">Aceptó → anticipo</a>')
-        + (p.tel ? '<button class="btn chico" data-cita="' + p.id + '">Agendar cita</button>' : '') + '</div></div>'; };
+        + (p.tel ? '<button class="btn chico verde" data-envp="' + p.id + '">Enviarle su mesa</button>' : '') + (p.tel ? '<button class="btn chico" data-cita="' + p.id + '">Agendar cita</button>' : '') + '</div></div>'; };
     const cuerpo = { cotizar: () => porCot.length ? '<p class="sub l-sub">Ya escogieron su mesa y dejaron su WhatsApp. Toca <b>Cotizar</b>: ves lo que eligieron, pones precio y se lo mandas.</p><div class="leads">' + porCot.map(p => tarjPed(p, 'cotizar')).join('') + '</div>' : '<p class="sub l-sub">Nada por cotizar. 🎉</p>',
       respuesta: () => espRes.length ? '<p class="sub l-sub">Ya tienen su cotización. Escríbeles para cerrar o agenda una cita con muestras.</p><div class="leads">' + espRes.map(p => tarjPed(p, 'respuesta')).join('') + '</div>' : '<p class="sub l-sub">Nadie esperando respuesta.</p>',
       aprobar: () => de('aprobar').length ? '<p class="sub l-sub">Pidieron el diseñador 3D. Aprueba o escríbeles.</p><div class="leads">' + de('aprobar').map(ficha).join('') + '</div>' : '<p class="sub l-sub">Nadie por aprobar.</p>',
@@ -867,6 +869,8 @@
         window.open('https://wa.me/' + A.waNum(t) + '?text=' + encodeURIComponent('Hola' + (n ? ' ' + n.split(' ')[0] : '') + ', ¿cómo estás? Soy ' + yoN + ' de DKAS. Aquí armas tu mesa en un minuto: escoges tamaño, piedra y base, y yo te mando tu cotización por aquí.\n' + url), '_blank'); return; }
       if (e.target.closest('#cn-ok')) { const [n0, ...ap] = $('#cn-nom').value.trim().split(/\s+/), id = A.rnd(), b0 = e.target.closest('#cn-ok'); b0.disabled = true;
         try { await A.solicitarAcceso(id, { nombre: n0 || '', apellido: ap.join(' ') || '(web)', tel: $('#cn-tel').value, quiere: 'Escribió por WhatsApp' }); await A.decidirSolicitud(id, 'aprobada'); location.hash = '#prop=' + id; } catch (x) { b0.disabled = false; alerta(x.message); } return; }
+      const ep = e.target.closest('[data-envp]'); if (ep) { const p = todos.find(z => z.id === ep.dataset.envp); if (p) enviarMesa({ nombre: p.nombre, tel: p.tel, m: mesaDeP(p), gusto: gustoPedido(p), foto: await fotoMesa(p).catch(() => null), folio: p.folio }); return; }
+      const ec = e.target.closest('[data-envc]'); if (ec) { const c = lista.find(z => z.k === ec.dataset.envc); if (c) enviarMesa({ nombre: c.nombre, tel: c.tel, m: mesaCli(c), gusto: c.p && c.p.items ? gustoPedido(c.p) : c.d && c.d.cod ? null : gustoDe(c.quiere), foto: c.d && c.d.img || (c.p && c.p.token ? await fotoMesa(c.p).catch(() => null) : null), folio: c.p && c.p.folio, k: c.k }); return; }
       const wo = e.target.closest('[data-wa-op]'); if (wo) { const c = lista.find(z => z.k === wo.dataset.waOp); if (c) elegirMensaje(c); return; }
       if (d) { const [id, est] = d.dataset.dec.split('|'); if (est === 'rechazada' && !confirm('¿Rechazar esta solicitud?')) return; d.disabled = true;
         try { await A.decidirSolicitud(id, est); toast(est === 'aprobada' ? 'Aprobado: ya puede diseñar. Avísale por WhatsApp.' : 'Rechazada'); contarSolicitudes(true); clientes(); } catch (x) { d.disabled = false; alerta(x.message); } return; }
@@ -1256,6 +1260,61 @@
     let y = 0; ims.forEach((i, k) => { g.drawImage(i, 0, y, W, hs[k]); y += hs[k] + gap; URL.revokeObjectURL(i.src); });
     return new Promise(ok => c.toBlob(ok, 'image/png'));
   }
+  // ---------- Enviarle su mesa: fotos (la que le gustó, su mesa en 3D, ficha con medidas, piedra y base) + datos, y SU chat de WhatsApp (su número exacto) ----------
+  // o = { nombre, tel, m, gusto, foto (url de su mesa 3D, opcional), folio, k (para marcar "le escribió") }
+  const esIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  async function aArchivo(src, nombre) {
+    if (!src) return null;
+    try { const r = await fetch(src); if (r.ok) { const b = await r.blob(); if (b.size) return new File([b], nombre, { type: b.type || 'image/jpeg' }); } } catch (e) {}
+    const im = await cargarImg(src); if (!im) return null;
+    try { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext('2d').drawImage(im, 0, 0); const b = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.9)); return b ? new File([b], nombre, { type: 'image/jpeg' }) : null; } catch (e) { return null; }
+  }
+  async function enviarMesa(o) {
+    const tel = A.waNum(o.tel || ''), telOk = /^\d{12,13}$/.test(tel), n1 = String(o.nombre || '').trim().split(' ')[0] || '', yo = String((me && me.nombre) || '').split(' ')[0];
+    const slug = (n1 || 'cliente').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '') + (o.folio ? '-' + o.folio : ''), m = o.m;
+    let datos = []; try { if (m) datos = D.resumen(m).filter(z => z[0] !== 'Fabricación' && z[0] !== 'Uso'); } catch (e) {}
+    const dato = k => (datos.find(z => z[0] === k) || [])[1];
+    const lineas = [['Piedra', dato('Piedra')], ['Medidas', dato('Medidas') ? dato('Medidas') + (dato('Altura') ? ' · ' + dato('Altura') + ' de alto' : '') : ''], ['Forma', dato('Forma')], ['Base', dato('Base') ? dato('Base') + (dato('Color de base') ? ' · ' + dato('Color de base').toLowerCase() : '') : ''], ['Personas', dato('Personas')]].filter(z => z[1]);
+    const txt0 = 'Hola' + (n1 ? ' ' + n1 : '') + ', ¿cómo estás? Soy ' + (yo || 'tu asesor') + ' de DKAS. Esta es la mesa que te gustó' + (o.gusto && o.gusto.nombre ? ' («' + o.gusto.nombre + '»)' : '') + ':\n'
+      + lineas.map(([k, v]) => '• ' + k + ': ' + v).join('\n') + '\n\n¿Es esta la que te gustó? Si sí, te preparo tu cotización; si le quieres cambiar algo (medida, piedra o base) me dices y la ajusto.';
+    const v = document.createElement('div'); v.className = 'vm em';
+    v.innerHTML = '<div class="vm-caja"><button class="vm-x" aria-label="Cerrar">×</button><div class="vm-tx"><p class="vm-et">Enviarle su mesa</p><h2>' + esc(o.nombre || 'Cliente') + (o.folio ? ' <small>#' + o.folio + '</small>' : '') + '</h2>'
+      + (telOk ? '<p class="em-a">Se manda a <b>+' + tel.slice(0, 2) + ' ' + tel.slice(2).replace(/^(\d{2})(\d{4})(\d{4})$/, '$1 $2 $3') + '</b> · su WhatsApp</p>' : '<p class="em-a em-mal">⚠ No dejó un WhatsApp válido' + (o.tel ? ' (' + esc(o.tel) + ')' : '') + '. No se puede mandar a su número.</p>')
+      + '<div class="em-g" id="em-g"><p class="nota">Preparando sus fotos…</p></div>'
+      + (lineas.length ? '<ul class="em-d">' + lineas.map(([k, x]) => '<li><span>' + k + '</span><b>' + esc(x) + '</b></li>').join('') + '</ul>' : '<p class="nota">No hay medidas guardadas de su mesa: solo va la foto de la que le gustó.</p>')
+      + '<label class="m-ed">Mensaje (lo puedes cambiar)<textarea rows="7" id="em-t">' + esc(txt0) + '</textarea></label>'
+      + '<div class="em-pasos"><button class="btn" id="em-b" disabled><i>1</i>' + (esIOS() ? 'Guardar fotos en el celular' : 'Descargar fotos') + '</button>'
+      + (telOk ? '<a class="btn verde" id="em-w" target="_blank" rel="noopener" href="#"><i>2</i>Abrir su WhatsApp</a>' : '') + '</div>'
+      + '<p class="nota em-n">' + (esIOS() ? 'En <b>1</b> toca <b>Guardar imágenes</b>. En <b>2</b> se abre su chat con el mensaje escrito: toca <b>+</b> y escoge las fotos (son las más recientes).' : 'En <b>1</b> se descargan las fotos. En <b>2</b> se abre su chat con el mensaje escrito: adjunta las fotos con el clip.') + '</p></div></div>';
+    document.body.appendChild(v); document.body.style.overflow = 'hidden';
+    const cerrar = () => { v.remove(); document.body.style.overflow = ''; }, ta = v.querySelector('#em-t'), aw = v.querySelector('#em-w');
+    const liga = () => { if (aw) aw.href = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(ta.value); }; liga(); ta.oninput = liga;
+    // las fotos: cada una se puede quitar tocándola
+    const fotos = [];
+    const pon = (f, t) => { if (f) fotos.push({ f, t, on: true }); };
+    try { pon(await fotoReal(o.gusto, slug + '-la-que-te-gusto'), 'La que le gustó'); } catch (e) {}
+    try { pon(await aArchivo(o.foto || (m ? await foto3d(m).catch(() => null) : null), slug + '-tu-mesa-3d.jpg'), 'Su mesa en 3D'); } catch (e) {}
+    try { if (m) pon(new File([await CQ.png(m, { plano: true, cliente: o.nombre, titulo: 'Tu mesa DKAS' + (o.folio ? ' · #' + o.folio : '') })], slug + '-medidas.jpg', { type: 'image/jpeg' }), 'Medidas y plano'); } catch (e) {}
+    try { if (m && m.piedra) pon(await aArchivo('tex/piedras/1k/' + m.piedra + '.jpg', slug + '-piedra-' + m.piedra + '.jpg'), 'Piedra ' + D.piedra(m.piedra).nombre); } catch (e) {}
+    try { if (m && m.base && D.BASES[m.base]) pon(await aArchivo('img/bases/' + m.base + '.jpg', slug + '-base-' + m.base + '.jpg'), 'Base ' + D.BASES[m.base].nombre); } catch (e) {}
+    if (!document.body.contains(v)) return;
+    const g = v.querySelector('#em-g'), bb = v.querySelector('#em-b');
+    g.innerHTML = fotos.length ? fotos.map((x, i) => '<button class="em-f on" data-f="' + i + '"><img src="' + URL.createObjectURL(x.f) + '" alt=""><span>' + esc(x.t) + '</span><i>✓</i></button>').join('') : '<p class="nota">No se encontraron fotos de su mesa.</p>';
+    bb.disabled = !fotos.length;
+    const marcar = async () => { if (o.k && window.DKAS_SEG_MARCA) try { await DKAS_SEG_MARCA(o.k); } catch (e) {} };
+    v.onclick = async e => {
+      if (e.target === v || e.target.closest('.vm-x')) return cerrar();
+      const fb = e.target.closest('[data-f]'); if (fb) { const x = fotos[+fb.dataset.f]; x.on = !x.on; fb.classList.toggle('on', x.on); return; }
+      if (e.target.closest('#em-b')) {
+        const fs = fotos.filter(x => x.on).map(x => x.f); if (!fs.length) return alerta('Escoge al menos una foto.');
+        if (esIOS() && navigator.canShare && navigator.canShare({ files: fs })) { try { await navigator.share({ files: fs }); toast('Fotos guardadas. Ahora toca 2: Abrir su WhatsApp'); } catch (x) { if (x && x.name !== 'AbortError') { fs.forEach(f => bajar(f, f.name)); } } }
+        else { fs.forEach((f, i) => setTimeout(() => bajar(f, f.name), i * 350)); toast(fs.length + (fs.length > 1 ? ' fotos descargadas' : ' foto descargada') + '. Ahora toca 2: Abrir su WhatsApp'); }
+        bb.classList.add('hecho'); return;
+      }
+      if (e.target.closest('#em-w')) { liga(); marcar(); }
+    };
+  }
+  window.DKAS_ENVIAR_MESA = enviarMesa;
   // directo al chat del cliente: un botón abre SU WhatsApp con el mensaje escrito y deja la foto copiada para pegarla
   async function compartir(files, texto, tel) {
     const url = 'https://wa.me/' + (tel || '') + '?text=' + encodeURIComponent(texto);

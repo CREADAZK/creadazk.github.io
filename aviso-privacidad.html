@@ -616,6 +616,9 @@ html.vb .at-top.solido .at-arq{color:var(--ink);border-color:var(--line)}
 .at-gm button.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
 .at-gc .lk{margin-top:auto}
 .at-nota{font-size:13px;color:var(--mut);margin:18px 0 0}
+
+/* teléfono: sin vidrio borroso ni paralaje, para que bajar sea fluido */
+@media (hover:none),(pointer:coarse){html.vb .at-top.solido,html.vb .top.solido:not(.at-top),html.vb .bar{background:rgba(244,241,236,.98);backdrop-filter:none;-webkit-backdrop-filter:none}.ab.vidrio{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(20,18,16,.35)}}
 </style></head><body>
 <header class="top solido" id="top"><a class="logo" href="./" aria-label="DKAS, ir al inicio"><img src="img/dkas-claro.png" alt="DKAS · Mesas de piedra sinterizada"></a><nav><a class="lnk" href="cotiza.html">Cotizar</a></nav></header>
 <main class="av"><p class="et">Legal</p><h1>Aviso de <em>privacidad.</em></h1>

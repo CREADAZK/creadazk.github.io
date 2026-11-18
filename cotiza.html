@@ -716,6 +716,9 @@ html.vb .at-top.solido .at-arq{color:var(--ink);border-color:var(--line)}
 .at-gm button.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
 .at-gc .lk{margin-top:auto}
 .at-nota{font-size:13px;color:var(--mut);margin:18px 0 0}
+
+/* teléfono: sin vidrio borroso ni paralaje, para que bajar sea fluido */
+@media (hover:none),(pointer:coarse){html.vb .at-top.solido,html.vb .top.solido:not(.at-top),html.vb .bar{background:rgba(244,241,236,.98);backdrop-filter:none;-webkit-backdrop-filter:none}.ab.vidrio{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(20,18,16,.35)}}
 /* DKAS · Cotiza en 1 minuto con los colores del Atelier (solo cuando toca la versión clara) */
 </style></head><body>
 <header class="top solido cz-top" id="top"><a class="logo" href="./" aria-label="DKAS, ir al inicio"><img src="img/dkas-claro.png" alt="DKAS · Mesas de piedra sinterizada"></a><a class="lnk" href="./#app">Diseño avanzado en 3D</a></header>

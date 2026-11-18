@@ -6,10 +6,10 @@
   // ---------- cada día cambia: el orden de las secciones rota y la portada empieza en otra foto (hora CDMX) ----------
   const DIA = (() => { try { const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date()).split('-').map(Number); return Math.floor(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5); } catch (e) { return Math.floor(Date.now() / 864e5); } })();
   (function rotar() {
-    const ids = [['#atelier'], ['#espacios', '.at-dos'], ['#piedras'], ['#medida'], ['#dia'], ['#showroom'], ['#taller'], ['#bases'], ['#grapas'], ['#proyectos']];
+    const ids = [['#espacios', '.at-dos'], ['#piedras'], ['#medida'], ['#dia'], ['#showroom'], ['#taller'], ['#bases'], ['#grapas'], ['#proyectos']];
     const bloques = ids.map(g => g.map(s => document.querySelector(s)).filter(Boolean)).filter(g => g.length), fin = document.querySelector('#disena');
     if (!fin || bloques.length < 2) return;
-    const k = DIA % bloques.length, orden = bloques.slice(k).concat(bloques.slice(0, k));
+    const k = DIA % bloques.length, at = document.querySelector('#atelier'), orden = (at ? [[at]] : []).concat(bloques.slice(k), bloques.slice(0, k)); // 'El atelier' siempre va primero
     orden.forEach(g => g.forEach(el => fin.parentNode.insertBefore(el, fin)));
     let n = 0; orden.forEach(g => g.forEach(el => { const e = el.querySelector('.at-k'); if (e && /^\d\d —/.test(e.textContent)) e.textContent = e.textContent.replace(/^\d\d/, String(++n).padStart(2, '0')); }));
   })();
@@ -21,7 +21,7 @@
     pide = false; const y = scrollY, h = document.documentElement.scrollHeight - innerHeight;
     top.classList.toggle('solido', y > innerHeight * 0.75 || document.body.dataset.p === 'crea');
     av.style.transform = 'scaleX(' + (h > 0 ? y / h : 0) + ')';
-    if (!quieto) $$('.at-full-f,.at-d3-f,.at-fin-f').forEach(f => { const r = f.parentNode.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) return; f.style.transform = 'translate3d(0,' + ((r.top + r.height / 2 - innerHeight / 2) * -0.12).toFixed(1) + 'px,0)'; });
+    if (!quieto && fino) $('.at-full-f,.at-d3-f,.at-fin-f').forEach(f => { const r = f.parentNode.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) return; f.style.transform = 'translate3d(0,' + ((r.top + r.height / 2 - innerHeight / 2) * -0.12).toFixed(1) + 'px,0)'; });
   }
   addEventListener('scroll', () => { if (!pide) { pide = true; requestAnimationFrame(alBajar); } }, { passive: true });
   addEventListener('hashchange', () => setTimeout(alBajar, 50)); alBajar();

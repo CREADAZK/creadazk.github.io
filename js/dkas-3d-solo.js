@@ -382,7 +382,7 @@
     }
 
     // cámara orbital sencilla
-    let az = 0.7, pol = 1.12, dist = 4, meta = null, ancho = 1, alto = 1;
+    let az = 0.7, pol = 1.12, dist = 4, meta = null, ancho = 1, alto = 1, auto = 0;
     const pt = new Map(); let d0 = 0, vel = 0, tMov = 0; // dedos en pantalla, pellizco e impulso del giro
     const VISTAS = { tres: [0.7, 1.12], frente: [0, 1.42], arriba: [0, 0.02], lado: [Math.PI / 2, 1.38] };
     function encuadre() {
@@ -398,6 +398,7 @@
     function anim() {
       // al soltar, la mesa sigue girando un poco y frena suave
       if (vel && !pt.size && !meta) { az -= vel; vel *= 0.92; if (Math.abs(vel) < 0.0004) vel = 0; else pinta(); }
+      if (auto && !vel && !pt.size && !meta) { az -= auto; pinta(); } // vitrina: gira sola despacio
       if (meta) { az += (meta[0] - az) * 0.18; pol += (meta[1] - pol) * 0.18; if (Math.abs(meta[0] - az) + Math.abs(meta[1] - pol) < 0.002) meta = null; else pinta(); }
       colocar(); R.render(scene, cam);
     }
@@ -420,6 +421,8 @@
 
     return {
       mostrar: construir, _mesa: () => mesa,
+      girar(v) { auto = v ? (typeof v === 'number' ? v : 0.0026) : 0; pinta(); },
+      acercar(k) { encuadre(); dist *= k || 1; pinta(); },
       vista(k) { meta = VISTAS[k] ? VISTAS[k].slice() : null; if (meta && k !== 'arriba') meta[0] += Math.round((az - meta[0]) / (2 * Math.PI)) * 2 * Math.PI; pinta(); },
       sillas(v) { conSillas = !!v; sillas.visible = conSillas; if (actual) hacerCotas(actual.estudio ? D.calcular(actual).m : D.normalizar(actual)); encuadre(); pinta(); },
       cotas(v) { conCotas = !!v; cotas.visible = rejilla.visible = conCotas; pinta(); },

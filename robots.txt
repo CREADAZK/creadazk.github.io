@@ -1,4 +1,79 @@
 User-agent: *
+Allow: /
 Disallow: /taller.html
 Disallow: /pedido.html
+Disallow: /panel-anterior.html
+Disallow: /prueba.html
+
+User-agent: GPTBot
+Allow: /
+Disallow: /taller.html
+Disallow: /pedido.html
+Disallow: /panel-anterior.html
+Disallow: /prueba.html
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /taller.html
+Disallow: /pedido.html
+Disallow: /panel-anterior.html
+Disallow: /prueba.html
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /taller.html
+Disallow: /pedido.html
+Disallow: /panel-anterior.html
+Disallow: /prueba.html
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /taller.html
+Disallow: /pedido.html
+Disallow: /panel-anterior.html
+Disallow: /prueba.html
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /taller.html
+Disallow: /pedido.html
+Disallow: /panel-anterior.html
+Disallow: /prueba.html
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /taller.html
+Disallow: /pedido.html
+Disallow: /panel-anterior.html
+Disallow: /prueba.html
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /taller.html
+Disallow: /pedido.html
+Disallow: /panel-anterior.html
+Disallow: /prueba.html
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /taller.html
+Disallow: /pedido.html
+Disallow: /panel-anterior.html
+Disallow: /prueba.html
+
+User-agent: Bingbot
+Allow: /
+Disallow: /taller.html
+Disallow: /pedido.html
+Disallow: /panel-anterior.html
+Disallow: /prueba.html
+
+User-agent: Googlebot
+Allow: /
+Disallow: /taller.html
+Disallow: /pedido.html
+Disallow: /panel-anterior.html
+Disallow: /prueba.html
+
 Sitemap: https://dkas.mx/sitemap.xml
+

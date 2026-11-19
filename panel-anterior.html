@@ -1495,7 +1495,7 @@ main.wide{max-width:1240px}.cq-lay{display:grid;gap:14px;margin-top:6px}@media (
       <form id="pg-pub">
       <section><span class="k">Aviso arriba de la página</span><div class="card">
         <label class="chk"><input type="checkbox" id="av-on" ${av.activo ? 'checked' : ''}> Mostrar el aviso</label>
-        <label for="av-t" style="margin-top:12px">Texto del aviso<textarea id="av-t" rows="2" maxlength="220" placeholder="Ej.: Noviembre: entrega en 3 semanas en CDMX y área metropolitana.">${esc(av.texto || '')}</textarea></label>
+        <label for="av-t" style="margin-top:12px">Texto del aviso<textarea id="av-t" rows="2" maxlength="220" placeholder="Ej.: Noviembre: entrega en 1 semana en CDMX y área metropolitana.">${esc(av.texto || '')}</textarea></label>
         <p class="lead">Promociones, tiempos de entrega, vacaciones… Corto, una o dos líneas.</p></div></section>
       <section><span class="k">WhatsApp donde les escriben</span><div class="card">
         ${[0, 1, 2].map(i => `<label for="wa${i}">Número ${i + 1}${i ? ' (opcional)' : ''}<input id="wa${i}" type="tel" inputmode="tel" maxlength="16" value="${esc(wa[i] ? wa[i].num.replace(/^52(?=\d{10}$)/, '') : '')}" placeholder="10 dígitos"></label>`).join('')}

@@ -222,10 +222,19 @@
     let gl; try { gl = cv.getContext('webgl', { antialias: false, alpha: false, premultipliedAlpha: false, powerPreference: 'high-performance' }); } catch (e) {}
     if (!gl) return;
     const VS = 'attribute vec2 p;varying vec2 v;void main(){v=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
-    const FS = `precision highp float;varying vec2 v;uniform sampler2D a,b;uniform vec2 ra,rb,res,m;uniform float p,t,za,zb,sc;
+    const FS = `precision highp float;varying vec2 v;uniform sampler2D a,b;uniform vec2 ra,rb,res,m;uniform float p,t,za,zb,sc,iv;
 float h(vec2 q){return fract(sin(dot(q,vec2(127.1,311.7)))*43758.5453);}
 float n(vec2 q){vec2 i=floor(q),f=fract(q);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
 float fbm(vec2 q){float s=0.,k=.5;for(int i=0;i<5;i++){s+=n(q)*k;q=q*2.03+vec2(1.7,9.2);k*=.5;}return s;}
+// nieve con profundidad: cada capa es una rejilla con un copo al azar por celda; las de cerca son grandes, rápidas y desenfocadas
+float copos(vec2 su,float esc,float spd,float tam,float bl,float dz){
+  vec2 q=(su-vec2(t*.018*dz+m.x*.03*dz,t*spd-m.y*.02*dz))*esc;
+  q.x+=sin(q.y*.45+t*.6+floor(q.x)*1.7)*.22;
+  vec2 id=floor(q),f=fract(q)-.5;float r=h(id);
+  vec2 o=(vec2(h(id+3.1),h(id+7.7))-.5)*.62;
+  float d=length(f-o),sz=tam*(.55+.45*h(id+1.3));
+  return smoothstep(sz,sz*bl,d)*step(.58,r)*(.55+.45*r);
+}
 vec2 cover(vec2 u,vec2 im){float rs=res.x/res.y,ri=im.x/im.y;vec2 s=rs>ri?vec2(1.,ri/rs):vec2(rs/ri,1.);return (u-.5)*s+.5;}
 void main(){
   vec2 u=v;u.y=1.-u.y;
@@ -247,6 +256,18 @@ void main(){
   c+=vec3(.95,.84,.64)*e*.28;
   // al bajar: se oscurece suave
   c*=1.-sc*.45;
+  if(iv>0.){
+    // luz de invierno: sombras un poco más frías, luces cálidas (como velas adentro y frío afuera)
+    float lu=dot(c,vec3(.299,.587,.114));
+    c*=1.-.08*iv;c=mix(c,c*vec3(.9,.96,1.07),(1.-lu)*.55*iv);
+    c+=vec3(.07,.035,0.)*smoothstep(.5,1.,lu)*iv;
+    // vaho de ventana fría en las orillas
+    float fr=smoothstep(.62,1.05,length((u-.5)*vec2(1.15,1.4))+(fbm(u*7.+3.)-.5)*.3);
+    c=mix(c,vec3(.85,.89,.94),fr*.3*iv);
+    vec2 su=vec2(u.x*res.x/res.y,u.y);
+    float sn=copos(su,30.,.045,.07,.15,.4)*.45+copos(su,17.,.07,.09,.2,.7)*.65+copos(su,9.,.11,.1,.3,1.)*.8+copos(su,4.2,.17,.16,.0,1.6)*.2;
+    c=mix(c,vec3(1.,.985,.96),clamp(sn,0.,1.)*iv*(1.-sc*.6));
+  }
   gl_FragColor=vec4(c,1.);
 }`;
     const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
@@ -255,8 +276,8 @@ void main(){
     gl.useProgram(pr);
     const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    const U = {}; ['a', 'b', 'ra', 'rb', 'res', 'm', 'p', 't', 'za', 'zb', 'sc'].forEach(k => U[k] = gl.getUniformLocation(pr, k));
-    gl.uniform1i(U.a, 0); gl.uniform1i(U.b, 1);
+    const U = {}; ['a', 'b', 'ra', 'rb', 'res', 'm', 'p', 't', 'za', 'zb', 'sc', 'iv'].forEach(k => U[k] = gl.getUniformLocation(pr, k));
+    gl.uniform1i(U.a, 0); gl.uniform1i(U.b, 1); gl.uniform1f(U.iv, hero.classList.contains('inv') ? 1 : 0);
     const grande = (Math.min(devicePixelRatio || 1, 2) * innerWidth) > 1300;
     const tex = figs.map(f => { const im = f.querySelector('img'), src = im.getAttribute('src'); return { url: grande ? src : src.replace(/\.jpg$/, '-m.jpg'), t: null, w: 1, h: 1, p: null }; });
     function cargar(i) {
@@ -431,6 +452,7 @@ void main(){
       if (V) return;
       try { V = DKAS3D.crear(el, { tex: cel ? 'tex/piedras/1k/' : 'tex/piedras/', fondo: 0x151412 }); } catch (e) { sec.remove(); return; }
       V.sillas(false); pon(); V.girar(visible && !quieto ? 0.0024 : 0);
+      if (sec.classList.contains('inv') && V.noche) { V.noche(true); if (V.velas) V.velas(true); const b = $('#at-v-noche'); if (b) { b.setAttribute('aria-pressed', 'true'); b.classList.add('on'); } sec.classList.add('noche'); }
       el.addEventListener('pointerdown', () => sec.classList.add('tocada'), { once: true });
     }
     new IntersectionObserver(es => { if (es[0].isIntersecting) crear(); }, { rootMargin: '600px 0px' }).observe(sec);
@@ -440,7 +462,7 @@ void main(){
 
     // ----- de noche: lámpara colgante cálida reflejada en la piedra -----
     const bn = $('#at-v-noche');
-    if (bn) bn.onclick = () => { crear(); if (!V || !V.noche) return; const on = bn.getAttribute('aria-pressed') !== 'true'; bn.setAttribute('aria-pressed', on); bn.classList.toggle('on', on); sec.classList.toggle('noche', on); V.noche(on); if (cmpAbierto) comparar(); };
+    if (bn) bn.onclick = () => { crear(); if (!V || !V.noche) return; const on = bn.getAttribute('aria-pressed') !== 'true'; bn.setAttribute('aria-pressed', on); bn.classList.toggle('on', on); sec.classList.toggle('noche', on); V.noche(on); if (V.velas && sec.classList.contains('inv')) V.velas(on); if (cmpAbierto) comparar(); };
 
     // ----- comparar dos piedras en la misma mesa (dos fotos del mismo ángulo y una línea que se arrastra) -----
     const cmp = $('#at-cmp'), cv = $('#at-cmp-v'), lin = cmp && cmp.querySelector('.at-cmp-l');

@@ -1007,6 +1007,32 @@
       mesa.traverse(o => { if (o.isMesh && o.name === 'piedra') { const c = o.material[0]; if (c.userData.env == null) c.userData.env = c.envMapIntensity; c.envMapIntensity = nocheOn ? 0.35 : c.userData.env; } });
       lampara(); pinta();
     }
+    // velas de cena de invierno (2026-11-19): tres velas de cera con flama que titila y una luz cálida baja sobre la piedra
+    const velasG = new T.Group(); velasG.visible = false; scene.add(velasG); let velasOn = false;
+    const vLuz = new T.PointLight(0xff9a4a, 0, 2.2, 2); velasG.add(vLuz);
+    const cera = new T.MeshStandardMaterial({ color: 0xf1e6d2, roughness: 0.55, emissive: 0x3a2410, emissiveIntensity: 0.25 });
+    const flamaM = new T.MeshBasicMaterial({ color: 0xffd9a0, toneMapped: false, transparent: true, opacity: 0.95 });
+    const halo = (function () { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, 'rgba(255,200,130,.9)'); g.addColorStop(.25, 'rgba(255,160,80,.35)'); g.addColorStop(1, 'rgba(255,140,60,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+      const t = new T.CanvasTexture(c); return new T.SpriteMaterial({ map: t, blending: T.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false }); })();
+    const flamas = [];
+    [[-1, 0.15], [0, 0.22], [1, 0.12]].forEach(([k, h]) => {
+      const v = new T.Group(); v.userData.k = k;
+      const cuerpo = new T.Mesh(new T.CylinderGeometry(0.028, 0.03, h, 32), cera); cuerpo.position.y = h / 2; cuerpo.castShadow = true;
+      const mecha = new T.Mesh(new T.CylinderGeometry(0.0015, 0.0015, 0.012, 6), new T.MeshBasicMaterial({ color: 0x1a1410 })); mecha.position.y = h + 0.006;
+      const fl = new T.Mesh(new T.SphereGeometry(0.009, 16, 12), flamaM); fl.scale.set(1, 2.4, 1); fl.position.y = h + 0.026;
+      const sp = new T.Sprite(halo); sp.scale.setScalar(0.16); sp.position.y = h + 0.026;
+      v.add(cuerpo, mecha, fl, sp); velasG.add(v); flamas.push([fl, sp, h]);
+    });
+    function ponVelas() {
+      if (!actual) return; const L = cm(actual.L || 200), W = cm(actual.W || actual.L || 100), y = cm(actual.H) + 0.003, largo = L >= W * 1.25;
+      const sep = Math.min(0.32, (largo ? L : W) * 0.16);
+      velasG.children.forEach(v => { if (v.userData.k == null) return; const k = v.userData.k; v.position.set(largo ? k * sep : k * sep * 0.5, y, largo ? 0 : k * sep * 0.35); });
+      vLuz.position.set(0, y + 0.3, 0);
+    }
+    function titila(now) { const t = now / 1000; flamas.forEach(([fl, sp, h], i) => { const f = 0.85 + 0.15 * Math.sin(t * 11 + i * 2.1) * Math.sin(t * 7.3 + i); fl.scale.set(1, 2.4 * f, 1); sp.scale.setScalar(0.15 * (0.9 + 0.1 * f)); });
+      vLuz.intensity = (nocheOn ? 0.55 : 0.25) * (0.88 + 0.12 * Math.sin(t * 9.7) * Math.sin(t * 5.1)); }
+    function velasF(v) { velasOn = !!v; velasG.visible = velasOn; vLuz.intensity = velasOn ? 0.5 : 0; ponVelas(); pinta(); }
     const piso = new T.Mesh(new T.PlaneGeometry(30, 30), new T.ShadowMaterial({ opacity: 0.16 })); piso.rotation.x = -Math.PI / 2; piso.receiveShadow = true; scene.add(piso);
 
     const acero = new T.MeshStandardMaterial({ color: 0x1c1c1d, metalness: 0.55, roughness: 0.48, roughnessMap: ruido(256, 150, 215), bumpMap: ruido(256, 110, 145), bumpScale: 0.00035, envMapIntensity: 0.9 });
@@ -1138,6 +1164,7 @@
       if (vel && !pt.size && !meta) { az -= vel; vel *= 0.92; if (Math.abs(vel) < 0.0004) vel = 0; else pinta(); }
       if (auto && !vel && !pt.size && !meta) { az -= auto; pinta(); } // vitrina: gira sola despacio
       if (meta) { az += (meta[0] - az) * 0.18; pol += (meta[1] - pol) * 0.18; if (Math.abs(meta[0] - az) + Math.abs(meta[1] - pol) < 0.002) meta = null; else pinta(); }
+      if (velasOn) { titila(performance.now()); if (auto) pinta(); }
       colocar(); R.render(scene, cam);
     }
     function medir() { ancho = el.clientWidth || 1; alto = el.clientHeight || 1; R.setSize(ancho, alto, false); R.domElement.style.width = '100%'; R.domElement.style.height = '100%'; cam.aspect = ancho / alto; cam.updateProjectionMatrix(); encuadre(); pinta(); }
@@ -1158,8 +1185,8 @@
     R.domElement.addEventListener('wheel', e => { e.preventDefault(); dist = Math.max(1, Math.min(30, dist * (1 + Math.sign(e.deltaY) * 0.08))); pinta(); }, { passive: false });
 
     return {
-      mostrar(m) { const r = construir(m); if (nocheOn) noche(true); return r; }, _mesa: () => mesa,
-      noche,
+      mostrar(m) { const r = construir(m); if (nocheOn) noche(true); if (velasOn) ponVelas(); return r; }, _mesa: () => mesa,
+      noche, velas: velasF,
       girar(v) { auto = v ? (typeof v === 'number' ? v : 0.0026) : 0; pinta(); },
       acercar(k) { encuadre(); dist *= k || 1; pinta(); },
       vista(k) { meta = VISTAS[k] ? VISTAS[k].slice() : null; if (meta && k !== 'arriba') meta[0] += Math.round((az - meta[0]) / (2 * Math.PI)) * 2 * Math.PI; pinta(); },

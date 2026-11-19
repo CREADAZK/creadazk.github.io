@@ -7,21 +7,22 @@
   const POR_PERSONA = 70;
 
   // las 11 piedras, descritas como se ven en la placa real (fotos de la fábrica, oct 2026); acabado = lo que dice la etiqueta del canto
+  // fotos y acabados = catálogo oficial DKAS 2026 (fotos-catalogo-2026)
   // rugosidad para el 3D: pulida brilla, mate y velvet no
   const PIEDRAS = [
-    ['statuario', 'Statuario', 'Blanco con veta gris fina', ''],
-    ['mont-blanc', 'Mont Blanc', 'Blanco con veta gris suave', ''],
+    ['statuario', 'Statuario', 'Blanco con veta gris fina', 'Pulido'],
+    ['mont-blanc', 'Mont Blanc', 'Gris arena con vetas lineales', 'Cepillado'],
     ['pure-white', 'Pure White', 'Blanco liso, textura cepillada', 'Cepillado'],
     ['taj-mahal-light', 'Taj Mahal Light', 'Fondo crema cálido con vetas doradas suaves', 'Mate suave'],
-    ['classic-bulgar', 'Classic Bulgar', 'Blanco con veta gris vino y toques cobre', ''],
+    ['classic-bulgar', 'Classic Bulgar', 'Blanco con veta gris vino y toques cobre', 'Natural Touch'],
     ['peacock', 'Peacock', 'Blanco con manchas azul acero y chocolate', 'Pulido'],
     ['cardenaskin', 'Cardenaskin', 'Blanco cálido con veta dorada', 'Mate suave'],
-    ['travertine', 'Travertine', 'Beige arena con nubes suaves', 'Aterciopelado'],
-    ['limestone-cream', 'Limestone Cream', 'Crema tipo cantera, textura natural', ''],
-    ['saloran-grey', 'Saloran Grey', 'Gris cemento, textura de gamuza', 'Aterciopelado'],
+    ['travertine', 'Travertine', 'Beige con veta lineal de travertino', 'Aterciopelado'],
+    ['limestone-cream', 'Limestone Cream', 'Crema tipo cantera, textura natural', 'Cepillado'],
+    ['saloran-grey', 'Saloran Grey', 'Gris topo nublado, textura de gamuza', 'Aterciopelado'],
     ['bulgaria-dark-grey', 'Bulgaria Dark Grey', 'Gris oscuro con veta blanca', 'Aterciopelado'],
   ].map(([id, nombre, desc, acabado]) => ({ id, nombre, desc, acabado }));
-  const RUGOSIDAD = { statuario: 0.2, 'mont-blanc': 0.2, 'classic-bulgar': 0.2, peacock: 0.16, 'pure-white': 0.55, 'taj-mahal-light': 0.45, cardenaskin: 0.45, travertine: 0.6, 'limestone-cream': 0.7, 'saloran-grey': 0.6, 'bulgaria-dark-grey': 0.6 };
+  const RUGOSIDAD = { statuario: 0.2, 'mont-blanc': 0.55, 'classic-bulgar': 0.45, peacock: 0.16, 'pure-white': 0.55, 'taj-mahal-light': 0.45, cardenaskin: 0.45, travertine: 0.6, 'limestone-cream': 0.7, 'saloran-grey': 0.6, 'bulgaria-dark-grey': 0.6 };
 
   const FORMAS = {
     rect: 'Rectangular', ovcuad: 'Ovalada cuadrada', oval: 'Ovalada', square: 'Cuadrada', round: 'Redonda',

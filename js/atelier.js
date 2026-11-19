@@ -416,10 +416,11 @@ void main(){
     const hoy = (() => { try { const q = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date()).split('-').map(Number); return Math.floor(Date.UTC(q[0], q[1] - 1, q[2]) / 864e5); } catch (e) { return 0; } })();
     let piedra = D.PIEDRAS[hoy % D.PIEDRAS.length].id, mb = $('[data-vm].on'), V = null, visible = false;
     $$('[data-vp]').forEach(b => b.classList.toggle('on', b.dataset.vp === piedra));
+    const zoomV = () => { const L = +mb.dataset.l; return (cel ? 0.9 : 0.78) * (L < 160 ? 1.35 : L < 220 ? 1.12 : 1); };
     const modelo = () => D.normalizar({ uso: mb.dataset.u, forma: mb.dataset.f, base: mb.dataset.b, L: +mb.dataset.l, W: +mb.dataset.w, piedra });
     function pon() {
       const m = modelo(); el.classList.add('cambia');
-      V.mostrar(m); V.acercar(cel ? 0.9 : 0.78);
+      V.mostrar(m); V.acercar(zoomV());
       Promise.resolve(V.listo && V.listo()).then(() => { el.classList.remove('cambia'); el.classList.add('listo'); });
       const pz = D.PIEDRAS.find(p => p.id === piedra);
       $('#at-vivo-n').textContent = mb.querySelector('b').textContent + ' · ' + (pz ? pz.nombre : '');
@@ -435,6 +436,65 @@ void main(){
     new IntersectionObserver(es => { if (es[0].isIntersecting) crear(); }, { rootMargin: '600px 0px' }).observe(sec);
     new IntersectionObserver(es => { visible = es[0].isIntersecting; if (V) V.girar(visible && !quieto ? 0.0024 : 0); }).observe(sec);
     $$('[data-vm]').forEach(b => b.onclick = () => { mb = b; $$('[data-vm]').forEach(x => x.classList.toggle('on', x === b)); if (V) pon(); });
-    $$('[data-vp]').forEach(b => b.onclick = () => { piedra = b.dataset.vp; $$('[data-vp]').forEach(x => x.classList.toggle('on', x === b)); if (V) pon(); });
+    $$('[data-vp]').forEach(b => b.onclick = () => { piedra = b.dataset.vp; $$('[data-vp]').forEach(x => x.classList.toggle('on', x === b)); if (V) pon(); if (cmpAbierto) { lados.a = piedra; comparar(); } });
+
+    // ----- de noche: lámpara colgante cálida reflejada en la piedra -----
+    const bn = $('#at-v-noche');
+    if (bn) bn.onclick = () => { crear(); if (!V || !V.noche) return; const on = bn.getAttribute('aria-pressed') !== 'true'; bn.setAttribute('aria-pressed', on); bn.classList.toggle('on', on); sec.classList.toggle('noche', on); V.noche(on); if (cmpAbierto) comparar(); };
+
+    // ----- comparar dos piedras en la misma mesa (dos fotos del mismo ángulo y una línea que se arrastra) -----
+    const cmp = $('#at-cmp'), cv = $('#at-cmp-v'), lin = cmp && cmp.querySelector('.at-cmp-l');
+    let cmpAbierto = false, lados = { a: null, b: null }, cola = Promise.resolve();
+    const nombre = id => (D.PIEDRAS.find(p => p.id === id) || {}).nombre || '';
+    const foto = id => cola = cola.then(() => new Promise(ok => {
+      const m = modelo(); m.piedra = id; V.mostrar(m);
+      Promise.resolve(V.listo()).then(() => requestAnimationFrame(() => { const u = V.foto(cel ? 1000 : 1600, cel ? 760 : 1000, false, cel ? 0.82 : 0.6); ok(u); }));
+    }));
+    function lado(k, id) {
+      lados[k] = id; cmp.querySelectorAll('[data-lado="' + k + '"] [data-cp]').forEach(b => b.classList.toggle('on', b.dataset.cp === id));
+      cv.querySelector('.t' + k).textContent = nombre(id); cv.classList.add('carga');
+      return foto(id).then(u => { cv.querySelector('img.' + k).src = u; });
+    }
+    function comparar() {
+      if (!V) return; cv.classList.add('carga');
+      Promise.all([lado('a', lados.a || piedra), lado('b', lados.b || (piedra === 'classic-bulgar' ? 'statuario' : 'classic-bulgar'))])
+        .then(() => { V.mostrar(modelo()); V.acercar(zoomV()); cv.classList.remove('carga'); });
+    }
+    const linea = x => { const r = cv.getBoundingClientRect(), k = Math.max(2, Math.min(98, (x - r.left) / r.width * 100)); cv.style.setProperty('--c', k + '%'); lin.setAttribute('aria-valuenow', Math.round(k)); };
+    if (cmp) {
+      $('#at-v-cmp').onclick = () => { crear(); if (!V) return; cmpAbierto = true; cmp.hidden = false; sec.classList.add('compara'); lados.a = piedra; comparar(); };
+      $('#at-cmp-x').onclick = () => { cmpAbierto = false; cmp.hidden = true; sec.classList.remove('compara'); };
+      cmp.querySelectorAll('[data-cp]').forEach(b => b.onclick = () => { const k = b.closest('[data-lado]').dataset.lado; lado(k, b.dataset.cp).then(() => { V.mostrar(modelo()); V.acercar(zoomV()); cv.classList.remove('carga'); }); });
+      let arr = false;
+      cv.addEventListener('pointerdown', e => { arr = true; linea(e.clientX); });
+      addEventListener('pointermove', e => { if (arr) linea(e.clientX); }, { passive: true });
+      addEventListener('pointerup', () => arr = false); addEventListener('pointercancel', () => arr = false);
+      lin.addEventListener('keydown', e => { const k = parseFloat(getComputedStyle(cv).getPropertyValue('--c')) || 50; if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); const r = cv.getBoundingClientRect(); linea(r.left + r.width * (k + (e.key === 'ArrowLeft' ? -5 : 5)) / 100); } });
+    }
+
+    // ----- ponla en tu casa: realidad aumentada (iPhone: Quick Look; Android: WebXR / Scene Viewer) -----
+    const bar = $('#at-v-ar');
+    const carga = (src, mod) => new Promise((ok, bad) => { const s = document.createElement('script'); if (mod) s.type = 'module'; s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
+    let arUrl = null, arM = null;
+    if (bar) bar.onclick = () => {
+      crear(); if (!V) return;
+      if (!arM) { arM = document.createElement('div'); arM.className = 'at-ar'; arM.setAttribute('role', 'dialog'); arM.setAttribute('aria-label', 'Tu mesa en tu espacio');
+        arM.innerHTML = '<div class="at-ar-c"><div><p class="at-k claro">Realidad aumentada</p><b id="at-ar-t"></b></div><button type="button" class="at-cmp-x" id="at-ar-x">Cerrar</button></div><div class="at-ar-box" id="at-ar-box"><p class="at-ar-msg" id="at-ar-msg"></p></div>';
+        document.body.appendChild(arM); $('#at-ar-x').onclick = () => { arM.hidden = true; document.documentElement.style.overflow = ''; }; }
+      arM.hidden = false; document.documentElement.style.overflow = 'hidden';
+      const box = $('#at-ar-box'), msg = $('#at-ar-msg'); box.querySelectorAll('model-viewer,.at-ar-desk').forEach(x => x.remove());
+      msg.hidden = false; msg.textContent = 'Preparando tu mesa a tamaño real…'; $('#at-ar-t').textContent = $('#at-vivo-n').textContent;
+      Promise.all([THREE.GLTFExporter ? 0 : carga('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js'),
+        customElements.get('model-viewer') ? 0 : carga('https://unpkg.com/@google/model-viewer@3.4.0/dist/model-viewer.min.js', true)])
+        .then(() => customElements.whenDefined('model-viewer')).then(() => V.listo()).then(() => V.glb()).then(glb => {
+          if (arUrl) URL.revokeObjectURL(arUrl); arUrl = URL.createObjectURL(new Blob([glb], { type: 'model/gltf-binary' }));
+          const mv = document.createElement('model-viewer');
+          [['src', arUrl], ['ar', ''], ['ar-modes', 'webxr quick-look scene-viewer'], ['ar-scale', 'fixed'], ['ar-placement', 'floor'], ['camera-controls', ''], ['auto-rotate', ''], ['touch-action', 'pan-y'],
+            ['shadow-intensity', '1'], ['exposure', '1.1'], ['tone-mapping', 'aces'], ['camera-orbit', '35deg 70deg auto'], ['alt', 'Tu mesa DKAS en 3D']].forEach(a => mv.setAttribute(a[0], a[1]));
+          const b = document.createElement('button'); b.slot = 'ar-button'; b.className = 'ab blanco at-ar-go'; b.textContent = 'Verla en mi espacio'; mv.appendChild(b);
+          mv.addEventListener('load', () => { msg.hidden = true; if (!mv.canActivateAR) { const d = document.createElement('p'); d.className = 'at-ar-desk'; d.innerHTML = 'Para ponerla en tu casa abre <b>dkas.mx</b> desde tu celular y toca «Ponla en tu casa». Aquí puedes girarla.'; box.appendChild(d); } });
+          box.appendChild(mv);
+        }).catch(() => { msg.textContent = 'No se pudo preparar la vista. Revisa tu conexión e intenta de nuevo.'; });
+    };
   })();
 })();

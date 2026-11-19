@@ -265,10 +265,45 @@
       const m = new T.Mesh(new T.BoxGeometry(w, h, d), new T.MeshBasicMaterial({ color: new T.Color(k, k, k) })); m.position.set(x, y, z); env.add(m); });
     scene.environment = pm.fromScene(env, 0.035).texture; // reflejos suaves, sin quemar la piedra blanca
 
-    scene.add(new T.HemisphereLight(0xffffff, 0xd8d2c8, 0.3));
+    const hemi = new T.HemisphereLight(0xffffff, 0xd8d2c8, 0.3); scene.add(hemi);
     const sol = new T.DirectionalLight(0xffffff, 0.95); sol.position.set(2.2, 5, 2.8); sol.castShadow = true;
     sol.shadow.mapSize.set(2048, 2048); sol.shadow.radius = 6; sol.shadow.bias = -0.0004; Object.assign(sol.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 0.5, far: 12 });
     scene.add(sol);
+    // escena de noche (vitrina): cuarto oscuro, lámpara colgante cálida que se refleja en la piedra
+    let envDia = scene.environment, envNoche = null, nocheOn = false;
+    const foco = new T.SpotLight(0xffc68a, 0, 6, 0.95, 1, 1.4); foco.castShadow = true; foco.shadow.mapSize.set(1024, 1024); foco.shadow.radius = 8; foco.shadow.bias = -0.0004; scene.add(foco, foco.target);
+    const calido = new T.PointLight(0xffb36b, 0, 3.5, 2); scene.add(calido);
+    const lamp = new T.Group(); lamp.visible = false; scene.add(lamp);
+    (function () {
+      const negro = new T.MeshStandardMaterial({ color: 0x15130f, metalness: 0.7, roughness: 0.35 });
+      const cable = new T.Mesh(new T.CylinderGeometry(0.003, 0.003, 3, 6), negro); cable.position.y = 1.5;
+      const pantalla = new T.Mesh(new T.CylinderGeometry(0.09, 0.26, 0.2, 48, 1, true), new T.MeshStandardMaterial({ color: 0x1b1814, metalness: 0.6, roughness: 0.3, side: T.DoubleSide }));
+      const luz = new T.Mesh(new T.CircleGeometry(0.245, 48), new T.MeshBasicMaterial({ color: 0xfff0d6, toneMapped: false })); luz.rotation.x = Math.PI / 2; luz.position.y = -0.09;
+      lamp.add(cable, pantalla, luz);
+    })();
+    function lampara() {
+      if (!actual) return; const y = cm(actual.H) + 0.78, L = cm(actual.L || 200);
+      lamp.position.set(0, y, 0); lamp.scale.setScalar(Math.max(0.8, Math.min(1.5, L / 2.2)));
+      foco.position.set(0, y - 0.1, 0); foco.target.position.set(0, 0, 0); foco.distance = y + 2.5;
+      foco.shadow.camera.near = 0.2; foco.shadow.camera.far = y + 2; calido.position.set(0, y - 0.25, 0);
+    }
+    function noche(v) {
+      nocheOn = !!v;
+      if (nocheOn && !envNoche) {
+        const e2 = new T.Scene();
+        e2.add(new T.Mesh(new T.BoxGeometry(12, 6, 12), new T.MeshBasicMaterial({ color: 0x0c0a08, side: T.BackSide })));
+        const p = new T.Mesh(new T.BoxGeometry(1.6, 0.05, 0.6), new T.MeshBasicMaterial({ color: new T.Color(5, 3.8, 2.4) })); p.position.set(0, 2.6, 0); e2.add(p);
+        const w = new T.Mesh(new T.BoxGeometry(0.1, 1.6, 3), new T.MeshBasicMaterial({ color: new T.Color(0.12, 0.14, 0.2) })); w.position.set(-5.9, 1.4, 0); e2.add(w);
+        envNoche = pm.fromScene(e2, 0.02).texture;
+      }
+      scene.environment = nocheOn ? envNoche : envDia;
+      scene.background = new T.Color(nocheOn ? 0x0b0a08 : op.fondo);
+      hemi.intensity = nocheOn ? 0.07 : 0.3; sol.intensity = nocheOn ? 0.1 : 0.95; sol.castShadow = !nocheOn;
+      foco.intensity = nocheOn ? 2.4 : 0; calido.intensity = nocheOn ? 0.7 : 0; lamp.visible = nocheOn; R.toneMappingExposure = nocheOn ? 1.05 : 0.82;
+      piso.material.opacity = nocheOn ? 0.5 : 0.16;
+      mesa.traverse(o => { if (o.isMesh && o.name === 'piedra') { const c = o.material[0]; if (c.userData.env == null) c.userData.env = c.envMapIntensity; c.envMapIntensity = nocheOn ? 0.35 : c.userData.env; } });
+      lampara(); pinta();
+    }
     const piso = new T.Mesh(new T.PlaneGeometry(30, 30), new T.ShadowMaterial({ opacity: 0.16 })); piso.rotation.x = -Math.PI / 2; piso.receiveShadow = true; scene.add(piso);
 
     const acero = new T.MeshStandardMaterial({ color: 0x1c1c1d, metalness: 0.55, roughness: 0.48, roughnessMap: ruido(256, 150, 215), bumpMap: ruido(256, 110, 145), bumpScale: 0.00035, envMapIntensity: 0.9 });
@@ -420,7 +455,8 @@
     R.domElement.addEventListener('wheel', e => { e.preventDefault(); dist = Math.max(1, Math.min(30, dist * (1 + Math.sign(e.deltaY) * 0.08))); pinta(); }, { passive: false });
 
     return {
-      mostrar: construir, _mesa: () => mesa,
+      mostrar(m) { const r = construir(m); if (nocheOn) noche(true); return r; }, _mesa: () => mesa,
+      noche,
       girar(v) { auto = v ? (typeof v === 'number' ? v : 0.0026) : 0; pinta(); },
       acercar(k) { encuadre(); dist *= k || 1; pinta(); },
       vista(k) { meta = VISTAS[k] ? VISTAS[k].slice() : null; if (meta && k !== 'arriba') meta[0] += Math.round((az - meta[0]) / (2 * Math.PI)) * 2 * Math.PI; pinta(); },
@@ -440,7 +476,7 @@
         return new Promise((ok, bad) => {
           if (!T.GLTFExporter) return bad(new Error('falta GLTFExporter'));
           const r = mesa.clone(true); r.name = 'Mesa DKAS';
-          r.traverse(o => { if (o.isMesh && o.name === 'piedra') o.material = o.material.map(m => { const k = new T.MeshStandardMaterial({ map: m.map || null, color: m.map ? 0xffffff : m.color, roughness: m.map ? 0.2 : 0.4 }); return k; }); });
+          r.traverse(o => { if (o.isMesh && o.name === 'piedra') o.material = o.material.map(m => { const k = new T.MeshStandardMaterial({ map: m.map || null, color: m.map ? 0xffffff : m.color, roughness: m.map ? 0.55 : 0.5 }); return k; }); });
           new T.GLTFExporter().parse(r, ok, { binary: true, embedImages: true, maxTextureSize: 2048 });
         });
       },

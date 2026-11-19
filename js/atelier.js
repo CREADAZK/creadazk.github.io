@@ -6,7 +6,7 @@
   // ---------- cada día cambia: el orden de las secciones rota y la portada empieza en otra foto (hora CDMX) ----------
   const DIA = (() => { try { const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date()).split('-').map(Number); return Math.floor(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5); } catch (e) { return Math.floor(Date.now() / 864e5); } })();
   (function rotar() {
-    const ids = [['#espacios', '.at-dos'], ['#piedras'], ['#medida'], ['#dia'], ['#showroom'], ['#taller'], ['#bases'], ['#grapas'], ['#proyectos']];
+    const ids = [['#espacios', '.at-dos'], ['#piedras'], ['#medida'], ['#dia'], ['#showroom'], ['#taller'], ['#bases'], ['#grapas'], ['#proyectos'], ['#coleccion'], ['#ciencia']];
     const bloques = ids.map(g => g.map(s => document.querySelector(s)).filter(Boolean)).filter(g => g.length), fin = document.querySelector('#disena');
     if (!fin || bloques.length < 2) return;
     const k = DIA % bloques.length, at = document.querySelector('#atelier'), orden = (at ? [[at]] : []).concat(bloques.slice(k), bloques.slice(0, k)); // 'El atelier' siempre va primero
@@ -16,12 +16,14 @@
 
   // ---------- encabezado y barra de avance ----------
   const top = $('#top'), av = document.createElement('div'); av.className = 'at-avance'; document.body.appendChild(av);
+  const mani = $('#at-mani');
   let pide = false;
   function alBajar() {
+    if (mani) { const r = mani.getBoundingClientRect(); mani.style.setProperty('--p', quieto ? 1 : Math.min(1, Math.max(0, (innerHeight * .88 - r.top) / (r.height + innerHeight * .4))).toFixed(3)); }
     pide = false; const y = scrollY, h = document.documentElement.scrollHeight - innerHeight;
     top.classList.toggle('solido', y > innerHeight * 0.75 || document.body.dataset.p === 'crea');
     av.style.transform = 'scaleX(' + (h > 0 ? y / h : 0) + ')';
-    if (!quieto && fino) $('.at-full-f,.at-d3-f,.at-fin-f').forEach(f => { const r = f.parentNode.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) return; f.style.transform = 'translate3d(0,' + ((r.top + r.height / 2 - innerHeight / 2) * -0.12).toFixed(1) + 'px,0)'; });
+    if (!quieto && fino) $$('.at-full-f,.at-d3-f,.at-fin-f').forEach(f => { const r = f.parentNode.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) return; f.style.transform = 'translate3d(0,' + ((r.top + r.height / 2 - innerHeight / 2) * -0.12).toFixed(1) + 'px,0)'; });
   }
   addEventListener('scroll', () => { if (!pide) { pide = true; requestAnimationFrame(alBajar); } }, { passive: true });
   addEventListener('hashchange', () => setTimeout(alBajar, 50)); alBajar();
@@ -48,6 +50,16 @@
   $$('.at-man-f,.at-card .ph,.at-tal-f,.at-tal-d,.at-pro-g figure,.at-bs-g .ph,.at-gc .ph,.at-dos-c').forEach(el => el.classList.add('at-rev'));
   const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -6% 0px' });
   $$('.at-rev').forEach(el => quieto ? el.classList.add('in') : io.observe(el));
+
+  // ---------- colección: la foto sigue al cursor (solo con mouse) ----------
+  const colV = $('.at-col-v'), colI = colV && colV.querySelector('img');
+  if (colV && fino && !quieto) {
+    let vx = 0, vy = 0, tx = 0, ty = 0, anda = false;
+    const mueve = () => { vx += (tx - vx) * .14; vy += (ty - vy) * .14; colV.style.transform = 'translate3d(' + vx.toFixed(1) + 'px,' + vy.toFixed(1) + 'px,0)'; if (anda) requestAnimationFrame(mueve); };
+    $$('.at-col-r').forEach(a => a.addEventListener('mouseenter', () => { if (colI.getAttribute('src') !== a.dataset.img) colI.src = a.dataset.img; colV.classList.add('ver'); }));
+    $('.at-col-l').addEventListener('mouseleave', () => { colV.classList.remove('ver'); anda = false; });
+    $('.at-col-l').addEventListener('mousemove', e => { tx = e.clientX + 28; ty = e.clientY - colV.offsetHeight / 2; if (!anda) { anda = true; vx = tx; vy = ty; requestAnimationFrame(mueve); } });
+  }
 
   // ---------- espacios: filtros, flechas, arrastre y avance ----------
   const pista = $('#at-pista'), barra = $('.at-barra i');

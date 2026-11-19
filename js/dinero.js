@@ -101,21 +101,22 @@
 
   function tablero() {
     const R = resumen(movs, per, hoy()), T = R.T, c = R.cmp;
-    const cmpTxt = !movs.length ? '' : c.pct != null && c.pct !== 0 ? 'Ganancia ' + (c.pct > 0 ? '↑ ' : '↓ ') + Math.abs(c.pct) + '% vs. ' + R.P.vs
-      : c.dif === 0 ? 'Igual que ' + R.P.vs : 'Ganancia ' + (c.dif > 0 ? '↑ ' : '↓ ') + pesos(Math.abs(c.dif)) + ' vs. ' + R.P.vs;
+    const cmpTxt = !movs.length ? '' : c.pct != null && c.pct !== 0 ? 'Guardado ' + (c.pct > 0 ? '↑ ' : '↓ ') + Math.abs(c.pct) + '% vs. ' + R.P.vs
+      : c.dif === 0 ? 'Igual que ' + R.P.vs : 'Guardado ' + (c.dif > 0 ? '↑ ' : '↓ ') + pesos(Math.abs(c.dif)) + ' vs. ' + R.P.vs;
     const tramo = R.P.enCurso && R.P.aCorte !== R.P.aFin ? ' (mismos días)' : '';
     main.innerHTML = '<div class="dn">'
       + '<div class="dn-per" role="tablist">' + [['semana', 'Esta semana'], ['mes', 'Este mes'], ['anio', 'Este año']].map(([k, t]) => '<button role="tab" data-per="' + k + '"' + (per === k ? ' class="on" aria-selected="true"' : '') + '>' + t + '</button>').join('') + '</div>'
-      + '<section class="dn-hero"><p class="dn-k">Ganancia</p><p class="dn-g' + (T.ganancia < 0 ? ' neg' : '') + '">' + pesos(T.ganancia) + '</p>'
+      + '<section class="dn-hero"><p class="dn-k">' + (T.ganancia < 0 ? 'Salió más de lo que entró' : 'Dinero guardado') + '</p><p class="dn-g' + (T.ganancia < 0 ? ' neg' : '') + '">' + pesos(T.ganancia) + '</p>'
       + '<p class="dn-es">Entró <b class="v">' + pesos(T.entro) + '</b> · Salió <b class="r">' + pesos(T.salio) + '</b></p>'
-      + (cmpTxt ? '<p class="dn-cmp ' + (c.mejor ? 'ok' : 'mal') + '">' + cmpTxt + tramo + '</p>' : '') + '</section>'
+      + (cmpTxt ? '<p class="dn-cmp ' + (c.mejor ? 'ok' : 'mal') + '">' + cmpTxt + tramo + '</p>' : '')
+      + '<p class="dn-nota">Es lo que entró menos lo que salió. <b>No es ganancia:</b> incluye anticipos de mesas que todavía no se terminan ni se pagan sus gastos.</p></section>'
       + '<section class="dn-sec"><div class="dn-sec-c"><h3>' + (per === 'anio' ? 'Por mes' : per === 'mes' ? 'Por semana' : 'Por día') + '</h3><p class="dn-ley"><i class="v"></i>Entró <i class="r"></i>Salió</p></div>' + grafica(R.barras) + '<p class="dn-tip" id="dn-tip">Toca una barra para ver la cantidad.</p></section>'
       + '<section class="dn-sec"><h3>En qué se va el dinero</h3>' + (R.cats.length ? '<div class="dn-cats">' + R.cats.map(k => '<div><span>' + esc(k.cat) + '</span><i><em style="width:' + Math.max(1.5, k.pct) + '%"></em></i><b>' + Math.round(k.pct) + '%</b><small>' + pesos(k.monto) + '</small></div>').join('') + '</div>' : '<p class="sub">Todavía no hay salidas en este periodo.</p>') + '</section>'
       + '<section class="dn-sec"><div class="dn-sec-c"><h3>Últimos movimientos</h3>' + (movs.length ? '<a href="#dinero/todos" class="lnk">Ver todos</a>' : '') + '</div>'
       + (movs.length ? '<div class="dn-lista">' + movs.slice(0, 5).map(filaMov).join('') + '</div>' : '<p class="sub">Aún no hay movimientos. Toca <b>＋ Registrar</b> para anotar el primero.</p>') + '</section>'
       + botonRegistrar() + '</div>';
     $$('[data-per]').forEach(b => b.onclick = () => { per = b.dataset.per; try { localStorage.setItem('dkas-dinero-per', per); } catch (e) {} tablero(); });
-    $$('.dn-bar').forEach(g => g.onclick = () => { $$('.dn-bar').forEach(o => o.classList.toggle('on', o === g)); const b = R.barras[+g.dataset.i]; $('#dn-tip').innerHTML = '<b>' + esc(etiquetaBarra(b)) + '</b>: entró <b class="v">' + pesos(b.entro) + '</b> · salió <b class="r">' + pesos(b.salio) + '</b> · ganancia <b>' + pesos(b.ganancia) + '</b>'; });
+    $$('.dn-bar').forEach(g => g.onclick = () => { $$('.dn-bar').forEach(o => o.classList.toggle('on', o === g)); const b = R.barras[+g.dataset.i]; $('#dn-tip').innerHTML = '<b>' + esc(etiquetaBarra(b)) + '</b>: entró <b class="v">' + pesos(b.entro) + '</b> · salió <b class="r">' + pesos(b.salio) + '</b> · quedó <b>' + pesos(b.ganancia) + '</b>'; });
     enlazar();
   }
   const etiquetaBarra = b => per === 'anio' ? MESES[+b.ini.slice(5, 7) - 1].replace(/^./, c => c.toUpperCase()) : per === 'mes' ? 'Del ' + b.t.replace('–', ' al ') : ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dte(b.ini).getDay()] + ' ' + +b.ini.slice(8);
@@ -150,7 +151,7 @@
       + '<div class="dn-rap">' + [['mes', 'Este mes'], ['ant', 'Mes pasado'], ['anio', 'Este año'], ['todo', 'Todo']].map(([k, t]) => '<button data-rap="' + k + '">' + t + '</button>').join('') + '</div>'
       + '<label>Desde<input type="date" id="dn-fd" value="' + filtro.desde + '"></label><label>Hasta<input type="date" id="dn-fh" value="' + filtro.hasta + '"></label></div>'
       + '<p class="dn-tot" id="dn-tot"></p><div class="dn-lista" id="dn-todos"></div>' + botonRegistrar() + '</div>';
-    const pintar = () => { const l = filtrados(), t = totales(l); $('#dn-tot').innerHTML = l.length + (l.length === 1 ? ' movimiento' : ' movimientos') + ' · entró <b class="v">' + pesos(t.entro) + '</b> · salió <b class="r">' + pesos(t.salio) + '</b> · ganancia <b>' + pesos(t.ganancia) + '</b>'; $('#dn-todos').innerHTML = l.length ? l.map(filaMov).join('') : '<p class="sub">Nada con estos filtros.</p>'; };
+    const pintar = () => { const l = filtrados(), t = totales(l); $('#dn-tot').innerHTML = l.length + (l.length === 1 ? ' movimiento' : ' movimientos') + ' · entró <b class="v">' + pesos(t.entro) + '</b> · salió <b class="r">' + pesos(t.salio) + '</b> · quedó <b>' + pesos(t.ganancia) + '</b>'; $('#dn-todos').innerHTML = l.length ? l.map(filaMov).join('') : '<p class="sub">Nada con estos filtros.</p>'; };
     $$('[data-ft]').forEach(b => b.onclick = () => { filtro.tipo = b.dataset.ft; $$('[data-ft]').forEach(o => o.classList.toggle('on', o === b)); pintar(); });
     $('#dn-q').oninput = e => { filtro.q = e.target.value; pintar(); };
     $('#dn-fc').onchange = e => { filtro.cat = e.target.value; pintar(); };

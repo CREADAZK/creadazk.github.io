@@ -199,3 +199,242 @@
     (function loop() { cx += (mx - cx) * .22; cy += (my - cy) * .22; cur.style.transform = 'translate3d(' + cx + 'px,' + cy + 'px,0)'; requestAnimationFrame(loop); })();
   }
 })();
+
+;
+/* DKAS · Atelier "wow" (2026-11-18): capa de efectos sobre atelier.js.
+   Portada en WebGL (las fotos se disuelven como veta de piedra, profundidad con el mouse), mesa 3D en vivo,
+   títulos que suben letra por letra, contadores, luz que corre sobre la piedra, tarjetas con relieve,
+   cursor con texto y cinta que acelera al bajar. Nada fija el scroll: en celular se baja normal. */
+(function () {
+  const D = window.DKAS, $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+  const quieto = matchMedia('(prefers-reduced-motion:reduce)').matches, fino = matchMedia('(hover:hover) and (pointer:fine)').matches;
+  const cel = !fino || innerWidth < 760;
+  document.documentElement.classList.add('wow');
+  if (quieto) document.documentElement.classList.add('wow-quieto');
+  const intro0 = document.getElementById('at-intro'); document.documentElement.style.setProperty('--t0', (intro0 ? 1750 : 150) + 'ms');
+  const intro = document.getElementById('at-intro'), T0 = intro ? 1750 : 150; // si está el telón de entrada, los títulos esperan a que se abra
+
+  // ================= 1. Portada en WebGL =================
+  (function portada() {
+    const hero = $('#portada'), sl = hero && hero.querySelector('.at-sl'), figs = sl ? [...sl.querySelectorAll('figure')] : [];
+    if (!figs.length || quieto) return;
+    const cv = document.createElement('canvas'); cv.className = 'at-gl'; cv.setAttribute('aria-hidden', 'true');
+    let gl; try { gl = cv.getContext('webgl', { antialias: false, alpha: false, premultipliedAlpha: false, powerPreference: 'high-performance' }); } catch (e) {}
+    if (!gl) return;
+    const VS = 'attribute vec2 p;varying vec2 v;void main(){v=p*.5+.5;gl_Position=vec4(p,0.,1.);}';
+    const FS = `precision highp float;varying vec2 v;uniform sampler2D a,b;uniform vec2 ra,rb,res,m;uniform float p,t,za,zb,sc;
+float h(vec2 q){return fract(sin(dot(q,vec2(127.1,311.7)))*43758.5453);}
+float n(vec2 q){vec2 i=floor(q),f=fract(q);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
+float fbm(vec2 q){float s=0.,k=.5;for(int i=0;i<5;i++){s+=n(q)*k;q=q*2.03+vec2(1.7,9.2);k*=.5;}return s;}
+vec2 cover(vec2 u,vec2 im){float rs=res.x/res.y,ri=im.x/im.y;vec2 s=rs>ri?vec2(1.,ri/rs):vec2(rs/ri,1.);return (u-.5)*s+.5;}
+void main(){
+  vec2 u=v;u.y=1.-u.y;
+  // veta: ruido estirado en diagonal, como la veta de una placa
+  vec2 q=vec2(u.x*1.6+u.y*.9,u.y*3.2-u.x*.4);
+  float ve=fbm(q*2.2+vec2(0.,t*.03));
+  float s=clamp((u.x*.55+(1.-u.y)*.25)*.55+ve*.75-.12,0.,1.);
+  float w=smoothstep(s-.07,s+.07,p*1.25-.1);
+  vec2 dir=normalize(vec2(1.,-.35));
+  float pa=w*(1.-w);
+  vec2 ua=cover((u-.5)/za+.5+m*.012,ra);ua=(ua-.5)*(1.-w*.05)+.5+dir*w*.05*ve;
+  vec2 ub=cover((u-.5)/zb+.5+m*.012,rb);ub=(ub-.5)*(1.+(1.-w)*.05)+.5-dir*(1.-w)*.05*ve;
+  vec3 ca=texture2D(a,ua).rgb;
+  float ab=pa*.012;
+  vec3 cb=vec3(texture2D(b,ub+vec2(ab,0.)).r,texture2D(b,ub).g,texture2D(b,ub-vec2(ab,0.)).b);
+  vec3 c=mix(ca,cb,w);
+  // filo de luz dorada donde se encuentran las dos fotos (como el canto pulido)
+  float e=pow(pa*4.,6.);
+  c+=vec3(.95,.84,.64)*e*.28;
+  // al bajar: se oscurece suave
+  c*=1.-sc*.45;
+  gl_FragColor=vec4(c,1.);
+}`;
+    const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+    let pr;
+    try { pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error('link'); } catch (e) { return; }
+    gl.useProgram(pr);
+    const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    const U = {}; ['a', 'b', 'ra', 'rb', 'res', 'm', 'p', 't', 'za', 'zb', 'sc'].forEach(k => U[k] = gl.getUniformLocation(pr, k));
+    gl.uniform1i(U.a, 0); gl.uniform1i(U.b, 1);
+    const grande = (Math.min(devicePixelRatio || 1, 2) * innerWidth) > 1300;
+    const tex = figs.map(f => { const im = f.querySelector('img'), src = im.getAttribute('src'); return { url: grande ? src : src.replace(/\.jpg$/, '-m.jpg'), t: null, w: 1, h: 1, p: null }; });
+    function cargar(i) {
+      const x = tex[i]; if (x.p) return x.p;
+      return x.p = new Promise(ok => { const im = new Image(); im.decoding = 'async'; im.onload = () => {
+        const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, im);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        x.t = t; x.w = im.naturalWidth; x.h = im.naturalHeight; ok(x); }; im.onerror = () => ok(null); im.src = x.url; });
+    }
+    const actual = () => Math.max(0, figs.findIndex(f => f.classList.contains('on')));
+    let A = actual(), B = A, p = 1, t0 = 0, sA = performance.now(), sB = sA, listo = false, vis = true, mx = 0, my = 0, tx = 0, ty = 0, scv = 0;
+    const DUR = 1900, KB = 9000;
+    const zoom = s => 1.1 - 0.1 * (1 - Math.pow(1 - Math.min(1, (performance.now() - s) / KB), 3)); // acercamiento lento tipo cine
+    function medir() { const d = Math.min(devicePixelRatio || 1, cel ? 1.25 : 1.6); cv.width = Math.round(hero.clientWidth * d); cv.height = Math.round(hero.clientHeight * d); gl.viewport(0, 0, cv.width, cv.height); }
+    function frame(now) {
+      if (!vis || document.hidden) { corre = false; return; }
+      requestAnimationFrame(frame);
+      if (p < 1) p = Math.min(1, (now - t0) / DUR);
+      const e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+      mx += (tx - mx) * .05; my += (ty - my) * .05;
+      const a = tex[A], b = tex[B];
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, a.t); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, b.t);
+      gl.uniform2f(U.ra, a.w, a.h); gl.uniform2f(U.rb, b.w, b.h); gl.uniform2f(U.res, cv.width, cv.height); gl.uniform2f(U.m, mx, my);
+      gl.uniform1f(U.p, A === B ? 1 : e); gl.uniform1f(U.t, now / 1000); gl.uniform1f(U.za, zoom(sA)); gl.uniform1f(U.zb, zoom(sB)); gl.uniform1f(U.sc, scv);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      if (p >= 1 && A !== B) { A = B; sA = sB; }
+    }
+    let corre = false; const arranca = () => { if (!corre && listo && vis && !document.hidden) { corre = true; requestAnimationFrame(frame); } };
+    function ir(i) {
+      cargar(i).then(x => { if (!x) return;
+        if (!listo) { A = B = i; sA = sB = performance.now(); p = 1; listo = true; medir(); hero.classList.add('gl'); sl.appendChild(cv); arranca(); return; }
+        if (i === B) return;
+        if (p < 1) { A = B; sA = sB; } // si cambian a media transición, se parte de la que ya iba entrando
+        B = i; sB = performance.now(); p = 0; t0 = performance.now(); arranca();
+        cargar((i + 1) % figs.length);
+      });
+    }
+    ir(A);
+    new MutationObserver(() => { const i = actual(); if (i !== B) ir(i); }).observe(sl, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    addEventListener('resize', () => { if (listo) medir(); });
+    new IntersectionObserver(es => { vis = es[0].isIntersecting; arranca(); }).observe(hero);
+    document.addEventListener('visibilitychange', arranca);
+    if (fino) hero.addEventListener('pointermove', e => { tx = (e.clientX / innerWidth - .5); ty = (e.clientY / innerHeight - .5); });
+    addEventListener('scroll', () => { scv = Math.min(1, Math.max(0, scrollY / (hero.clientHeight || 1))); }, { passive: true });
+    // el texto de la portada se va despacio al bajar
+    const hx = hero.querySelector('.at-hx');
+    if (hx && !cel) addEventListener('scroll', () => { const k = Math.min(1, scrollY / hero.clientHeight); hx.style.transform = 'translate3d(0,' + (k * -90).toFixed(1) + 'px,0)'; hx.style.opacity = (1 - k * 1.3).toFixed(3); }, { passive: true });
+  })();
+
+  // ================= 2. Títulos que suben palabra por palabra / letra por letra =================
+  function partir(el, porLetra) {
+    let k = 0;
+    const walk = nodo => [...nodo.childNodes].forEach(c => {
+      if (c.nodeType === 3) {
+        const f = document.createDocumentFragment();
+        c.textContent.split(/(\s+)/).forEach(w => {
+          if (!w) return; if (/^\s+$/.test(w)) { f.appendChild(document.createTextNode(' ')); return; }
+          const o = document.createElement('span'); o.className = 'wd';
+          if (porLetra) [...w].forEach(ch => { const i = document.createElement('span'); i.className = 'wi'; i.style.setProperty('--i', k++); i.textContent = ch; o.appendChild(i); });
+          else { const i = document.createElement('span'); i.className = 'wi'; i.style.setProperty('--i', k++); i.textContent = w; o.appendChild(i); }
+          f.appendChild(o);
+        });
+        c.replaceWith(f);
+      } else if (c.nodeType === 1 && c.tagName !== 'BR' && c.tagName !== 'SVG') walk(c);
+    });
+    el.setAttribute('aria-label', el.textContent.replace(/\s+/g, ' ').trim());
+    walk(el); [...el.querySelectorAll('.wd')].forEach(w => w.setAttribute('aria-hidden', 'true'));
+    el.classList.add('wow-t'); return k;
+  }
+  if (!quieto) {
+    const h1 = $('.at-hero h1');
+    if (h1) { partir(h1, true); h1.style.setProperty('--d', T0 + 'ms'); requestAnimationFrame(() => requestAnimationFrame(() => h1.classList.add('vis'))); }
+    const ioT = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('vis'); ioT.unobserve(e.target); } }), { rootMargin: '0px 0px -12% 0px' });
+    $$('html.vb h2').forEach(h => { if (h.closest('#acceso,#app,.menu,.at-hero')) return; partir(h, h.closest('.at-pdd')); ioT.observe(h); });
+  }
+
+  // ================= 3. Etiquetas que se "decodifican" al aparecer =================
+  if (!quieto) {
+    const AB = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const ioK = new IntersectionObserver(es => es.forEach(e => { if (!e.isIntersecting) return; ioK.unobserve(e.target); const el = e.target, fin = el.textContent, t1 = performance.now(), L = 650;
+      (function paso(now) { const k = Math.min(1, (now - t1) / L), n = Math.floor(fin.length * k);
+        el.textContent = fin.slice(0, n) + [...fin.slice(n)].map(c => /\s|—|·/.test(c) ? c : AB[(Math.random() * AB.length) | 0]).join('');
+        if (k < 1) requestAnimationFrame(paso); else el.textContent = fin; })(t1); }), { rootMargin: '0px 0px -10% 0px' });
+    $$('.at-k').forEach(k => { if (k.children.length || !k.textContent.trim() || k.closest('#acceso,#app')) return; ioK.observe(k); });
+  }
+
+  // ================= 4. Números que cuentan =================
+  (function () {
+    const nums = [];
+    $$('.at-num dt, .at-prop .num').forEach(el => { const tn = [...el.childNodes].find(c => c.nodeType === 3 && /\d/.test(c.textContent)); if (!tn) return; const m = tn.textContent.match(/^(\D*)(\d+)(.*)$/); if (!m) return; nums.push({ tn, a: m[1], n: +m[2], z: m[3], el }); });
+    if (quieto) return;
+    nums.forEach(x => x.tn.textContent = x.a + '0' + x.z);
+    const io = new IntersectionObserver(es => es.forEach(e => { if (!e.isIntersecting) return; io.unobserve(e.target); const x = nums.find(y => y.el === e.target); if (!x) return; const t1 = performance.now(), L = 1700;
+      (function paso(now) { const k = Math.min(1, (now - t1) / L), ez = 1 - Math.pow(2, -10 * k); x.tn.textContent = x.a + Math.round(x.n * (k >= 1 ? 1 : ez)) + x.z; if (k < 1) requestAnimationFrame(paso); })(t1); }), { threshold: .4 });
+    nums.forEach(x => io.observe(x.el));
+  })();
+
+  // ================= 5. Luz que corre sobre la piedra (como mover una lámpara sobre la placa pulida) =================
+  $$('.at-pdd-placa, .at-pd-v, .at-vivo-p').forEach(el => {
+    if (el.classList.contains('at-vivo-p')) return;
+    const luz = document.createElement('i'); luz.className = 'wow-luz'; luz.setAttribute('aria-hidden', 'true'); el.prepend(luz);
+    if (!fino || quieto) return;
+    el.addEventListener('pointermove', e => { const r = el.getBoundingClientRect(); el.style.setProperty('--lx', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%'); el.style.setProperty('--ly', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%'); el.classList.add('wow-lamp'); });
+    el.addEventListener('pointerleave', () => el.classList.remove('wow-lamp'));
+  });
+
+  // ================= 6. Tarjetas con relieve y brillo (solo con mouse) =================
+  if (fino && !quieto) {
+    $$('.at-card .ph, .at-bs-g article .ph, .at-gc .ph, .at-pro-g figure, .at-dos-c, .at-pdd-mo .pl').forEach(el => {
+      const br = document.createElement('i'); br.className = 'wow-br'; br.setAttribute('aria-hidden', 'true'); el.appendChild(br); el.classList.add('wow-tilt');
+      let raf = 0;
+      el.addEventListener('pointermove', e => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+        el.style.setProperty('--rx', ((.5 - y) * 7).toFixed(2) + 'deg'); el.style.setProperty('--ry', ((x - .5) * 9).toFixed(2) + 'deg'); el.style.setProperty('--gx', (x * 100).toFixed(1) + '%'); el.style.setProperty('--gy', (y * 100).toFixed(1) + '%'); el.classList.add('wow-on'); }); });
+      el.addEventListener('pointerleave', () => { el.classList.remove('wow-on'); el.style.setProperty('--rx', '0deg'); el.style.setProperty('--ry', '0deg'); });
+    });
+  }
+
+  // ================= 7. Cursor con palabra =================
+  const cur = $('.at-cursor');
+  if (cur && fino && !quieto) {
+    const tx = document.createElement('span'); cur.appendChild(tx);
+    const PAL = [['.at-vivo-3d', 'Gira'], ['#at-pista .ph, #at-gr .ph', 'Arrastra'], ['.at-pd-v', 'Lupa'], ['.at-pro-g figure, .at-dos-c, .at-col-r, .at-pdd-mo', 'Ver']];
+    addEventListener('pointermove', e => { const h = PAL.find(([s]) => e.target.closest(s)); cur.classList.toggle('txt', !!h); if (h && tx.textContent !== h[1]) tx.textContent = h[1]; }, { passive: true });
+  }
+
+  // ================= 8. Cinta que acelera y se inclina con la velocidad del scroll =================
+  (function () {
+    const mq = $('.at-marq>div'); if (!mq || quieto) return;
+    mq.style.animation = 'none';
+    let x = 0, v = 0, ly = scrollY, vis = false, corre = false;
+    new IntersectionObserver(es => { vis = es[0].isIntersecting; if (vis && !corre) { corre = true; requestAnimationFrame(paso); } }).observe(mq.parentNode);
+    function paso() {
+      if (!vis) { corre = false; return; } requestAnimationFrame(paso);
+      const dy = scrollY - ly; ly = scrollY; v += (Math.max(-60, Math.min(60, dy)) - v) * .1;
+      const w = mq.scrollWidth / 2; x -= .55 + Math.abs(v) * .35; if (x <= -w) x += w;
+      mq.style.transform = 'translate3d(' + x.toFixed(1) + 'px,0,0) skewX(' + (-v * .12).toFixed(2) + 'deg)';
+    }
+  })();
+
+  // ================= 9. Secciones a sangre que se abren al llegar (con mouse, ligado al scroll; en celular, una sola vez) =================
+  (function () {
+    const els = $$('.at-full, .at-d3, .at-fin, .at-dos'); if (!els.length || quieto) return;
+    els.forEach(e => e.classList.add('wow-abre'));
+    if (cel) { const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('abierta'); io.unobserve(e.target); } }), { threshold: .15 }); els.forEach(e => io.observe(e)); return; }
+    let pide = false;
+    const pinta = () => { pide = false; els.forEach(el => { const r = el.getBoundingClientRect(); if (r.bottom < -50 || r.top > innerHeight + 50) return; const k = Math.min(1, Math.max(0, (innerHeight - r.top) / (innerHeight * .75))); const e = 1 - Math.pow(1 - k, 3);
+      el.style.setProperty('--ab', ((1 - e) * 7).toFixed(2) + '%'); el.style.setProperty('--ar', ((1 - e) * 28).toFixed(1) + 'px'); }); };
+    addEventListener('scroll', () => { if (!pide) { pide = true; requestAnimationFrame(pinta); } }, { passive: true }); pinta();
+  })();
+
+  // ================= 10. La mesa en vivo (3D real que gira sola) =================
+  (function () {
+    const sec = $('#en-vivo'), el = $('#at-vivo-3d'); if (!sec || !el) return;
+    if (!window.DKAS3D || !window.THREE) { sec.remove(); return; }
+    const hoy = (() => { try { const q = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date()).split('-').map(Number); return Math.floor(Date.UTC(q[0], q[1] - 1, q[2]) / 864e5); } catch (e) { return 0; } })();
+    let piedra = D.PIEDRAS[hoy % D.PIEDRAS.length].id, mb = $('[data-vm].on'), V = null, visible = false;
+    $$('[data-vp]').forEach(b => b.classList.toggle('on', b.dataset.vp === piedra));
+    const modelo = () => D.normalizar({ uso: mb.dataset.u, forma: mb.dataset.f, base: mb.dataset.b, L: +mb.dataset.l, W: +mb.dataset.w, piedra });
+    function pon() {
+      const m = modelo(); el.classList.add('cambia');
+      V.mostrar(m); V.acercar(cel ? 0.9 : 0.78);
+      Promise.resolve(V.listo && V.listo()).then(() => { el.classList.remove('cambia'); el.classList.add('listo'); });
+      const pz = D.PIEDRAS.find(p => p.id === piedra);
+      $('#at-vivo-n').textContent = mb.querySelector('b').textContent + ' · ' + (pz ? pz.nombre : '');
+      $('#at-vivo-go').href = 'cotiza.html?' + new URLSearchParams({ u: mb.dataset.u, f: mb.dataset.f, p: piedra, b: mb.dataset.b });
+      window.DKAS_INT = 'En vivo 3D: ' + $('#at-vivo-n').textContent;
+    }
+    function crear() {
+      if (V) return;
+      try { V = DKAS3D.crear(el, { tex: cel ? 'tex/piedras/1k/' : 'tex/piedras/', fondo: 0x151412 }); } catch (e) { sec.remove(); return; }
+      V.sillas(false); pon(); V.girar(visible && !quieto ? 0.0024 : 0);
+      el.addEventListener('pointerdown', () => sec.classList.add('tocada'), { once: true });
+    }
+    new IntersectionObserver(es => { if (es[0].isIntersecting) crear(); }, { rootMargin: '600px 0px' }).observe(sec);
+    new IntersectionObserver(es => { visible = es[0].isIntersecting; if (V) V.girar(visible && !quieto ? 0.0024 : 0); }).observe(sec);
+    $$('[data-vm]').forEach(b => b.onclick = () => { mb = b; $$('[data-vm]').forEach(x => x.classList.toggle('on', x === b)); if (V) pon(); });
+    $$('[data-vp]').forEach(b => b.onclick = () => { piedra = b.dataset.vp; $$('[data-vp]').forEach(x => x.classList.toggle('on', x === b)); if (V) pon(); });
+  })();
+})();

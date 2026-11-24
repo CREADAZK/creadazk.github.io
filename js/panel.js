@@ -134,7 +134,7 @@
 
   // ---------- rutas: # (pedidos y logística) · #taller · #p=id · #t=id · #precios · #nuevo ----------
   function ruta() {
-    const h = location.hash, sec = h === '#agenda' ? 'agenda' : h === '#dinero' || h === '#dinero/todos' ? 'dinero' : /^#piedra/.test(h) ? 'piedra' : h === '#cotizar' ? 'cotizar' : h === '#clientes' || /^#prop=/.test(h) ? 'clientes' : h === '' || h === '#' || h === '#nuevo' || /^#[pt]=/.test(h) ? 'log' : 'mas';
+    const h = location.hash, sec = h === '#agenda' ? 'agenda' : h === '#dinero' ? 'dinero' : /^#dinero\/(clientes|c=[\w-]+|nuevo)$/.test(h) ? 'cu-clientes' : h === '#dinero/todos' ? 'cu-movs' : h === '#dinero/deudas' ? 'cu-deudas' : h === '#dinero/exportar' ? 'cu-exportar' : /^#dinero(\/[\w=-]+)?$/.test(h) ? 'dinero' : /^#piedra/.test(h) ? 'piedra' : h === '#cotizar' ? 'cotizar' : h === '#clientes' || /^#prop=/.test(h) ? 'clientes' : h === '' || h === '#' || h === '#nuevo' || /^#[pt]=/.test(h) ? 'log' : 'mas';
     if (h !== '#bases' && window.DKAS_DISENA) DKAS_DISENA.salir();
     if (h !== '#estudio' && window.DKAS_ESTUDIO) DKAS_ESTUDIO.salir();
     $$('#top-nav a[data-sec]').forEach(a => { a.classList.toggle('on', a.dataset.sec === sec); if (a.dataset.sec === sec && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'center' }); });
@@ -143,7 +143,7 @@
     if (h === '#clientes') return clientes();
     if (h === '#mas') return mas();
     if (/^#prop=[0-9a-f]{32}$/.test(h)) return propuesta(h.slice(6));
-    if (h === '#dinero' || h === '#dinero/todos') return DKAS_DINERO.pantalla(main, { A, toast, alerta, me: () => me }, h.slice(8));
+    if (/^#dinero(\/[\w=-]+)?$/.test(h)) return DKAS_DINERO.pantalla(main, { A, toast, alerta, me: () => me }, h.slice(8));
     if (h === '#piedra' || /^#piedra\/(placas|piezas|historial|hoja(=[\w-]+)?)$/.test(h)) return DKAS_PIEDRA.pantalla(main, { A, toast, alerta, me: () => me }, h.slice(8));
     if (h === '#cotizar') return DKAS_COTIZAR.pantalla(main, { toast, alerta, compartir, foto3d, cargarImg, A, me: () => me });
     if (h === '#agenda') return DKAS_AGENDA.pantalla('agenda');
@@ -704,12 +704,12 @@
       try { const c2 = Object.assign({}, await A.publico() || {}); delete c2.actualizado; c2.presentacion = b.dataset.pres; await A.guardarPublico(c2); toast('Listo: los clientes ya ven la presentación ' + OPS.find(o => o[0] === b.dataset.pres)[1]); portada(); } catch (x) { b.disabled = false; alerta(x.message); } };
   }
   function mas() {
+    // nuevo admin (2026-11-24): lo principal está arriba; aquí solo el equipo. Lo viejo queda en Archivo: sigue funcionando, fuera del menú.
     const G = [
-      ['Clientes y seguridad', [['#visitas', 'Auditoría y bloqueos', 'Quién entra a dkas.mx, qué ve y qué hace · bloquear o desbloquear'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza']]],
-      ['Taller', [['#taller', 'Mesas en el taller', 'Costos, cortes, croquis y orden de compra de cada mesa'], ['#precios', 'Precios', 'Costos y margen'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#estudio', 'Estudio de diseño', 'Crea mesas completas: piedra, recorte, base y medidas']]],
-      ['Dinero', [['#dinero-anterior', 'Dinero anterior (archivo)', 'Gastos e ingresos que se anotaron antes del nuevo Dinero · solo para consultar']]],
-      ['Página', [['#portada', 'Presentación de la página', 'Escoge cómo se ve el inicio de dkas.mx'], ['https://dkas.mx/cotiza.html', 'Cotizador express', 'Lo que ven los clientes']]],
-      ['Equipo', [['#equipo', 'Administradores', (me && (me.jefe || me.duenio)) ? 'Crea cuentas para tu equipo, cada quien con su código' : 'Quién más tiene acceso al panel']]]];
+      ['Equipo', [['#equipo', 'Administradores', (me && (me.jefe || me.duenio)) ? 'Crea cuentas para tu equipo, cada quien con su código' : 'Quién más tiene acceso al panel']]],
+      ['Archivo · secciones que ya no están en el menú (siguen guardadas)', [['#visitas', 'Auditoría y bloqueos', 'Quién entra a dkas.mx, qué ve y qué hace'], ['#accesos', 'Links de acceso al 3D', 'Para arquitectos o clientes de confianza'],
+        ['#taller', 'Mesas en el taller', 'Costos, cortes, croquis y orden de compra'], ['#precios', 'Precios (viejo)', 'Costos y margen'], ['#bases', 'Diseñar bases', 'Bases nuevas para el catálogo'], ['#estudio', 'Estudio de diseño', 'Mesas completas: piedra, recorte, base'],
+        ['#dinero-anterior', 'Dinero anterior', 'Gastos e ingresos de antes del nuevo Dinero'], ['#portada', 'Presentación de la página', 'Cómo se ve el inicio de dkas.mx']]]];
     main.innerHTML = '<h1>Más</h1>' + G.map(([g, l]) => '<p class="mas-g">' + g + '</p><div class="mas">' + l.map(([h, t, d]) => '<a href="' + h + '"' + (/^http/.test(h) ? ' target="_blank" rel="noopener"' : '') + '><b>' + t + '</b><small>' + d + '</small></a>').join('') + '</div>').join('')
       + '<div class="mas" style="margin-top:22px"><a href="#" id="salir2"><b>Salir</b><small>' + esc((me && me.nombre) || '') + ' · cerrar sesión en este aparato</small></a></div>';
     $('#salir2').onclick = e => { e.preventDefault(); $('#salir').click(); };

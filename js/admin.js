@@ -308,9 +308,10 @@
   }
   function ruta(quieto) {
     if (!M) return;
-    const h = location.hash.slice(1) || 'inicio', sec = /^p=|^c=|^d=|^pedidos|^sobrantes/.test(h) ? 'pedidos' : MENU.some(m => m[0] === h) ? h : 'inicio';
+    const h = location.hash.slice(1) || 'inicio', sec = /^v\//.test(h) ? seccionVieja(h.slice(2)) : /^p=|^c=|^d=|^pedidos|^sobrantes/.test(h) ? 'pedidos' : MENU.some(m => m[0] === h) ? h : 'inicio';
     menu(sec); if (!quieto) window.scrollTo(0, 0);
     setTimeout(pintarSync, 0);
+    if (/^v\//.test(h)) return viejo(h.slice(2));
     if (h === 'inicio') return inicio();
     if (h === 'pedidos') return pedidos('pedidos');
     if (h === 'pedidos/clientes') return pedidos('clientes');
@@ -351,7 +352,7 @@
         + kpi('Falta gastar', pesos(T.porGastar), '', '', '#pedidos') + kpi('Posición real', pesos(T.posicion), cls(T.posicion), '', '#dinero') + '</section>'
       + '<section class="caja"><div class="caja-t"><h2>Hoy</h2><button class="b chico" id="ag-n">＋ Tarea</button></div>'
         + (ya.length ? '<ul class="agenda">' + ya.map(itemAgenda).join('') + '</ul>' : vacioTxt('Nada pendiente para hoy.'))
-        + (semana.length ? plegable('Esta semana', semana.length + '', '<ul class="agenda">' + semana.map(itemAgenda).join('') + '</ul>') : '') + '</section>'
+        + (semana.length ? plegable('Esta semana', semana.length + '', '<ul class="agenda">' + semana.map(itemAgenda).join('') + '</ul>') : '') + '<a class="lnk mas-ag" href="#v/agenda">Agenda completa (citas y visitas) ›</a></section>'
       + (nc.length ? plegable('⚠ No cuadra', nc.length + '', '<ul class="nocuadra">' + nc.map(itemNoCuadra).join('') + '</ul>', false, 'mal') : '');
     $('#x-todo').onclick = () => hoja('Exportar todo', '<p class="nota">Todo lo del sistema en un archivo, para los socios.</p><button class="b negro grande" id="x-pdf">PDF</button><button class="b grande" id="x-xls">Excel</button>', h => { $('#x-pdf', h).onclick = () => { cerrarHoja(); pdfGeneral(); }; $('#x-xls', h).onclick = () => { cerrarHoja(); xlsGeneral(); }; });
     $('#ag-n').onclick = () => tarea();
@@ -539,7 +540,7 @@
   async function solicitudes() {
     const T = M.totales();
     const tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['solicitudes', 'Solicitudes', ''], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length], ['sobrantes', 'Sobrantes', M.sobrantes.filter(x => x.estado !== 'usado').length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === 'solicitudes' ? ' class="on"' : '') + '>' + t + (n !== '' ? ' <small>' + n + '</small>' : '') + '</a>').join('') + '</nav>';
-    main.innerHTML = tit('Pedidos', '') + tabs + '<div class="chips filtros" id="fs">' + [['nuevo', 'Por cotizar'], ['cotizado', 'Esperan respuesta'], ['todas', 'Todas']].map(([k, t]) => '<button data-v="' + k + '"' + (filSol === k ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div><section class="caja"><div class="lista" id="sl"><p class="cargando">Cargando…</p></div></section>';
+    main.innerHTML = tit('Pedidos', '') + tabs + '<div class="chips filtros" id="fs">' + [['nuevo', 'Por cotizar'], ['cotizado', 'Esperan respuesta'], ['todas', 'Todas']].map(([k, t]) => '<button data-v="' + k + '"' + (filSol === k ? ' class="on"' : '') + '>' + t + '</button>').join('') + '<a class="b chico" href="#v/clientes">Por aprobar y diseños ›</a></div><section class="caja"><div class="lista" id="sl"><p class="cargando">Cargando…</p></div></section>';
     $$('#fs [data-v]').forEach(b => b.onclick = () => { filSol = b.dataset.v; $$('#fs [data-v]').forEach(o => o.classList.toggle('on', o === b)); pintar(); });
     try { SOL = await A.listar(); } catch (e) { $('#sl').innerHTML = '<p class="err">No se pudieron cargar: ' + esc(e.message) + '</p>'; return; }
     function pintar() {
@@ -548,7 +549,7 @@
       const l = SOL.filter(x => x.estado !== 'cancelado' && (filSol === 'todas' || x.estado === filSol)).sort((a, b) => (b.creado || 0) - (a.creado || 0));
       $('#sl').innerHTML = l.length ? l.map(x => { const it = (x.items || [])[0] || {}, p = ya(x.id), tel = String(x.tel || '').replace(/\D/g, ''), d = new Date(x.creado || 0);
         return '<div class="fila"><div class="fila-a sol"><span class="fila-c"><b>' + esc(x.nombre || 'Sin nombre') + ' <span class="folio">#' + esc(x.folio || '') + '</span></b><small>' + esc(it.titulo || 'Sin mesa') + [spec(x, 'Piedra').split(' · ')[0], spec(x, 'Base')].filter(Boolean).map(z => ' · ' + esc(z)).join('') + '</small><small>' + d.getDate() + ' ' + MES[d.getMonth()] + (tel ? ' · ' + esc(x.tel) : '') + '</small></span></div>'
-          + '<div class="fila-r sol-b">' + (tel ? '<a class="b chico" target="_blank" rel="noopener" href="https://wa.me/52' + tel.slice(-10) + '">WhatsApp</a>' : '') + '<a class="b chico" href="panel-viejo.html#p=' + esc(x.id) + '">Cotizar</a>' + (p ? '<a class="b chico verde" href="#p=' + esc(p.id) + '">Pedido #' + esc(p.folio) + '</a>' : '<button class="b chico negro" data-pasar="' + esc(x.id) + '">Pasar a pedido</button>') + '</div></div>'; }).join('') : vacioTxt('Nada aquí.');
+          + '<div class="fila-r sol-b">' + (tel ? '<a class="b chico" target="_blank" rel="noopener" href="https://wa.me/52' + tel.slice(-10) + '">WhatsApp</a>' : '') + '<a class="b chico" href="#v/p=' + esc(x.id) + '">Cotizar</a>' + (p ? '<a class="b chico verde" href="#p=' + esc(p.id) + '">Pedido #' + esc(p.folio) + '</a>' : '<button class="b chico negro" data-pasar="' + esc(x.id) + '">Pasar a pedido</button>') + '</div></div>'; }).join('') : vacioTxt('Nada aquí.');
       $$('[data-pasar]').forEach(b => b.onclick = () => pasarAPedido(SOL.find(x => x.id === b.dataset.pasar)));
     }
     pintar();
@@ -585,6 +586,7 @@
           + ganancias.map(([p, s]) => { const g = p.cerrado ? s.gananciaReal : s.ganancia; return '<tr><td><a href="#p=' + esc(p.id) + '">' + esc(M.nomPedido(p)) + '</a></td><td>' + (s.precio ? pesos(s.precio) : '—') + '</td><td>' + pesos(s.ent) + '</td><td>' + pesos(s.sal) + '</td><td class="' + (g != null ? cls(g) : '') + '">' + (g != null ? pesos(g) : '—') + '</td></tr>'; }).join('')
           + '</tbody><tfoot><tr><td>Gastos generales</td><td></td><td></td><td>' + pesos(T.gastoGeneral) + '</td><td class="r">' + pesos(-T.gastoGeneral) + '</td></tr></tfoot></table></div>' : vacioTxt('Sin pedidos con dinero.'))
       + plegable('De quién es el dinero', '', '<p class="nota">Cada cliente y cada préstamo es una "bolsa". En negativo = se usó dinero de otro.</p>' + (fondos.length ? '<ul class="fondos">' + fondos.map(f => '<li><span>' + esc(f.nombre) + '</span><b class="' + cls(f.saldo) + '">' + pesos(f.saldo) + '</b></li>').join('') + '</ul>' : vacioTxt('Sin bolsas.')))
+      + plegable('Dinero anterior', 'archivo', '<p class="nota">Gastos e ingresos que se anotaron antes del sistema nuevo, solo para consultar.</p><a class="b chico" href="#v/dinero-anterior">Abrir el archivo</a>')
       + '<section class="caja"><div class="caja-t"><h2>Movimientos</h2><input id="q" type="search" placeholder="Buscar" value="' + esc(qDin) + '"></div><div class="chips filtros" id="fil">' + [['todos', 'Todos'], ['in', 'Entradas'], ['out', 'Salidas'], ['aclarar', 'Aclarar · ' + T.porAclarar]].map(([k, t]) => '<button data-v="' + k + '"' + (filDin === k ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div><div class="lista" id="movs"></div></section>';
     const pintar = () => { const q = qDin.trim().toLowerCase(); const l = M.movs.filter(m => (filDin === 'todos' || (filDin === 'aclarar' ? m.revisar : m.tipo === filDin)) && (!q || [m.cat, m.nota, m.quien, M.nomPed(m.pedido), (M.deu(m.deuda) || {}).nombre].join(' ').toLowerCase().includes(q))).slice().reverse();
       $('#movs').innerHTML = l.length ? l.slice(0, verTodos ? l.length : 12).map(filaMov).join('') + (l.length > 12 && !verTodos ? '<button class="b chico" id="ver-todos" style="margin-top:10px">Ver los ' + l.length + '</button>' : '') : vacioTxt('Nada aquí.'); enlazarMovs(); const vt = $('#ver-todos'); if (vt) vt.onclick = () => { verTodos = true; pintar(); }; };
@@ -607,7 +609,7 @@
     const area = disp.reduce((a, s) => a + num(s.w) * num(s.h), 0) / 10000;
     const T = M.totales(), tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['solicitudes', 'Solicitudes', solicitudesN()], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length], ['sobrantes', 'Sobrantes', disp.length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === 'sobrantes' ? ' class="on"' : '') + '>' + t + ' <small>' + n + '</small></a>').join('') + '</nav>';
     main.innerHTML = tit('Pedidos', '', '<button class="b negro" id="ns">＋ Sobrante</button>') + tabs
-      + '<section class="caja"><h2>¿Me alcanza?</h2><div class="dos-i"><input id="mq" placeholder="Medida, ej. 60×60 o Ø70" value="' + esc(medDisp) + '"><span id="mr" class="sub"></span></div><p class="nota">' + area.toFixed(2) + ' m² de piedra guardada en ' + disp.length + ' sobrantes.</p></section>'
+      + '<section class="caja"><h2>¿Me alcanza?</h2><div class="dos-i"><input id="mq" placeholder="Medida, ej. 60×60 o Ø70" value="' + esc(medDisp) + '"><span id="mr" class="sub"></span></div><p class="nota">' + area.toFixed(2) + ' m² de piedra guardada en ' + disp.length + ' sobrantes. <a class="lnk" href="#v/piedra">Inventario de placas completas ›</a></p></section>'
       + (Object.keys(porPiedra).length ? Object.entries(porPiedra).map(([pi, l]) => '<section class="caja"><h2>' + esc(pi) + ' · ' + l.length + '</h2><div class="sobs">' + l.map(tarjetaSobrante).join('') + '</div></section>').join('') : '<section class="caja">' + vacioTxt('No hay sobrantes anotados. Al marcar la placa de un pedido como comprada, te sugiero los sobrantes que deja.') + '</section>')
       + (usados.length ? '<section class="caja"><h2>Usados · ' + usados.length + '</h2><div class="sobs">' + usados.map(tarjetaSobrante).join('') + '</div></section>' : '');
     $('#ns').onclick = () => hojaSobrante();
@@ -653,19 +655,29 @@
   }
   function enlazarSobrantesPedido(p) { const sug = N.sobrantesDe(num(p.largo), p.forma === 'Redonda' ? num(p.largo) : num(p.ancho)); $$('[data-sug]').forEach(b => b.onclick = () => hojaSobrante(null, Object.assign({ piedra: otra(p.color, p.colorOtra), pedido: p.id }, sug[+b.dataset.sug]))); $$('.sobs [data-usar]').forEach(b => b.onclick = () => usarSobrante(M.sobrantes.find(s => s.id === b.dataset.usar))); }
 
+  // ================= LO DEL PANEL VIEJO, DENTRO DEL NUEVO =================
+  // cada pantalla vieja vive en uno de los 4 botones; se abre aquí mismo, sin los botones de arriba del panel viejo
+  const VIEJAS = { agenda: ['inicio', 'Agenda completa', '#inicio'], clientes: ['pedidos', 'Solicitudes · por aprobar y diseños', '#pedidos/solicitudes'], piedra: ['pedidos', 'Inventario de placas', '#pedidos/sobrantes'],
+    'dinero-anterior': ['dinero', 'Dinero anterior (archivo)', '#dinero'], cotizar: ['ajustes', 'Cotizador rápido', '#ajustes'], precios: ['ajustes', 'Precios', '#ajustes'], taller: ['ajustes', 'Mesas en el taller', '#ajustes'],
+    bases: ['ajustes', 'Diseñar bases', '#ajustes'], estudio: ['ajustes', 'Estudio de diseño', '#ajustes'], portada: ['ajustes', 'Presentación de la página', '#ajustes'], visitas: ['ajustes', 'Auditoría y bloqueos', '#ajustes'],
+    accesos: ['ajustes', 'Links de acceso al 3D', '#ajustes'], equipo: ['ajustes', 'Administradores', '#ajustes'], '': ['pedidos', 'Pedidos web', '#pedidos/solicitudes'] };
+  const claveVieja = r0 => /^p=|^t=/.test(r0) ? 'cotiz' : /^piedra/.test(r0) ? 'piedra' : r0;
+  function seccionVieja(r0) { const k = claveVieja(r0); return k === 'cotiz' ? 'pedidos' : (VIEJAS[k] || ['ajustes'])[0]; }
+  function viejo(r0) {
+    const k = claveVieja(r0), v = k === 'cotiz' ? ['pedidos', 'Cotizar', '#pedidos/solicitudes'] : VIEJAS[k] || ['ajustes', 'Panel', '#ajustes'];
+    main.innerHTML = '<a class="volver" href="' + v[2] + '">‹ ' + ({ inicio: 'Dashboard', pedidos: 'Pedidos', dinero: 'Dinero', ajustes: 'Ajustes' }[v[0]]) + '</a><h1 class="h-viejo">' + esc(v[1]) + '</h1>'
+      + '<iframe class="viejo" src="panel-viejo.html?embed=1#' + esc(r0) + '" title="' + esc(v[1]) + '"></iframe>';
+  }
+
   // ================= AJUSTES =================
   function ajustes() {
     const bit = Object.entries(D.bitacora || {}).map(([id, x]) => Object.assign({ id }, x)).sort((a, b) => (b.creado || 0) - (a.creado || 0));
     main.innerHTML = tit('Ajustes', esc(me.nombre || '') + (A.demo ? ' · modo prueba (no toca datos reales)' : ''), '<button class="b" id="salir">Salir</button>')
-      + '<div class="dos"><section class="caja"><h2>Pendientes de arreglar</h2><ul class="links">'
-        + '<li><a href="panel-viejo.html#cotizar">Cotizaciones<small>Hay que ajustar los precios y conectarlas con los clientes reales. Es lo siguiente.</small></a></li>'
-        + '<li><a href="panel-viejo.html#clientes">Solicitudes de la página<small>Lo que piden los clientes en dkas.mx (va aparte de los pedidos).</small></a></li>'
-        + '<li><a href="panel-viejo.html#piedra">Inventario de placas (viejo)<small>Se va a juntar con Sobrantes.</small></a></li>'
-        + '<li><a href="panel-viejo.html#equipo">Administradores<small>Quién más puede entrar.</small></a></li>'
-        + '<li><a href="panel-viejo.html">Panel viejo<small>Lo que falta pasar (cotizar, solicitudes de la página).</small></a></li></ul></section>'
-      + '<section class="caja"><h2>Clave para confirmar</h2><p class="nota">Todo lo importante pide la clave antes de guardarse: registrar o borrar dinero, dar de alta o editar pedidos, marcar pasos, deudas y sobrantes. Es una confirmación para que nada se guarde por error; lo que protege el panel es el código de 6 números para entrar.</p></section></div>'
-      + '<section class="caja"><h2>Auditoría · ' + bit.length + '</h2><p class="nota">Cada cosa que se confirma con la clave queda aquí: quién, cuándo y qué.</p>'
-        + (bit.length ? '<div class="tabla"><table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th></tr></thead><tbody>' + bit.slice(0, 200).map(b => { const d = new Date(b.creado || 0); return '<tr><td>' + fC(N.ymd(d)) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + '</td><td>' + esc(b.por || '') + '</td><td><b>' + esc(b.accion) + '</b><br><small>' + esc(b.detalle || '') + '</small></td></tr>'; }).join('') + '</tbody></table></div>' : vacioTxt('Todavía no hay nada registrado.')) + '</section>';
+      + plegable('Ventas', 'cotizar y precios', '<ul class="links"><li><a href="#v/cotizar">Cotizador rápido</a></li><li><a href="#v/precios">Precios</a></li></ul>', true)
+      + plegable('Taller', 'mesas, bases y diseño', '<ul class="links"><li><a href="#v/taller">Mesas en el taller<small>cortes, croquis y orden de compra</small></a></li><li><a href="#v/bases">Diseñar bases</a></li><li><a href="#v/estudio">Estudio de diseño</a></li></ul>')
+      + plegable('Página web', 'portada, visitas y links', '<ul class="links"><li><a href="#v/portada">Presentación de la página</a></li><li><a href="#v/visitas">Auditoría y bloqueos<small>quién entra a dkas.mx</small></a></li><li><a href="#v/accesos">Links de acceso al 3D</a></li></ul>')
+      + plegable('Equipo', 'quién entra al panel', '<ul class="links"><li><a href="#v/equipo">Administradores</a></li></ul><p class="nota">Todo lo importante pide la clave 55 antes de guardarse. Para entrar al panel se usa el código de 6 números.</p>')
+      + plegable('Registro de cambios', bit.length + '', (bit.length ? '<div class="tabla"><table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th></tr></thead><tbody>' + bit.slice(0, 200).map(b => { const d = new Date(b.creado || 0); return '<tr><td>' + fC(N.ymd(d)) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + '</td><td>' + esc(b.por || '') + '</td><td><b>' + esc(b.accion) + '</b><br><small>' + esc(b.detalle || '') + '</small></td></tr>'; }).join('') + '</tbody></table></div>' : vacioTxt('Todavía no hay nada registrado.')));
     $('#salir').onclick = () => { A.logout(); location.hash = ''; arrancar(); };
   }
 

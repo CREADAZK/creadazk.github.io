@@ -299,7 +299,7 @@
   async function bitacora(accion, detalle) { try { await A.nodoAgrega('dinero/bitacora', { accion, detalle: String(detalle || '').slice(0, 300) }); } catch (e) {} }
 
   // ---------- rutas y menú ----------
-  const MENU = [['inicio', 'Dashboard', 'M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z'], ['pedidos', 'Pedidos', 'M4 4h16v4H4zm0 6h16v10H4zm4 3v2h8v-2z'], ['dinero', 'Dinero', 'M12 2a10 10 0 100 20 10 10 0 000-20zm1 15v2h-2v-2c-1.7-.3-3-1.4-3-3h2c0 .6.9 1 2 1s2-.4 2-1-.6-1-2-1.3c-2.2-.4-4-1.1-4-3 0-1.4 1.3-2.5 3-2.8V5h2v1.9c1.7.3 3 1.4 3 3h-2c0-.6-.9-1-2-1s-2 .4-2 1 .6.8 2 1.1c2.2.5 4 1.2 4 3.2 0 1.4-1.3 2.5-3 2.8z'], ['sobrantes', 'Sobrantes', 'M3 17l6-6 4 4 8-8v4h-2V9.4l-6 6-4-4-4.6 4.6z'], ['ajustes', 'Ajustes', 'M19.4 13a7.5 7.5 0 000-2l2.1-1.6-2-3.5-2.5 1a7 7 0 00-1.7-1L15 3h-4l-.3 2.7a7 7 0 00-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 000 2l-2.1 1.6 2 3.5 2.5-1a7 7 0 001.7 1L11 21h4l.3-2.7a7 7 0 001.7-1l2.5 1 2-3.5zM13 15a3 3 0 110-6 3 3 0 010 6z']];
+  const MENU = [['inicio', 'Dashboard', 'M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z'], ['pedidos', 'Pedidos', 'M4 4h16v4H4zm0 6h16v10H4zm4 3v2h8v-2z'], ['dinero', 'Dinero', 'M12 2a10 10 0 100 20 10 10 0 000-20zm1 15v2h-2v-2c-1.7-.3-3-1.4-3-3h2c0 .6.9 1 2 1s2-.4 2-1-.6-1-2-1.3c-2.2-.4-4-1.1-4-3 0-1.4 1.3-2.5 3-2.8V5h2v1.9c1.7.3 3 1.4 3 3h-2c0-.6-.9-1-2-1s-2 .4-2 1 .6.8 2 1.1c2.2.5 4 1.2 4 3.2 0 1.4-1.3 2.5-3 2.8z'], ['ajustes', 'Ajustes', 'M19.4 13a7.5 7.5 0 000-2l2.1-1.6-2-3.5-2.5 1a7 7 0 00-1.7-1L15 3h-4l-.3 2.7a7 7 0 00-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 000 2l-2.1 1.6 2 3.5 2.5-1a7 7 0 001.7 1L11 21h4l.3-2.7a7 7 0 001.7-1l2.5 1 2-3.5zM13 15a3 3 0 110-6 3 3 0 010 6z']];
   function menu(sec) {
     $('#menu').innerHTML = '<div class="m-logo"><img src="img/dkas-oscuro.png" alt="DKAS"></div>' + MENU.map(([k, t, d]) => '<a href="#' + k + '"' + (k === sec ? ' class="on" aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg><span>' + t + '</span></a>').join('')
       + '<button class="m-reg" id="m-reg"><b>＋</b><span>Registrar dinero</span></button><div class="m-sync"><span class="sync"></span></div>';
@@ -307,18 +307,19 @@
   }
   function ruta(quieto) {
     if (!M) return;
-    const h = location.hash.slice(1) || 'inicio', sec = /^p=|^c=|^d=|^pedidos/.test(h) ? 'pedidos' : MENU.some(m => m[0] === h) ? h : 'inicio';
+    const h = location.hash.slice(1) || 'inicio', sec = /^p=|^c=|^d=|^pedidos|^sobrantes/.test(h) ? 'pedidos' : MENU.some(m => m[0] === h) ? h : 'inicio';
     menu(sec); if (!quieto) window.scrollTo(0, 0);
     setTimeout(pintarSync, 0);
     if (h === 'inicio') return inicio();
     if (h === 'pedidos') return pedidos('pedidos');
     if (h === 'pedidos/clientes') return pedidos('clientes');
     if (h === 'pedidos/deudas') return pedidos('deudas');
+    if (h === 'pedidos/sobrantes') return sobrantes();
     if (/^p=/.test(h)) { const p = M.ped(h.slice(2)); return p ? pedido(p) : pedidos('pedidos'); }
     if (/^c=/.test(h)) { const c = M.cli(h.slice(2)); return c ? cliente(c) : pedidos('clientes'); }
     if (/^d=/.test(h)) { const x = M.deu(h.slice(2)); return x ? deuda(x) : pedidos('deudas'); }
     if (h === 'dinero') return dinero();
-    if (h === 'sobrantes') return sobrantes();
+    if (h === 'sobrantes') { location.replace('#pedidos/sobrantes'); return; }
     if (h === 'ajustes') return ajustes();
     inicio();
   }
@@ -329,6 +330,7 @@
   const kpi = (lbl, v, c, sub, href, extra) => '<' + (href ? 'a href="' + href + '"' : 'div') + ' class="kpi' + (extra ? ' ' + extra : '') + '"><span>' + lbl + '</span><b class="' + (c || '') + '">' + v + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</' + (href ? 'a' : 'div') + '>';
   const prog = (n, tot, v) => '<i class="prog' + (v ? ' v' : '') + '"><em style="width:' + Math.round(n / tot * 100) + '%"></em></i>';
   const pill = (t, c) => '<em class="pill ' + (c || '') + '">' + esc(t) + '</em>';
+  const plegable = (t, resumen, html, abierto, cls2) => '<details class="plegable' + (cls2 ? ' ' + cls2 : '') + '"' + (abierto ? ' open' : '') + '><summary><span>' + t + '</span>' + (resumen ? '<small>' + resumen + '</small>' : '') + '</summary><div class="pl-c">' + html + '</div></details>';
   const vacioTxt = t => '<p class="vacio">' + t + '</p>';
   const piezaTxt = p => {
     const med = p.forma === 'Redonda' ? (num(p.largo) ? 'Ø' + num(p.largo) : '') : (num(p.largo) ? num(p.largo) + '×' + num(p.ancho) : '');
@@ -338,29 +340,20 @@
 
   // ================= DASHBOARD =================
   function inicio() {
-    const T = M.totales(), nc = M.noCuadra(), ag = M.agenda().filter(a => a.grupo !== 'hecho' && a.grupo !== 'despues');
+    const T = M.totales(), nc = M.noCuadra(), ag = M.agenda().filter(a => a.grupo !== 'hecho');
     const saludo = (new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 19 ? 'Buenas tardes' : 'Buenas noches') + ', ' + esc((me.nombre || '').split(' ')[0]);
-    const grupos = [['vencido', 'Atrasado'], ['hoy', 'Hoy'], ['semana', 'Esta semana']];
-    main.innerHTML = tit(saludo, fC(hoy()) + ' · todo el negocio en una pantalla', '<div class="tit-b"><button class="b" id="x-pdf">Exportar PDF</button><button class="b" id="x-xls">Exportar Excel</button></div>')
-      + '<section class="kpis">' + kpi('Dinero con nosotros', pesos(T.caja), T.caja < 0 ? 'r' : '', Object.entries(T.porQuien).filter(([, v]) => v).map(([q, v]) => esc(q) + ' ' + pesos(v)).join(' · '), '#dinero', 'hero')
-        + kpi('Nos deben clientes', pesos(T.porCobrar), 'v', T.act.length + ' pedidos activos', '#pedidos')
-        + kpi('Falta gastar en pedidos', pesos(T.porGastar), 'r', 'para terminar las mesas', '#pedidos')
-        + (T.sinDeudas ? kpi('Debemos', 'Sin anotar', 'a', 'Anota las deudas →', '#pedidos/deudas') : kpi('Debemos', pesos(T.debemos), 'r', M.deudas.length + ' deudas', '#pedidos/deudas'))
-        + kpi('Posición real', pesos(T.posicion), cls(T.posicion), T.sinDeudas ? 'sin contar deudas' : 'si todo se cobra y se paga')
-        + kpi('Ganancia esperada', T.conG ? pesos(T.ganEsp) : '—', cls(T.ganEsp), T.conG ? 'margen ' + pct(T.margenProm) + ' · ' + T.conG + ' de ' + T.act.length + ' pedidos' : 'faltan precios y costos') + '</section>'
-      + '<p class="leccion"><b>Posición real</b> = dinero con nosotros + lo que nos deben − lo que falta gastar − lo que debemos. Positiva: alcanza, falta efectivo hoy. Negativa: aunque se cobre todo no alcanza.</p>'
-      + '<div class="dos">'
-      + '<section class="caja"><div class="caja-t"><h2>Agenda</h2><button class="b chico" id="ag-n">＋ Tarea</button></div>'
-        + (ag.length ? grupos.map(([g, t]) => { const l = ag.filter(a => a.grupo === g); return l.length ? '<h3 class="' + (g === 'vencido' ? 'r' : '') + '">' + t + ' · ' + l.length + '</h3><ul class="agenda">' + l.map(itemAgenda).join('') + '</ul>' : ''; }).join('') : vacioTxt('Nada pendiente esta semana.'))
-        + '<p class="nota">La agenda se llena sola con cada pedido (comprar placa, base, armar, entregar, cobrar) y con las deudas que vencen.</p></section>'
-      + '<section class="caja ' + (nc.length ? 'mal' : '') + '"><div class="caja-t"><h2>Lo que no cuadra · ' + nc.length + '</h2></div>'
-        + (nc.length ? '<ul class="nocuadra">' + nc.slice(0, 8).map(itemNoCuadra).join('') + '</ul>' + (nc.length > 8 ? '<button class="b chico" id="nc-todo">Ver los ' + nc.length + '</button>' : '') : vacioTxt('Todo cuadra.')) + '</section>'
-      + '</div>'
-      + '<section class="caja"><div class="caja-t"><h2>Pedidos activos · ' + T.act.length + '</h2><a class="lnk" href="#pedidos">Ver todos</a></div>' + (T.act.length ? '<div class="lista">' + T.act.sort((a, b) => (a[0].entrega || '9999').localeCompare(b[0].entrega || '9999')).slice(0, 6).map(([p, s]) => filaPedido(p, s)).join('') + '</div>' : vacioTxt('No hay pedidos activos.')) + '</section>';
-    $('#x-pdf').onclick = () => pdfGeneral(); $('#x-xls').onclick = () => xlsGeneral();
+    const ya = ag.filter(a => a.grupo === 'vencido' || a.grupo === 'hoy'), semana = ag.filter(a => a.grupo === 'semana');
+    main.innerHTML = tit(saludo, fC(hoy()), '<button class="b chico" id="x-todo">Exportar</button>')
+      + '<section class="kpis">' + kpi('Dinero hoy', pesos(T.caja), T.caja < 0 ? 'r' : '', Object.entries(T.porQuien).filter(([, v]) => v).map(([q, v]) => esc(q) + ' ' + pesos(v)).join(' · '), '#dinero', 'hero')
+        + kpi('Nos deben', pesos(T.porCobrar), 'v', '', '#pedidos') + kpi('Debemos', T.sinDeudas ? 'Sin anotar' : pesos(T.debemos), T.sinDeudas ? 'a' : 'r', '', '#pedidos/deudas')
+        + kpi('Falta gastar', pesos(T.porGastar), '', '', '#pedidos') + kpi('Posición real', pesos(T.posicion), cls(T.posicion), '', '#dinero') + '</section>'
+      + '<section class="caja"><div class="caja-t"><h2>Hoy</h2><button class="b chico" id="ag-n">＋ Tarea</button></div>'
+        + (ya.length ? '<ul class="agenda">' + ya.map(itemAgenda).join('') + '</ul>' : vacioTxt('Nada pendiente para hoy.'))
+        + (semana.length ? plegable('Esta semana', semana.length + '', '<ul class="agenda">' + semana.map(itemAgenda).join('') + '</ul>') : '') + '</section>'
+      + (nc.length ? plegable('⚠ No cuadra', nc.length + '', '<ul class="nocuadra">' + nc.map(itemNoCuadra).join('') + '</ul>', false, 'mal') : '');
+    $('#x-todo').onclick = () => hoja('Exportar todo', '<p class="nota">Todo lo del sistema en un archivo, para los socios.</p><button class="b negro grande" id="x-pdf">PDF</button><button class="b grande" id="x-xls">Excel</button>', h => { $('#x-pdf', h).onclick = () => { cerrarHoja(); pdfGeneral(); }; $('#x-xls', h).onclick = () => { cerrarHoja(); xlsGeneral(); }; });
     $('#ag-n').onclick = () => tarea();
-    if ($('#nc-todo')) $('#nc-todo').onclick = () => { $('.nocuadra').innerHTML = nc.map(itemNoCuadra).join(''); $('#nc-todo').remove(); enlazarNC(); };
-    enlazarAgenda(); enlazarNC(); enlazarFilas();
+    enlazarAgenda(); enlazarNC();
   }
   function itemAgenda(a) {
     const ic = { cobro: '$', compra: '◆', taller: '▲', entrega: '➜', deuda: '!', manual: '•', dato: '?', cierre: '✓' }[a.tipo] || '•';
@@ -390,16 +383,15 @@
   }
   function pedidos(tab) {
     const T = M.totales();
-    const tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'A quién le debemos', M.deudas.length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === tab ? ' class="on"' : '') + '>' + t + ' <small>' + n + '</small></a>').join('') + '</nav>';
+    const tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length], ['sobrantes', 'Sobrantes', M.sobrantes.filter(x => x.estado !== 'usado').length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === tab ? ' class="on"' : '') + '>' + t + ' <small>' + n + '</small></a>').join('') + '</nav>';
     if (tab === 'clientes') {
       const l = M.clientes.map(c => [c, M.statsCliente(c)]).sort((a, b) => b[1].activos - a[1].activos || (a[0].nombre || '').localeCompare(b[0].nombre || ''));
-      main.innerHTML = tit('Pedidos', 'Clientes registrados. Frecuente = 2 pedidos o más.', '<button class="b negro" id="nuevo">＋ Nuevo pedido</button>') + tabs
+      main.innerHTML = tit('Pedidos', '', '<button class="b negro" id="nuevo">＋ Nuevo</button>') + tabs
         + '<section class="caja">' + (l.length ? '<div class="lista">' + l.map(([c, s]) => '<a class="fila fila-a" href="#c=' + esc(c.id) + '"><span class="fila-c"><b>' + esc(c.nombre) + (s.frecuente ? ' ' + pill('frecuente', 'v') : '') + '</b><small>' + s.ps.length + ' pedido' + (s.ps.length === 1 ? '' : 's') + (s.activos ? ' · ' + s.activos + ' activo' + (s.activos === 1 ? '' : 's') : '') + (c.telefono ? ' · ' + esc(c.telefono) : '') + '</small></span><span class="fila-d"><small>Pagó ' + pesos(s.pagado) + '</small><small>' + (s.debe ? 'Debe <b>' + pesos(s.debe) + '</b>' : '<span class="v">Al corriente</span>') + '</small></span></a>').join('') + '</div>' : vacioTxt('Sin clientes.')) + '</section>';
     } else if (tab === 'deudas') {
       const l = M.deudas.map(x => [x, M.statsDeuda(x)]).sort((a, b) => b[1].falta - a[1].falta);
-      main.innerHTML = tit('Pedidos', 'A quién le debe el negocio: prestamistas, proveedores, herreros.', '<button class="b negro" id="nueva-d">＋ Deuda o prestamista</button>') + tabs
+      main.innerHTML = tit('Pedidos', '', '<button class="b negro" id="nueva-d">＋ Deuda</button>') + tabs
         + '<section class="kpis tres">' + kpi('Debemos en total', T.sinDeudas ? 'Sin anotar' : pesos(T.debemos), T.sinDeudas ? 'a' : 'r') + kpi('Nos han prestado', pesos(l.reduce((a, [, s]) => a + s.prestado, 0))) + kpi('Ya pagamos', pesos(l.reduce((a, [, s]) => a + s.pagado, 0)), 'v') + '</section>'
-        + (T.sinDeudas ? '<p class="aviso">Todavía no hay ninguna deuda anotada. Toca <b>＋ Deuda o prestamista</b>. Si alguien presta dinero, regístralo en <b>Registrar dinero → Entró → Préstamo</b> y se le crea su panel solo.</p>' : '')
         + '<section class="caja">' + (l.length ? '<div class="lista">' + l.map(([x, s]) => '<a class="fila fila-a" href="#d=' + esc(x.id) + '"><span class="fila-c"><b>' + esc(x.nombre) + ' ' + pill(x.tipo === 'prestamo' ? 'prestamista' : x.tipo === 'proveedor' ? 'proveedor' : 'otro') + '</b><small>Prestado ' + pesos(s.prestado) + ' · pagado ' + pesos(s.pagado) + (x.vence ? ' · vence ' + fC(x.vence) : '') + '</small></span><span class="fila-d"><b class="' + (s.falta > 0 ? 'r' : 'v') + '">' + (s.falta > 0 ? pesos(s.falta) : 'Pagada') + '</b></span></a>').join('') + '</div>' : vacioTxt('Sin deudas.')) + '</section>';
       $('#nueva-d').onclick = () => hojaDeuda();
     } else {
@@ -411,11 +403,11 @@
         $('#lista-p').innerHTML = l.length ? l.map(([p, s]) => filaPedido(p, s)).join('') : vacioTxt('Nada aquí.');
         $$('[data-f]').forEach(b => b.classList.toggle('on', b.dataset.f === filtro)); enlazarFilas();
       };
-      main.innerHTML = tit('Pedidos', 'Toca un pedido para ver todo. El botón de la derecha avanza el siguiente paso rápido.', '<div class="tit-b"><button class="b" id="reg-p">Registrar dinero</button><button class="b negro" id="nuevo">＋ Nuevo pedido</button></div>') + tabs
+      main.innerHTML = tit('Pedidos', '', '<button class="b negro" id="nuevo">＋ Nuevo</button>') + tabs
         + '<div class="chips filtros">' + [['activos', 'Activos'], ['cobrar', 'Por cobrar'], ['atrasados', 'Atrasados'], ['finalizados', 'Finalizados'], ['todos', 'Todos']].map(([k, t]) => '<button data-f="' + k + '">' + t + '</button>').join('') + '</div>'
         + '<section class="caja"><div class="lista" id="lista-p"></div></section>';
       $$('[data-f]').forEach(b => b.onclick = () => { filtro = b.dataset.f; pintar(); });
-      $('#reg-p').onclick = () => registrar(); pintar();
+      pintar();
     }
     if ($('#nuevo')) $('#nuevo').onclick = () => alta();
   }
@@ -426,34 +418,33 @@
       return '<tr><td>' + esc(n) + '</td><td>' + (e != null ? pesos(e) : '<span class="a">pendiente</span>') + '</td><td>' + (r ? pesos(r) : '—') + '</td><td class="' + (e != null && r ? (d > 0 ? 'r' : 'v') : '') + '">' + (e != null && r ? (d > 0 ? '+' : '') + pesos(d) : e != null ? 'por gastar' : '') + '</td></tr>'; }).join('');
     const deDonde = Object.entries(s.deDonde), aOtros = Object.entries(s.aOtros);
     const nc = M.noCuadra().filter(x => x.ref && x.ref.pedido === p.id);
-    main.innerHTML = '<a class="volver" href="#pedidos">← Pedidos</a>'
-      + tit(esc(c.nombre || 'Sin cliente') + ' <span class="folio">#' + esc(p.folio || '—') + '</span>', esc(piezaTxt(p)) + '<br>' + [c.telefono, c.direccion].filter(Boolean).map(esc).join(' · ') + (p.vendedor ? ' · vendió ' + esc(otra(p.vendedor, p.vendedorOtro)) : ''),
-        '<div class="tit-b"><button class="b negro" id="reg">＋ Registrar dinero</button><button class="b" id="edit">Editar pedido</button>' + (p.cerrado ? '' : '<button class="b rojo-b" id="falla">⚠ Falla / reponer</button>') + '</div>')
-      + (s.fallas.length ? '<section class="caja mal"><div class="caja-t"><h2>⚠ Reposición por falla técnica</h2><button class="b chico" id="sob-rota">＋ Guardar pedazos como sobrante</button></div><ul class="nocuadra">' + s.fallas.map((f, i) => '<li class="g1"><span><b>Falla ' + (i + 1) + ' · ' + esc(f.motivo || '') + ' · ' + fC(f.fecha) + '</b><small>La paga: ' + esc(f.paga || 'por definir') + (f.rehacer ? ' · se rehace: ' + esc(f.rehacer) : '') + (f.nota ? ' · ' + esc(f.nota) : '') + '</small></span></li>').join('') + '</ul><p class="nota">Lo gastado antes de la falla (<b class="r">' + pesos(s.perdida) + '</b>) cuenta como pérdida de este pedido. El seguimiento volvió a empezar desde la placa.</p></section>' : '')
-      + (cs.frecuente ? '<p class="aviso v">Cliente frecuente: ' + cs.ps.length + ' pedidos · pagó ' + pesos(cs.pagado) + ' en total · debe ' + pesos(cs.debe) + '. <a href="#c=' + esc(c.id) + '">Ver su perfil</a></p>' : '')
-      + '<section class="caja seg ' + (p.cerrado ? 'ok' : '') + '"><div class="caja-t"><h2>' + (p.cerrado ? 'Pedido finalizado ✓' : 'Seguimiento · ' + esc(s.estado)) + '</h2><span class="sub">' + s.hechos + ' de 7</span></div>'
-        + '<ol class="pasos">' + s.pasos.map((x, i) => '<li class="' + (x.done ? 'si' : '') + (s.actual === x ? ' ya' : '') + '"><i>' + (x.done ? '✓' : i + 1) + '</i><span><b>' + esc(x.n) + '</b><small>' + (x.done ? (x.fecha ? fC(x.fecha) : 'hecho') : x.auto ? 'se marca solo al registrar el dinero' : 'pendiente') + '</small></span>'
-          + (p.cerrado ? '' : x.auto ? (x.done || x.k === 'pedido' ? '' : '<button class="b chico" data-cob="1">Cobrar</button>') : '<button class="b chico" data-paso="' + x.k + '">' + ((p.pasos || {})[x.k] ? 'Desmarcar' : x.done ? 'Poner fecha' : 'Marcar') + '</button>') + '</li>').join('') + '</ol>'
-        + (p.cerrado ? '<button class="b" id="reabrir">Reabrir pedido</button>' : '<button class="b ' + (fin ? 'verde' : '') + ' grande" id="finalizar"' + (fin ? '' : ' disabled') + '>' + (fin ? 'Finalizar pedido ✓' : 'Finalizar (cuando esté entregada y liquidada)') + '</button>') + '</section>'
-      + (nc.length ? '<section class="caja mal"><h2>No cuadra en este pedido</h2><ul class="nocuadra">' + nc.map(itemNoCuadra).join('') + '</ul></section>' : '')
-      + (s.pend.length ? '<section class="caja pend"><div class="caja-t"><h2>Datos pendientes · ' + s.pend.length + '</h2><button class="b chico" data-edit2="1">Completar</button></div><p>' + s.pend.map(esc).join(' · ') + '</p></section>' : '')
-      + '<section class="kpis">' + kpi('Precio', s.precio ? pesos(s.precio) : 'Pendiente', s.precio ? '' : 'a') + kpi('Ya pagó', pesos(s.ent), 'v', s.cobradoPct != null ? pct(s.cobradoPct) + ' del precio' : '') + kpi('Le falta pagar', s.porCobrar != null ? pesos(Math.max(s.porCobrar, 0)) : '—', s.porCobrar > 0 ? 'r' : '', 'anticipo acordado ' + (s.precio ? pesos(s.antAc) : '—'))
-        + kpi('Gastado', pesos(s.sal), 'r', (s.perdida ? pesos(s.perdida) + ' perdidos en la falla · ' : '') + (s.costo ? pct(s.gastadoPct) + ' de ' + pesos(s.costo) + ' estimado' : 'sin costo estimado')) + kpi('Ganancia esperada', s.ganancia != null ? pesos(s.ganancia) : '—', s.ganancia != null ? cls(s.ganancia) : '', s.margen != null ? 'margen ' + pct(s.margen) + ' · ×' + s.veces.toFixed(2) + ' (regla ×1.6 = ' + pesos(s.precioSug) + ')' : '')
-        + kpi('Su dinero que queda', pesos(s.saldoSuyo), cls(s.saldoSuyo), s.necesita > 0 ? 'faltan ' + pesos(s.necesita) + ' para terminarla' : s.porGastar ? 'faltan ' + pesos(s.porGastar) + ' de gastos' : '') + '</section>'
-      + '<div class="dos"><section class="caja"><h2>Costos: estimado contra real</h2>' + (filas ? '<div class="tabla"><table><thead><tr><th>Concepto</th><th>Estimado</th><th>Real</th><th>Diferencia</th></tr></thead><tbody>' + filas + '</tbody><tfoot><tr><td>Total</td><td>' + (s.costo ? pesos(s.costo) : '—') + '</td><td>' + pesos(s.sal) + '</td><td class="' + (s.costo && s.sal > s.costo ? 'r' : '') + '">' + (s.costo ? (s.sal > s.costo ? '+' : '') + pesos(s.sal - s.costo) : '—') + '</td></tr></tfoot></table></div>' : vacioTxt('Sin costos todavía.')) + '</section>'
-      + '<section class="caja"><h2>De dónde salió y a dónde se fue el dinero</h2>'
-        + '<h3>Gastos de esta mesa, pagados con</h3>' + (deDonde.length ? '<ul class="fondos">' + deDonde.map(([f, v]) => '<li><span>' + (f ? esc(M.nomFondo(f)) : '<span class="a">sin decir de qué dinero</span>') + '</span><b>' + pesos(v) + '</b></li>').join('') + '</ul>' : vacioTxt('Sin gastos.'))
-        + '<h3>El dinero de ' + esc(c.nombre || 'este cliente') + ' se usó para</h3>' + (aOtros.length ? '<ul class="fondos">' + aOtros.map(([k, v]) => '<li><span>' + (k === 'gen' ? 'Gastos generales' : k.slice(0, 2) === 'p:' ? 'Pagar el pedido de ' + esc(M.nomPed(k.slice(2))) : 'Pagar a ' + esc((M.deu(k.slice(2)) || {}).nombre || '')) + '</span><b class="r">' + pesos(v) + '</b></li>').join('') + '</ul>' : vacioTxt('Solo para su propia mesa (o todavía no se ha usado).')) + '</section></div>'
-      + '<section class="caja"><div class="caja-t"><h2>Formato de pedido</h2><div class="tit-b"><button class="b chico" id="fp">PDF del formato</button><button class="b chico" data-edit2="1">Editar</button></div></div>' + specsHTML(p, c) + '</section>'
-      + (p.notas ? '<section class="caja"><h2>Notas</h2><p class="notas">' + esc(p.notas) + '</p></section>' : '')
-      + '<section class="caja"><h2>Movimientos de este pedido</h2>' + (s.ms.length ? '<div class="lista">' + s.ms.slice().reverse().map(filaMov).join('') + '</div>' : vacioTxt('Sin movimientos.')) + '</section>'
+    const tablaCostos = filas ? '<div class="tabla"><table><thead><tr><th>Concepto</th><th>Estimado</th><th>Real</th><th>Dif.</th></tr></thead><tbody>' + filas + '</tbody><tfoot><tr><td>Total</td><td>' + (s.costo ? pesos(s.costo) : '—') + '</td><td>' + pesos(s.sal) + '</td><td class="' + (s.costo && s.sal > s.costo ? 'r' : '') + '">' + (s.costo ? (s.sal > s.costo ? '+' : '') + pesos(s.sal - s.costo) : '—') + '</td></tr></tfoot></table></div>' : vacioTxt('Sin costos todavía.');
+    const dinero2 = '<h3>Gastos de esta mesa, pagados con</h3>' + (deDonde.length ? '<ul class="fondos">' + deDonde.map(([f, v]) => '<li><span>' + (f ? esc(M.nomFondo(f)) : '<span class="a">sin decir de qué dinero</span>') + '</span><b>' + pesos(v) + '</b></li>').join('') + '</ul>' : vacioTxt('Sin gastos.'))
+      + '<h3>Su dinero se usó para</h3>' + (aOtros.length ? '<ul class="fondos">' + aOtros.map(([k, v]) => '<li><span>' + (k === 'gen' ? 'Gastos generales' : k.slice(0, 2) === 'p:' ? 'Pedido de ' + esc(M.nomPed(k.slice(2))) : 'Pagar a ' + esc((M.deu(k.slice(2)) || {}).nombre || '')) + '</span><b class="r">' + pesos(v) + '</b></li>').join('') + '</ul>' : vacioTxt('Solo su propia mesa.'));
+    main.innerHTML = '<a class="volver" href="#pedidos">‹ Pedidos</a>'
+      + tit(esc(c.nombre || 'Sin cliente') + ' <span class="folio">#' + esc(p.folio || '—') + '</span>', esc(piezaTxt(p)) + (p.entrega ? ' · entrega ' + fC(p.entrega) : ''), '<div class="tit-b"><button class="b negro" id="reg">＋ Dinero</button><button class="b" id="mas">•••</button></div>')
+      + (s.fallas.length ? '<p class="aviso r">⚠ Reposición por falla: ' + esc(s.fallas[s.fallas.length - 1].motivo || '') + ' (' + fC(s.fallas[s.fallas.length - 1].fecha) + ') · pérdida ' + pesos(s.perdida) + '</p>' : '')
+      + '<section class="kpis cuatro">' + kpi('Precio', s.precio ? pesos(s.precio) : 'Pendiente', s.precio ? '' : 'a') + kpi('Pagó', pesos(s.ent), 'v') + kpi('Debe', s.porCobrar != null ? pesos(Math.max(s.porCobrar, 0)) : '—', s.porCobrar > 0 ? 'r' : '') + kpi('Ganancia', s.ganancia != null ? pesos(s.ganancia) : '—', s.ganancia != null ? cls(s.ganancia) : '', s.margen != null ? pct(s.margen) : '') + '</section>'
+      + '<section class="caja seg ' + (p.cerrado ? 'ok' : '') + '"><div class="caja-t"><h2>' + (p.cerrado ? 'Finalizado ✓' : esc(s.estado)) + '</h2><span class="sub">' + s.hechos + ' de 7</span></div>'
+        + '<ol class="pasos">' + s.pasos.map((x, i) => '<li class="' + (x.done ? 'si' : '') + (s.actual === x ? ' ya' : '') + '"><i>' + (x.done ? '✓' : i + 1) + '</i><span><b>' + esc(x.n) + '</b><small>' + (x.done ? (x.fecha ? fC(x.fecha) : 'hecho') : 'pendiente') + '</small></span>'
+          + (p.cerrado || (x.done && !(p.pasos || {})[x.k]) ? '' : x.auto ? (x.k === 'pedido' ? '' : '<button class="b chico" data-cob="1">Cobrar</button>') : '<button class="b chico" data-paso="' + x.k + '">' + ((p.pasos || {})[x.k] ? 'Quitar' : x.done ? 'Fecha' : 'Marcar') + '</button>') + '</li>').join('') + '</ol>'
+        + (p.cerrado ? '<button class="b" id="reabrir">Reabrir pedido</button>' : fin ? '<button class="b verde grande" id="finalizar">Finalizar pedido ✓</button>' : '') + '</section>'
+      + (s.pend.length ? plegable('Datos pendientes', s.pend.length + '', '<p class="a">' + s.pend.map(esc).join(' · ') + '</p><button class="b chico" data-edit2="1">Completar</button>', false, 'pend') : '')
+      + (nc.length ? plegable('⚠ No cuadra', nc.length + '', '<ul class="nocuadra">' + nc.map(itemNoCuadra).join('') + '</ul>', false, 'mal') : '')
+      + plegable('Movimientos', s.ms.length + '', s.ms.length ? '<div class="lista">' + s.ms.slice().reverse().map(filaMov).join('') + '</div>' : vacioTxt('Sin movimientos.'))
+      + plegable('Costos', s.costo ? pesos(s.sal) + ' de ' + pesos(s.costo) : pesos(s.sal), tablaCostos)
+      + plegable('De dónde salió el dinero', '', dinero2)
+      + plegable('Formato de pedido', '', specsHTML(p, c) + '<button class="b chico" id="fp" style="margin-top:12px">PDF del formato</button>')
+      + (p.notas ? plegable('Notas', '', '<p class="notas">' + esc(p.notas) + '</p>') : '')
+      + (cs.frecuente ? plegable('Cliente frecuente', cs.ps.length + ' pedidos', '<p>Pagó ' + pesos(cs.pagado) + ' en total · debe ' + pesos(cs.debe) + '. <a class="lnk" href="#c=' + esc(c.id) + '">Ver su perfil</a></p>') : '')
       + sobrantesDePedido(p);
-    $('#reg').onclick = () => registrar(null, { pedido: p.id }); $$('#edit,[data-edit2]').forEach(b => b.onclick = () => alta(p));
+    $('#mas').onclick = () => hoja('Más opciones', '<button class="b grande" id="o-ed">Editar pedido</button><button class="b grande" id="o-fp">PDF del formato de pedido</button>' + (p.cerrado ? '' : '<button class="b rojo-b grande" id="o-fa">⚠ Falla técnica / reponer</button>') + (s.fallas.length ? '<button class="b grande" id="o-sob">Guardar pedazos rotos como sobrante</button>' : ''), h => {
+      $('#o-ed', h).onclick = () => { cerrarHoja(); alta(p); }; $('#o-fp', h).onclick = () => { cerrarHoja(); pdfFormato(p); };
+      if ($('#o-fa', h)) $('#o-fa', h).onclick = () => { cerrarHoja(); hojaFalla(p, s); }; if ($('#o-sob', h)) $('#o-sob', h).onclick = () => { cerrarHoja(); hojaSobrante(null, { piedra: otra(p.color, p.colorOtra), pedido: p.id }); }; });
+    $('#reg').onclick = () => registrar(null, { pedido: p.id }); $$('[data-edit2]').forEach(b => b.onclick = () => alta(p));
     $$('[data-cob]').forEach(b => b.onclick = () => registrar(null, { tipo: 'in', origen: 'pedido', pedido: p.id }));
     $$('[data-paso]').forEach(b => b.onclick = () => marcarPaso(p, b.dataset.paso));
     $('#fp').onclick = () => pdfFormato(p);
-    if ($('#falla')) $('#falla').onclick = () => hojaFalla(p, s);
-    if ($('#sob-rota')) $('#sob-rota').onclick = () => hojaSobrante(null, { piedra: otra(p.color, p.colorOtra), pedido: p.id });
     if ($('#finalizar')) $('#finalizar').onclick = async () => { if (!await clave('Finalizar pedido', [['Pedido', M.nomPedido(p)], ['Cobrado', pesos(s.ent)], ['Gastado', pesos(s.sal)], ['Ganancia real', pesos(s.ent - s.sal)]])) return; await guardarYa(() => A.nodoCambia('dinero/pedidos/' + p.id, { cerrado: true }), 'Pedido finalizado', 'Finalizó ' + M.nomPedido(p)); };
     if ($('#reabrir')) $('#reabrir').onclick = async () => { if (!await clave('Reabrir pedido', [['Pedido', M.nomPedido(p)]])) return; await guardarYa(() => A.nodoCambia('dinero/pedidos/' + p.id, { cerrado: false }), 'Pedido reabierto', 'Reabrió ' + M.nomPedido(p)); };
     enlazarMovs(); enlazarNC(); enlazarSobrantesPedido(p);
@@ -540,7 +531,7 @@
   }
 
   // ================= DINERO =================
-  let perDin = 'mes', filDin = 'todos', qDin = '';
+  let perDin = 'mes', filDin = 'todos', qDin = '', verTodos = false;
   function dinero() {
     const T = M.totales(), h = hoy(), y = h.slice(0, 4), mes = h.slice(0, 7), pm = (() => { const d = new Date(+y, +h.slice(5, 7) - 2, 1); return N.ymd(d).slice(0, 7); })();
     const enPer = m => perDin === 'todo' || (perDin === 'mes' ? m.fecha.slice(0, 7) === mes : perDin === 'pasado' ? m.fecha.slice(0, 7) === pm : m.fecha.slice(0, 4) === y);
@@ -548,20 +539,19 @@
     const cats = Object.entries(ms.filter(m => !N.esIn(m)).reduce((o, m) => { o[m.cat || 'Otro'] = (o[m.cat || 'Otro'] || 0) + num(m.monto); return o; }, {})).sort((a, b) => b[1] - a[1]), totC = cats.reduce((a, [, v]) => a + v, 0);
     const fondos = M.fondos().filter(f => f.saldo || M.movs.some(m => m.fondo === f.f));
     const ganancias = T.ps.filter(([, s]) => s.ent || s.sal || s.precio);
-    main.innerHTML = tit('Dinero', 'Todo el dinero: cuánto hay, quién lo tiene, de dónde vino, en qué se fue y cuánto se gana o se pierde.', '<button class="b negro" id="reg-d">＋ Registrar dinero</button>')
-      + '<section class="kpis">' + kpi('Dinero con nosotros hoy', pesos(T.caja), cls(T.caja), 'entró ' + pesos(T.ent) + ' − salió ' + pesos(T.sal)) + Object.entries(T.porQuien).map(([q, v]) => kpi('Lo tiene ' + esc(q), pesos(v), cls(v), v < 0 ? 'puso de su bolsa' : '')).join('')
-        + kpi('En efectivo', pesos(T.porMetodo.Efectivo)) + kpi('En banco', pesos(T.porMetodo.Banco)) + (T.porMetodo['Sin decir'] ? kpi('Sin decir cómo', pesos(T.porMetodo['Sin decir']), 'a', 'aclara si fue efectivo o banco') : '') + '</section>'
-      + '<section class="caja"><div class="caja-t"><h2>Por periodo</h2><div class="chips" id="per">' + [['mes', 'Este mes'], ['pasado', 'Mes pasado'], ['anio', 'Este año'], ['todo', 'Todo']].map(([k, t]) => '<button data-v="' + k + '"' + (perDin === k ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div></div>'
-        + '<div class="kpis tres sin">' + kpi('Entró', pesos(e), 'v') + kpi('Salió', pesos(sa), 'r') + kpi('Resultado', pesos(e - sa), cls(e - sa)) + '</div>'
-        + '<h3>En qué se fue el dinero</h3>' + (cats.length ? '<ul class="barras">' + cats.map(([k, v]) => '<li><span>' + esc(k) + '</span><i><em style="width:' + Math.max(2, v / totC * 100) + '%"></em></i><b>' + pesos(v) + '</b></li>').join('') + '</ul>' : vacioTxt('Sin salidas en este periodo.')) + '</section>'
-      + '<div class="dos"><section class="caja"><h2>Ganancias y pérdidas por pedido</h2>' + (ganancias.length ? '<div class="tabla"><table><thead><tr><th>Pedido</th><th>Precio</th><th>Cobrado</th><th>Gastado</th><th>Ganancia</th></tr></thead><tbody>'
-          + ganancias.map(([p, s]) => { const g = p.cerrado ? s.gananciaReal : s.ganancia; return '<tr><td><a href="#p=' + esc(p.id) + '">' + esc(M.nomPedido(p)) + '</a>' + (p.cerrado ? ' ' + pill('real', 'v') : '') + '</td><td>' + (s.precio ? pesos(s.precio) : '<span class="a">—</span>') + '</td><td>' + pesos(s.ent) + '</td><td>' + pesos(s.sal) + '</td><td class="' + (g != null ? cls(g) : '') + '">' + (g != null ? pesos(g) : '<span class="a">falta dato</span>') + '</td></tr>'; }).join('')
-          + '</tbody><tfoot><tr><td>Gastos generales</td><td></td><td></td><td>' + pesos(T.gastoGeneral) + '</td><td class="r">' + pesos(-T.gastoGeneral) + '</td></tr><tr><td>Ganancia esperada (activos)</td><td></td><td></td><td></td><td class="' + cls(T.ganEsp) + '">' + pesos(T.ganEsp) + '</td></tr><tr><td>Pérdidas por fallas (ya incluidas arriba)</td><td></td><td></td><td></td><td class="r">' + pesos(-T.perdidas) + '</td></tr><tr><td>Ganancia real (finalizados)</td><td></td><td></td><td></td><td class="' + cls(T.ganReal) + '">' + pesos(T.ganReal) + '</td></tr></tfoot></table></div>' : vacioTxt('Sin pedidos con dinero.')) + '</section>'
-      + '<section class="caja"><h2>De quién es el dinero que hay</h2><p class="nota">Cada cliente, préstamo y la caja general es una "bolsa". Si una bolsa queda en negativo, se usó dinero de otro.</p>'
-        + (fondos.length ? '<ul class="fondos">' + fondos.map(f => '<li><span>' + esc(f.nombre) + '</span><b class="' + cls(f.saldo) + '">' + pesos(f.saldo) + '</b></li>').join('') + '</ul>' : vacioTxt('Sin bolsas.')) + '</section></div>'
-      + '<section class="caja"><div class="caja-t"><h2>Movimientos</h2><input id="q" type="search" placeholder="Buscar" value="' + esc(qDin) + '"></div><div class="chips" id="fil">' + [['todos', 'Todos'], ['in', 'Entradas'], ['out', 'Salidas'], ['aclarar', 'Por aclarar · ' + T.porAclarar]].map(([k, t]) => '<button data-v="' + k + '"' + (filDin === k ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div><div class="lista" id="movs"></div></section>';
+    main.innerHTML = tit('Dinero', '', '<button class="b negro" id="reg-d">＋ Registrar</button>')
+      + '<section class="kpis">' + kpi('Dinero hoy', pesos(T.caja), T.caja < 0 ? 'r' : '', Object.entries(T.porQuien).filter(([, v]) => v).map(([q, v]) => 'Lo tiene ' + esc(q) + ' ' + pesos(v)).join(' · '), '', 'hero')
+        + kpi('Ganancia esperada', T.conG ? pesos(T.ganEsp) : '—', cls(T.ganEsp), T.conG ? 'margen ' + pct(T.margenProm) : '') + kpi('Pérdidas', pesos(T.perdidas), T.perdidas ? 'r' : '', 'por fallas') + '</section>'
+      + '<section class="caja"><div class="chips filtros" id="per">' + [['mes', 'Este mes'], ['pasado', 'Mes pasado'], ['anio', 'Este año'], ['todo', 'Todo']].map(([k, t]) => '<button data-v="' + k + '"' + (perDin === k ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div>'
+        + '<div class="kpis tres sin">' + kpi('Entró', pesos(e), 'v') + kpi('Salió', pesos(sa), 'r') + kpi('Quedó', pesos(e - sa), cls(e - sa)) + '</div></section>'
+      + plegable('En qué se fue', pesos(totC), cats.length ? '<ul class="barras">' + cats.map(([k, v]) => '<li><span>' + esc(k) + '</span><i><em style="width:' + Math.max(2, v / totC * 100) + '%"></em></i><b>' + pesos(v) + '</b></li>').join('') + '</ul>' : vacioTxt('Sin salidas en este periodo.'))
+      + plegable('Ganancia por pedido', '', ganancias.length ? '<div class="tabla"><table><thead><tr><th>Pedido</th><th>Precio</th><th>Cobrado</th><th>Gastado</th><th>Ganancia</th></tr></thead><tbody>'
+          + ganancias.map(([p, s]) => { const g = p.cerrado ? s.gananciaReal : s.ganancia; return '<tr><td><a href="#p=' + esc(p.id) + '">' + esc(M.nomPedido(p)) + '</a></td><td>' + (s.precio ? pesos(s.precio) : '—') + '</td><td>' + pesos(s.ent) + '</td><td>' + pesos(s.sal) + '</td><td class="' + (g != null ? cls(g) : '') + '">' + (g != null ? pesos(g) : '—') + '</td></tr>'; }).join('')
+          + '</tbody><tfoot><tr><td>Gastos generales</td><td></td><td></td><td>' + pesos(T.gastoGeneral) + '</td><td class="r">' + pesos(-T.gastoGeneral) + '</td></tr></tfoot></table></div>' : vacioTxt('Sin pedidos con dinero.'))
+      + plegable('De quién es el dinero', '', '<p class="nota">Cada cliente y cada préstamo es una "bolsa". En negativo = se usó dinero de otro.</p>' + (fondos.length ? '<ul class="fondos">' + fondos.map(f => '<li><span>' + esc(f.nombre) + '</span><b class="' + cls(f.saldo) + '">' + pesos(f.saldo) + '</b></li>').join('') + '</ul>' : vacioTxt('Sin bolsas.')))
+      + '<section class="caja"><div class="caja-t"><h2>Movimientos</h2><input id="q" type="search" placeholder="Buscar" value="' + esc(qDin) + '"></div><div class="chips filtros" id="fil">' + [['todos', 'Todos'], ['in', 'Entradas'], ['out', 'Salidas'], ['aclarar', 'Aclarar · ' + T.porAclarar]].map(([k, t]) => '<button data-v="' + k + '"' + (filDin === k ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div><div class="lista" id="movs"></div></section>';
     const pintar = () => { const q = qDin.trim().toLowerCase(); const l = M.movs.filter(m => (filDin === 'todos' || (filDin === 'aclarar' ? m.revisar : m.tipo === filDin)) && (!q || [m.cat, m.nota, m.quien, M.nomPed(m.pedido), (M.deu(m.deuda) || {}).nombre].join(' ').toLowerCase().includes(q))).slice().reverse();
-      $('#movs').innerHTML = l.length ? l.map(filaMov).join('') : vacioTxt('Nada aquí.'); enlazarMovs(); };
+      $('#movs').innerHTML = l.length ? l.slice(0, verTodos ? l.length : 12).map(filaMov).join('') + (l.length > 12 && !verTodos ? '<button class="b chico" id="ver-todos" style="margin-top:10px">Ver los ' + l.length + '</button>' : '') : vacioTxt('Nada aquí.'); enlazarMovs(); const vt = $('#ver-todos'); if (vt) vt.onclick = () => { verTodos = true; pintar(); }; };
     $$('#per [data-v]').forEach(b => b.onclick = () => { perDin = b.dataset.v; dinero(); });
     $$('#fil [data-v]').forEach(b => b.onclick = () => { filDin = b.dataset.v; $$('#fil [data-v]').forEach(o => o.classList.toggle('on', o === b)); pintar(); });
     $('#q').oninput = e => { qDin = e.target.value; pintar(); };
@@ -579,9 +569,9 @@
     const disp = M.sobrantes.filter(s => s.estado !== 'usado'), usados = M.sobrantes.filter(s => s.estado === 'usado');
     const porPiedra = {}; disp.forEach(s => { (porPiedra[s.piedra || 'Sin piedra'] = porPiedra[s.piedra || 'Sin piedra'] || []).push(s); });
     const area = disp.reduce((a, s) => a + num(s.w) * num(s.h), 0) / 10000;
-    main.innerHTML = tit('Sobrantes de piedra', 'Los pedazos que van quedando de cada placa, y para cuántas grapas alcanzan.', '<button class="b negro" id="ns">＋ Agregar sobrante</button>')
-      + '<section class="kpis tres">' + kpi('Sobrantes disponibles', String(disp.length)) + kpi('Piedra guardada', area.toFixed(2) + ' m²') + kpi('Ya usados', String(usados.length)) + '</section>'
-      + '<section class="caja"><h2>¿Me alcanza?</h2><p class="nota">Escribe una medida (cm) y te digo en qué sobrantes cabe y cuántas salen.</p><div class="dos-i"><input id="mq" placeholder="ej. 60×60 o Ø70" value="' + esc(medDisp) + '"><span id="mr" class="sub"></span></div></section>'
+    const T = M.totales(), tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length], ['sobrantes', 'Sobrantes', disp.length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === 'sobrantes' ? ' class="on"' : '') + '>' + t + ' <small>' + n + '</small></a>').join('') + '</nav>';
+    main.innerHTML = tit('Pedidos', '', '<button class="b negro" id="ns">＋ Sobrante</button>') + tabs
+      + '<section class="caja"><h2>¿Me alcanza?</h2><div class="dos-i"><input id="mq" placeholder="Medida, ej. 60×60 o Ø70" value="' + esc(medDisp) + '"><span id="mr" class="sub"></span></div><p class="nota">' + area.toFixed(2) + ' m² de piedra guardada en ' + disp.length + ' sobrantes.</p></section>'
       + (Object.keys(porPiedra).length ? Object.entries(porPiedra).map(([pi, l]) => '<section class="caja"><h2>' + esc(pi) + ' · ' + l.length + '</h2><div class="sobs">' + l.map(tarjetaSobrante).join('') + '</div></section>').join('') : '<section class="caja">' + vacioTxt('No hay sobrantes anotados. Al marcar la placa de un pedido como comprada, te sugiero los sobrantes que deja.') + '</section>')
       + (usados.length ? '<section class="caja"><h2>Usados · ' + usados.length + '</h2><div class="sobs">' + usados.map(tarjetaSobrante).join('') + '</div></section>' : '');
     $('#ns').onclick = () => hojaSobrante();
@@ -623,7 +613,7 @@
   function sobrantesDePedido(p) {
     const ya = M.sobrantes.filter(s => s.pedido === p.id), sug = N.sobrantesDe(num(p.largo), p.forma === 'Redonda' ? num(p.largo) : num(p.ancho));
     if (!ya.length && !(sug.length && M.statsPedido(p).pasos[2].done)) return '';
-    return '<section class="caja"><div class="caja-t"><h2>Sobrantes de su placa</h2></div>' + (ya.length ? '<div class="sobs">' + ya.map(tarjetaSobrante).join('') + '</div>' : '<p class="nota">De una placa de 320×160 cortando ' + num(p.largo) + '×' + num(p.ancho) + ' sobran:</p><div class="chips">' + sug.map((r, i) => '<button data-sug="' + i + '">＋ ' + r.w + ' × ' + r.h + ' cm</button>').join('') + '</div>') + '</section>';
+    return plegable('Sobrantes de su placa', ya.length ? ya.length + '' : '', (ya.length ? '<div class="sobs">' + ya.map(tarjetaSobrante).join('') + '</div>' : '<p class="nota">De una placa de 320×160 cortando ' + num(p.largo) + '×' + num(p.ancho) + ' sobran:</p><div class="chips">' + sug.map((r, i) => '<button data-sug="' + i + '">＋ ' + r.w + ' × ' + r.h + ' cm</button>').join('') + '</div>'));
   }
   function enlazarSobrantesPedido(p) { const sug = N.sobrantesDe(num(p.largo), p.forma === 'Redonda' ? num(p.largo) : num(p.ancho)); $$('[data-sug]').forEach(b => b.onclick = () => hojaSobrante(null, Object.assign({ piedra: otra(p.color, p.colorOtra), pedido: p.id }, sug[+b.dataset.sug]))); $$('.sobs [data-usar]').forEach(b => b.onclick = () => usarSobrante(M.sobrantes.find(s => s.id === b.dataset.usar))); }
 

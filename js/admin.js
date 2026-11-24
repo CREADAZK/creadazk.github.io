@@ -267,6 +267,7 @@
     document.body.classList.add('dentro');
     main.innerHTML = '<p class="cargando">Cargando…</p>';
     await cargar(); if (!location.hash) history.replaceState(null, '', '#inicio'); ruta();
+    A.listar().then(l => { SOL = l; }).catch(() => {});
   }
   function login(err) {
     document.body.classList.remove('dentro');
@@ -314,6 +315,7 @@
     if (h === 'pedidos') return pedidos('pedidos');
     if (h === 'pedidos/clientes') return pedidos('clientes');
     if (h === 'pedidos/deudas') return pedidos('deudas');
+    if (h === 'pedidos/solicitudes') return solicitudes();
     if (h === 'pedidos/sobrantes') return sobrantes();
     if (/^p=/.test(h)) { const p = M.ped(h.slice(2)); return p ? pedido(p) : pedidos('pedidos'); }
     if (/^c=/.test(h)) { const c = M.cli(h.slice(2)); return c ? cliente(c) : pedidos('clientes'); }
@@ -383,7 +385,7 @@
   }
   function pedidos(tab) {
     const T = M.totales();
-    const tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length], ['sobrantes', 'Sobrantes', M.sobrantes.filter(x => x.estado !== 'usado').length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === tab ? ' class="on"' : '') + '>' + t + ' <small>' + n + '</small></a>').join('') + '</nav>';
+    const tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['solicitudes', 'Solicitudes', solicitudesN()], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length], ['sobrantes', 'Sobrantes', M.sobrantes.filter(x => x.estado !== 'usado').length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === tab ? ' class="on"' : '') + '>' + t + ' <small>' + n + '</small></a>').join('') + '</nav>';
     if (tab === 'clientes') {
       const l = M.clientes.map(c => [c, M.statsCliente(c)]).sort((a, b) => b[1].activos - a[1].activos || (a[0].nombre || '').localeCompare(b[0].nombre || ''));
       main.innerHTML = tit('Pedidos', '', '<button class="b negro" id="nuevo">＋ Nuevo</button>') + tabs
@@ -530,6 +532,40 @@
     });
   }
 
+  // ================= SOLICITUDES (lo que piden en dkas.mx) =================
+  let SOL = null, filSol = 'nuevo';
+  const solicitudesN = () => SOL ? SOL.filter(x => x.estado === 'nuevo' && !M.pedidos.some(p => p.solicitud === x.id)).length : '';
+  const spec = (x, k) => { const it = (x.items || [])[0] || {}; const f = (it.specs || []).find(z => z[0] === k); return f ? f[1] : ''; };
+  async function solicitudes() {
+    const T = M.totales();
+    const tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['solicitudes', 'Solicitudes', ''], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length], ['sobrantes', 'Sobrantes', M.sobrantes.filter(x => x.estado !== 'usado').length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === 'solicitudes' ? ' class="on"' : '') + '>' + t + (n !== '' ? ' <small>' + n + '</small>' : '') + '</a>').join('') + '</nav>';
+    main.innerHTML = tit('Pedidos', '') + tabs + '<div class="chips filtros" id="fs">' + [['nuevo', 'Por cotizar'], ['cotizado', 'Esperan respuesta'], ['todas', 'Todas']].map(([k, t]) => '<button data-v="' + k + '"' + (filSol === k ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div><section class="caja"><div class="lista" id="sl"><p class="cargando">Cargando…</p></div></section>';
+    $$('#fs [data-v]').forEach(b => b.onclick = () => { filSol = b.dataset.v; $$('#fs [data-v]').forEach(o => o.classList.toggle('on', o === b)); pintar(); });
+    try { SOL = await A.listar(); } catch (e) { $('#sl').innerHTML = '<p class="err">No se pudieron cargar: ' + esc(e.message) + '</p>'; return; }
+    function pintar() {
+      if (!SOL) return;
+      const ya = id => M.pedidos.find(p => p.solicitud === id);
+      const l = SOL.filter(x => x.estado !== 'cancelado' && (filSol === 'todas' || x.estado === filSol)).sort((a, b) => (b.creado || 0) - (a.creado || 0));
+      $('#sl').innerHTML = l.length ? l.map(x => { const it = (x.items || [])[0] || {}, p = ya(x.id), tel = String(x.tel || '').replace(/\D/g, ''), d = new Date(x.creado || 0);
+        return '<div class="fila"><div class="fila-a sol"><span class="fila-c"><b>' + esc(x.nombre || 'Sin nombre') + ' <span class="folio">#' + esc(x.folio || '') + '</span></b><small>' + esc(it.titulo || 'Sin mesa') + [spec(x, 'Piedra').split(' · ')[0], spec(x, 'Base')].filter(Boolean).map(z => ' · ' + esc(z)).join('') + '</small><small>' + d.getDate() + ' ' + MES[d.getMonth()] + (tel ? ' · ' + esc(x.tel) : '') + '</small></span></div>'
+          + '<div class="fila-r sol-b">' + (tel ? '<a class="b chico" target="_blank" rel="noopener" href="https://wa.me/52' + tel.slice(-10) + '">WhatsApp</a>' : '') + '<a class="b chico" href="panel-viejo.html#p=' + esc(x.id) + '">Cotizar</a>' + (p ? '<a class="b chico verde" href="#p=' + esc(p.id) + '">Pedido #' + esc(p.folio) + '</a>' : '<button class="b chico negro" data-pasar="' + esc(x.id) + '">Pasar a pedido</button>') + '</div></div>'; }).join('') : vacioTxt('Nada aquí.');
+      $$('[data-pasar]').forEach(b => b.onclick = () => pasarAPedido(SOL.find(x => x.id === b.dataset.pasar)));
+    }
+    pintar();
+    const n = $$('.tabs a')[1]; if (n) n.innerHTML = 'Solicitudes <small>' + solicitudesN() + '</small>';
+  }
+  // una solicitud de la página se vuelve pedido: el formato ya sale lleno con lo que escogió el cliente
+  function pasarAPedido(x) {
+    const med = spec(x, 'Medidas'), nums = (med.match(/\d+(?:\.\d+)?/g) || []).map(Number), red = /Ø/.test(med) || /redond/i.test(spec(x, 'Forma'));
+    const forma = (C.FORMAS.find(f => new RegExp(f.slice(0, 5), 'i').test(spec(x, 'Forma'))) || (red ? 'Redonda' : '')), uso = C.TIPOS.find(t => new RegExp(t, 'i').test(spec(x, 'Uso'))) || '';
+    const piedraTxt = spec(x, 'Piedra').split(' · ')[0], piedra = C.PIEDRAS.find(pi => pi.toLowerCase() === piedraTxt.toLowerCase());
+    const tel = String(x.tel || '').replace(/\D/g, '').slice(-10), cli = M.clientes.find(c => String(c.telefono || '').replace(/\D/g, '').slice(-10) === tel && tel);
+    const p0 = { solicitud: x.id, forma, tipo: uso, largo: nums[0] || '', ancho: red ? '' : (nums[1] || ''), altura: num(spec(x, 'Altura')) || '', cantidad: num((x.items || [])[0] && x.items[0].cantidad) || 1,
+      material: 'Piedra sinterizada', color: piedra || (piedraTxt ? 'Otra' : ''), colorOtra: piedra ? '' : piedraTxt, base: spec(x, 'Base') ? 'Otra' : '', baseOtra: spec(x, 'Base'), pintura: spec(x, 'Color de base'),
+      notas: 'Viene de la solicitud #' + (x.folio || '') + ' de dkas.mx: ' + ((x.items || [])[0] || {}).titulo };
+    alta(p0, cli ? cli.id : null, cli ? null : { nombre: x.nombre || '', telefono: x.tel || '' });
+  }
+
   // ================= DINERO =================
   let perDin = 'mes', filDin = 'todos', qDin = '', verTodos = false;
   function dinero() {
@@ -569,7 +605,7 @@
     const disp = M.sobrantes.filter(s => s.estado !== 'usado'), usados = M.sobrantes.filter(s => s.estado === 'usado');
     const porPiedra = {}; disp.forEach(s => { (porPiedra[s.piedra || 'Sin piedra'] = porPiedra[s.piedra || 'Sin piedra'] || []).push(s); });
     const area = disp.reduce((a, s) => a + num(s.w) * num(s.h), 0) / 10000;
-    const T = M.totales(), tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length], ['sobrantes', 'Sobrantes', disp.length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === 'sobrantes' ? ' class="on"' : '') + '>' + t + ' <small>' + n + '</small></a>').join('') + '</nav>';
+    const T = M.totales(), tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['solicitudes', 'Solicitudes', solicitudesN()], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length], ['sobrantes', 'Sobrantes', disp.length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === 'sobrantes' ? ' class="on"' : '') + '>' + t + ' <small>' + n + '</small></a>').join('') + '</nav>';
     main.innerHTML = tit('Pedidos', '', '<button class="b negro" id="ns">＋ Sobrante</button>') + tabs
       + '<section class="caja"><h2>¿Me alcanza?</h2><div class="dos-i"><input id="mq" placeholder="Medida, ej. 60×60 o Ø70" value="' + esc(medDisp) + '"><span id="mr" class="sub"></span></div><p class="nota">' + area.toFixed(2) + ' m² de piedra guardada en ' + disp.length + ' sobrantes.</p></section>'
       + (Object.keys(porPiedra).length ? Object.entries(porPiedra).map(([pi, l]) => '<section class="caja"><h2>' + esc(pi) + ' · ' + l.length + '</h2><div class="sobs">' + l.map(tarjetaSobrante).join('') + '</div></section>').join('') : '<section class="caja">' + vacioTxt('No hay sobrantes anotados. Al marcar la placa de un pedido como comprada, te sugiero los sobrantes que deja.') + '</section>')
@@ -718,10 +754,10 @@
   // ================= ALTA / EDICIÓN DE PEDIDO (igual que la hoja de papel) =================
   const NUMS = ['largo', 'ancho', 'cantidad', 'altura', 'espesor', 'precio', 'anticipo'];
   const PASOS_ALTA = ['Cliente', 'Pedido', 'Tipo, forma y medidas', 'Cubierta', 'Base de herrería', 'Precio y anticipo', 'Costos'];
-  function alta(p0, cliId) {
+  function alta(p0, cliId, cliPre) {
     p0 = p0 || {}; const w = JSON.parse(JSON.stringify(p0)); w.costos = w.costos || {}; w.pend = w.pend || {};
     if (!w.fecha) w.fecha = hoy(); if (!w.cantidad) w.cantidad = 1; if (!w.folio) w.folio = M.pedidos.reduce((m, p) => Math.max(m, num(p.folio)), 0) + 1;
-    let cli = Object.assign({}, M.cli(w.cliente || cliId) || {}), nuevoCli = !cli.id, paso = cli.id && !p0.id ? 1 : 0;
+    let cli = Object.assign({}, M.cli(w.cliente || cliId) || cliPre || {}), nuevoCli = !cli.id, paso = cli.id && !p0.id ? 1 : 0;
     const costoW = () => N.COST.reduce((a, [k]) => a + num(w.costos[k]), 0);
     const vivo = () => { const co = costoW(), pr = num(w.precio), g = pr && co ? pr - co : null; return '<div class="vivo"><div>Costo<b>' + (co ? pesos(co) : '—') + '</b></div><div>Precio<b>' + (pr ? pesos(pr) : '—') + '</b></div><div>Ganancia<b class="' + (g != null ? cls(g) : '') + '">' + (g != null ? pesos(g) + ' · ' + pct(g / pr) : '—') + '</b></div></div>'; };
     const noTengo = k => '<button type="button" class="nt' + (w.pend[k] ? ' on' : '') + '" data-nt="' + k + '">' + (w.pend[k] ? 'Pendiente ✓' : 'No lo tengo aún') + '</button>';
@@ -778,7 +814,7 @@
         if ($('#ok', h)) $('#ok', h).onclick = async () => {
           if (!validar()) return;
           Object.keys(w.pend).forEach(k => { if (N.lleno(['telefono', 'direccion'].includes(k) ? cli : w, k)) delete w.pend[k]; });
-          const pd = {}; ['folio', 'fecha', 'entrega', 'vendedor', 'vendedorOtro', 'forma', 'tipo', 'tipoOtra', 'largo', 'ancho', 'cantidad', 'altura', 'material', 'materialOtro', 'marca', 'color', 'colorOtra', 'acabado', 'canto', 'cantoOtro', 'espesor', 'refuerzo', 'obsCubierta', 'base', 'baseOtra', 'pintura', 'pacabado', 'ptipo', 'niveladores', 'placasm', 'obsBase', 'precio', 'anticipo', 'notas'].forEach(k => { pd[k] = vacio(w[k]) ? null : w[k]; });
+          const pd = {}; ['solicitud', 'folio', 'fecha', 'entrega', 'vendedor', 'vendedorOtro', 'forma', 'tipo', 'tipoOtra', 'largo', 'ancho', 'cantidad', 'altura', 'material', 'materialOtro', 'marca', 'color', 'colorOtra', 'acabado', 'canto', 'cantoOtro', 'espesor', 'refuerzo', 'obsCubierta', 'base', 'baseOtra', 'pintura', 'pacabado', 'ptipo', 'niveladores', 'placasm', 'obsBase', 'precio', 'anticipo', 'notas'].forEach(k => { pd[k] = vacio(w[k]) ? null : w[k]; });
           pd.costos = Object.fromEntries(N.COST.map(([k]) => [k, vacio(w.costos[k]) ? null : num(w.costos[k])])); pd.pend = Object.keys(w.pend).length ? w.pend : null;
           const pend = N.pendientes(Object.assign({}, pd, { costos: w.costos }), cli);
           if (!await clave(p0.id ? 'Guardar cambios del pedido' : 'Dar de alta el pedido', [['Nº de pedido', String(pd.folio)], ['Cliente', cli.nombre + (nuevoCli ? ' (nuevo)' : '')], ['Mesa', piezaTxt(pd)], ['Entrega', pd.entrega ? fC(pd.entrega) : 'pendiente'], ['Precio', pd.precio ? pesos(pd.precio) : 'pendiente'], ['Costo estimado', costoW() ? pesos(costoW()) : 'pendiente'], ['Datos pendientes', pend.length ? String(pend.length) : 'ninguno']])) return;

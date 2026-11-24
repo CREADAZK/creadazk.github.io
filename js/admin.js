@@ -622,11 +622,11 @@
     const bit = Object.entries(D.bitacora || {}).map(([id, x]) => Object.assign({ id }, x)).sort((a, b) => (b.creado || 0) - (a.creado || 0));
     main.innerHTML = tit('Ajustes', esc(me.nombre || '') + (A.demo ? ' · modo prueba (no toca datos reales)' : ''), '<button class="b" id="salir">Salir</button>')
       + '<div class="dos"><section class="caja"><h2>Pendientes de arreglar</h2><ul class="links">'
-        + '<li><a href="taller.html#cotizar">Cotizaciones<small>Hay que ajustar los precios y conectarlas con los clientes reales. Es lo siguiente.</small></a></li>'
-        + '<li><a href="taller.html#clientes">Solicitudes de la página<small>Lo que piden los clientes en dkas.mx (va aparte de los pedidos).</small></a></li>'
-        + '<li><a href="taller.html#piedra">Inventario de placas (viejo)<small>Se va a juntar con Sobrantes.</small></a></li>'
-        + '<li><a href="taller.html#equipo">Administradores<small>Quién más puede entrar.</small></a></li>'
-        + '<li><a href="taller.html">Panel anterior<small>Todo lo viejo sigue ahí mientras terminamos de pasarlo.</small></a></li></ul></section>'
+        + '<li><a href="panel-viejo.html#cotizar">Cotizaciones<small>Hay que ajustar los precios y conectarlas con los clientes reales. Es lo siguiente.</small></a></li>'
+        + '<li><a href="panel-viejo.html#clientes">Solicitudes de la página<small>Lo que piden los clientes en dkas.mx (va aparte de los pedidos).</small></a></li>'
+        + '<li><a href="panel-viejo.html#piedra">Inventario de placas (viejo)<small>Se va a juntar con Sobrantes.</small></a></li>'
+        + '<li><a href="panel-viejo.html#equipo">Administradores<small>Quién más puede entrar.</small></a></li>'
+        + '<li><a href="panel-viejo.html">Panel viejo<small>Lo que falta pasar (cotizar, solicitudes de la página).</small></a></li></ul></section>'
       + '<section class="caja"><h2>Clave para confirmar</h2><p class="nota">Todo lo importante pide la clave antes de guardarse: registrar o borrar dinero, dar de alta o editar pedidos, marcar pasos, deudas y sobrantes. Es una confirmación para que nada se guarde por error; lo que protege el panel es el código de 6 números para entrar.</p></section></div>'
       + '<section class="caja"><h2>Auditoría · ' + bit.length + '</h2><p class="nota">Cada cosa que se confirma con la clave queda aquí: quién, cuándo y qué.</p>'
         + (bit.length ? '<div class="tabla"><table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th></tr></thead><tbody>' + bit.slice(0, 200).map(b => { const d = new Date(b.creado || 0); return '<tr><td>' + fC(N.ymd(d)) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + '</td><td>' + esc(b.por || '') + '</td><td><b>' + esc(b.accion) + '</b><br><small>' + esc(b.detalle || '') + '</small></td></tr>'; }).join('') + '</tbody></table></div>' : vacioTxt('Todavía no hay nada registrado.')) + '</section>';

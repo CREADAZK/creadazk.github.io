@@ -90,7 +90,7 @@
   // ---------- el modelo armado: todo conectado ----------
   function modelo(d, hoy) {
     const lista = o => Object.entries(o || {}).map(([id, x]) => Object.assign({ id }, x));
-    const M = { hoy, clientes: lista(d.clientes), pedidos: lista(d.pedidos), deudas: lista(d.deudas), movs: lista(d.movs), sobrantes: lista(d.sobrantes), agendaMan: lista(d.agenda), bitacora: lista(d.bitacora).sort((a, b) => (b.creado || 0) - (a.creado || 0)) };
+    const M = { hoy, clientes: lista(d.clientes), pedidos: lista(d.pedidos).map(p => p.piezas && !Array.isArray(p.piezas) ? Object.assign(p, { piezas: Object.values(p.piezas) }) : p), deudas: lista(d.deudas), movs: lista(d.movs), sobrantes: lista(d.sobrantes), agendaMan: lista(d.agenda), bitacora: lista(d.bitacora).sort((a, b) => (b.creado || 0) - (a.creado || 0)) };
     M.movs.sort((a, b) => (a.fecha || '').localeCompare(b.fecha || '') || (a.creado || 0) - (b.creado || 0));
     M.cli = id => M.clientes.find(c => c.id === id);
     M.ped = id => M.pedidos.find(p => p.id === id);

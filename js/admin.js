@@ -90,7 +90,7 @@
   // ---------- el modelo armado: todo conectado ----------
   function modelo(d, hoy) {
     const lista = o => Object.entries(o || {}).map(([id, x]) => Object.assign({ id }, x));
-    const M = { hoy, clientes: lista(d.clientes), pedidos: lista(d.pedidos), deudas: lista(d.deudas), movs: lista(d.movs), sobrantes: lista(d.sobrantes), agendaMan: lista(d.agenda), bitacora: lista(d.bitacora).sort((a, b) => (b.creado || 0) - (a.creado || 0)) };
+    const M = { hoy, clientes: lista(d.clientes), pedidos: lista(d.pedidos).map(p => p.piezas && !Array.isArray(p.piezas) ? Object.assign(p, { piezas: Object.values(p.piezas) }) : p), deudas: lista(d.deudas), movs: lista(d.movs), sobrantes: lista(d.sobrantes), agendaMan: lista(d.agenda), bitacora: lista(d.bitacora).sort((a, b) => (b.creado || 0) - (a.creado || 0)) };
     M.movs.sort((a, b) => (a.fecha || '').localeCompare(b.fecha || '') || (a.creado || 0) - (b.creado || 0));
     M.cli = id => M.clientes.find(c => c.id === id);
     M.ped = id => M.pedidos.find(p => p.id === id);
@@ -279,7 +279,947 @@
 })(this);
 
 ;
-/* DKAS · Admin nuevo (pantallas). Menú: Dashboard · Pedidos · Dinero · Sobrantes · Ajustes. Todo sale de DKAS_N (nucleo.js).
+/* DKAS · cortes de piedra para cortadora de puente. Todo en cm.
+   Solo cortes de guillotina: cada corte va recto de lado a lado del pedazo que se está cortando.
+   Cómo acomoda: cada pieza entra en un espacio libre; ese espacio se parte con 2 cortes rectos (uno de lado a lado
+   del espacio y otro de lado a lado de la tira), así que el resultado siempre se puede cortar en la máquina.
+   El disco se come `kerf` cm en cada corte; a una placa completa se le refilan `refilado` cm por lado (a un retazo no:
+   sus orillas ya vienen cortadas). Redondas = su cuadro de Ø × Ø. Rectangulares se pueden girar 90°.
+   Se prueban varias reglas (orden, dónde poner cada pieza, hacia dónde partir) y se queda la mejor. */
+(function (root) {
+  const DEF = { kerf: 0.5, refilado: 1, minSob: 15 };
+  const EPS = 1e-6, r1 = n => Math.round(n * 10) / 10;
+
+  // ---------- piezas ----------
+  // pieza del catálogo: { nombre, forma: 'red'|'rect', d } o { nombre, forma: 'rect', w, h }
+  const medida = p => p.forma === 'red' ? 'Ø' + r1(p.d) : r1(p.w) + '×' + r1(p.h);
+  const etiqueta = p => (p.nombre ? p.nombre + ' ' : '') + medida(p);
+  // pedido = [{ pieza, cant }] → una lista con cada pieza suelta y su huella (cuadro que ocupa)
+  function expandir(pedido) {
+    const l = [];
+    pedido.forEach((x, k) => {
+      const p = x.pieza, w = +(p.forma === 'red' ? p.d : p.w), h = +(p.forma === 'red' ? p.d : p.h);
+      if (!(w > 0 && h > 0)) throw new Error('La pieza ' + (p.nombre || '') + ' no tiene medidas.');
+      for (let i = 0; i < (Math.max(0, Math.floor(+x.cant || 0))); i++) l.push({ k, nombre: p.nombre || '', forma: p.forma === 'red' ? 'red' : 'rect', w, h, et: etiqueta(p) });
+    });
+    return l;
+  }
+
+  // ---------- un espacio (una placa o un retazo) con una regla ----------
+  const ORDEN = {
+    area: (a, b) => b.w * b.h - a.w * a.h || Math.max(b.w, b.h) - Math.max(a.w, a.h),
+    lado: (a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h) || b.w * b.h - a.w * a.h,
+    perim: (a, b) => (b.w + b.h) - (a.w + a.h) || b.w * b.h - a.w * a.h,
+  };
+  const FIT = { // menor = mejor
+    area: (F, w, h) => F.w * F.h - w * h,
+    corto: (F, w, h) => Math.min(F.w - w, F.h - h),
+    largo: (F, w, h) => Math.max(F.w - w, F.h - h),
+  };
+  const SPLIT = { // true = primero el corte horizontal de lado a lado del espacio
+    sobraCorto: (F, w, h) => F.w - w <= F.h - h,
+    sobraLargo: (F, w, h) => F.w - w > F.h - h,
+    areaMin: (F, w, h) => w * (F.h - h) > (F.w - w) * h,
+    areaMax: (F, w, h) => w * (F.h - h) <= (F.w - w) * h,
+    ejeCorto: F => F.w <= F.h,
+    ejeLargo: F => F.w > F.h,
+  };
+  const REGLAS = [];
+  Object.keys(ORDEN).forEach(o => Object.keys(FIT).forEach(f => Object.keys(SPLIT).forEach(s => REGLAS.push([o, f, s]))));
+
+  function corrida(items, W, H, kerf, [o, f, s]) {
+    const libres = [{ x: 0, y: 0, w: W, h: H }], puestas = [], cortes = [], faltan = [];
+    items.slice().sort(ORDEN[o]).forEach(it => {
+      let best = null;
+      libres.forEach((F, i) => (it.forma === 'rect' && it.w !== it.h ? [false, true] : [false]).forEach(rot => {
+        const w = rot ? it.h : it.w, h = rot ? it.w : it.h;
+        if (w > F.w + EPS || h > F.h + EPS) return;
+        const sc = FIT[f](F, w, h);
+        if (!best || sc < best.sc - EPS || (Math.abs(sc - best.sc) <= EPS && (F.y < best.F.y - EPS || (Math.abs(F.y - best.F.y) <= EPS && F.x < best.F.x)))) best = { i, F, rot, w, h, sc };
+      }));
+      if (!best) return faltan.push(it);
+      const { F, w, h } = best; libres.splice(best.i, 1);
+      puestas.push(Object.assign({}, it, { x: F.x, y: F.y, w, h, rot: best.rot }));
+      const hz = SPLIT[s](F, w, h), sobraW = F.w - w > EPS, sobraH = F.h - h > EPS;
+      let der, aba;
+      if (hz) { // horizontal de lado a lado del espacio, luego vertical en la tira de arriba
+        if (sobraH) cortes.push({ o: 'h', pos: F.y + h, a: F.x, b: F.x + F.w });
+        if (sobraW) cortes.push({ o: 'v', pos: F.x + w, a: F.y, b: F.y + h });
+        der = { x: F.x + w + kerf, y: F.y, w: F.w - w - kerf, h }; aba = { x: F.x, y: F.y + h + kerf, w: F.w, h: F.h - h - kerf };
+      } else { // vertical de arriba a abajo del espacio, luego horizontal en la tira de la izquierda
+        if (sobraW) cortes.push({ o: 'v', pos: F.x + w, a: F.y, b: F.y + F.h });
+        if (sobraH) cortes.push({ o: 'h', pos: F.y + h, a: F.x, b: F.x + w });
+        der = { x: F.x + w + kerf, y: F.y, w: F.w - w - kerf, h: F.h }; aba = { x: F.x, y: F.y + h + kerf, w, h: F.h - h - kerf };
+      }
+      [der, aba].forEach(r => { if (r.w > EPS && r.h > EPS) libres.push(r); });
+    });
+    return { puestas, cortes, libres, faltan };
+  }
+  // la mejor regla para un espacio: más piezas puestas, luego el sobrante más grande, luego menos cortes
+  const mayorLibre = l => l.reduce((m, r) => Math.max(m, Math.min(r.w, r.h) >= DEF.minSob ? r.w * r.h : 0), 0);
+  function mejor(items, W, H, kerf) {
+    let b = null;
+    REGLAS.forEach(R => {
+      const c = corrida(items, W, H, kerf, R), sc = [c.puestas.length, mayorLibre(c.libres), -c.cortes.length];
+      if (!b || sc[0] > b.sc[0] || (sc[0] === b.sc[0] && (sc[1] > b.sc[1] + EPS || (Math.abs(sc[1] - b.sc[1]) <= EPS && sc[2] > b.sc[2])))) b = Object.assign(c, { sc, regla: R });
+    });
+    return b;
+  }
+
+  // ---------- un espacio físico: placa completa (con refilado) o retazo ----------
+  // esp = { tipo: 'placa'|'retazo', id?, w, h }  → resultado en coordenadas de la pieza real (desde su orilla izquierda y de arriba)
+  function cortarEn(items, esp, cfg) {
+    const ref = esp.tipo === 'placa' ? cfg.refilado : 0, W = esp.w - 2 * ref, H = esp.h - 2 * ref;
+    if (W <= 0 || H <= 0) return { esp, puestas: [], cortes: [], libres: [], faltan: items.slice(), sobrantes: [], ref };
+    const m = mejor(items, W, H, cfg.kerf), mv = r => Object.assign({}, r, { x: r1(r.x + ref), y: r1(r.y + ref), w: r1(r.w), h: r1(r.h) });
+    const puestas = m.puestas.map(mv), libres = m.libres.map(mv);
+    const cortes = (ref > 0 ? [{ o: 'ref', txt: 'Refilar las 4 orillas (' + r1(ref) + ' cm por lado)' }] : []).concat(m.cortes.map(c => ({ o: c.o, pos: r1(c.pos + ref), a: r1(c.a + ref), b: r1(c.b + ref) })));
+    const sobrantes = libres.filter(r => r.w >= cfg.minSob - EPS && r.h >= cfg.minSob - EPS);
+    const area = esp.w * esp.h, usada = puestas.reduce((s, p) => s + p.w * p.h, 0);
+    return { esp, ref, puestas, cortes, libres, faltan: m.faltan, sobrantes, pct: Math.round(usada / area * 100), mermaPct: Math.round((area - usada - sobrantes.reduce((s, r) => s + r.w * r.h, 0)) / area * 100) };
+  }
+  // llena espacios en orden hasta poner todo (cada espacio con su mejor regla)
+  function llenar(items, espacios, cfg) {
+    let quedan = items.slice(); const usados = [];
+    for (const e of espacios) { if (!quedan.length) break; const r = cortarEn(quedan, e, cfg); if (!r.puestas.length) continue; usados.push(r); quedan = r.faltan; }
+    return { usados, faltan: quedan };
+  }
+
+  // ---------- ¿Me cabe? ----------
+  // inv = { placas: [{ id, w, h, cant }], retazos: [{ id, w, h }] } de UNA piedra; placaStd = { w: 320, h: 160 }
+  function meCabe(pedido, inv, cfg0, placaStd) {
+    const cfg = Object.assign({}, DEF, cfg0 || {}), std = placaStd || { w: 320, h: 160 }, items = expandir(pedido);
+    if (!items.length) return { estado: 'error', msg: 'Elige al menos una pieza.' };
+    if (items.length > 200) return { estado: 'error', msg: 'Son demasiadas piezas para un cálculo (máximo 200).' };
+    // una pieza que no cabe ni en la placa completa (ni girada) es un error, no un faltante
+    const placasInv = (inv.placas || []).filter(p => p.cant > 0), maxW = Math.max(std.w, ...placasInv.map(p => p.w)), maxH = Math.max(std.h, ...placasInv.map(p => p.h));
+    const uW = maxW - 2 * cfg.refilado, uH = maxH - 2 * cfg.refilado;
+    const grande = items.find(it => !((it.w <= uW + EPS && it.h <= uH + EPS) || (it.forma === 'rect' && it.h <= uW + EPS && it.w <= uH + EPS)) && !(inv.retazos || []).some(r => (it.w <= r.w + EPS && it.h <= r.h + EPS) || (it.h <= r.w + EPS && it.w <= r.h + EPS)));
+    if (grande) return { estado: 'error', msg: 'La pieza ' + grande.et + ' (' + r1(grande.w) + ' × ' + r1(grande.h) + ' cm) es más grande que la placa: en una placa de ' + maxW + ' × ' + maxH + ' cm caben como máximo ' + r1(uW) + ' × ' + r1(uH) + ' cm después de refilar.' };
+    // 1) un solo retazo, del más chico al más grande
+    const ret = (inv.retazos || []).slice().sort((a, b) => a.w * a.h - b.w * b.h);
+    for (const r of ret) { const c = cortarEn(items, Object.assign({ tipo: 'retazo' }, r), cfg); if (!c.faltan.length) return fin({ estado: 'retazo', espacios: [c] }); }
+    // 2) placas completas (las más chicas primero)
+    const stock = []; placasInv.slice().sort((a, b) => a.w * a.h - b.w * b.h).forEach(p => { for (let i = 0; i < p.cant; i++) stock.push(Object.assign({ tipo: 'placa' }, p)); });
+    const conStock = llenar(items, stock, cfg);
+    if (!conStock.faltan.length) return fin({ estado: 'placa', espacios: conStock.usados });
+    // 3) no alcanza: cuántas placas más (del tamaño normal) harían falta
+    const extra = []; for (let i = 0; i < 60; i++) extra.push({ tipo: 'placa', id: null, w: std.w, h: std.h, nueva: true });
+    const conExtra = llenar(conStock.faltan, extra, cfg);
+    const nFaltan = conExtra.usados.length;
+    return fin({ estado: 'falta', espacios: conStock.usados.concat(conExtra.usados), placasFaltan: nFaltan, piezasFaltan: conStock.faltan.length, tienes: stock.length });
+
+    function fin(r) {
+      r.cfg = cfg; r.total = items.length;
+      const placas = r.espacios.filter(e => e.esp.tipo === 'placa');
+      r.pctPlaca = placas.length ? Math.round(placas.reduce((s, e) => s + e.puestas.reduce((t, p) => t + p.w * p.h, 0), 0) / placas.reduce((s, e) => s + e.esp.w * e.esp.h, 0) * 100) : null;
+      return r;
+    }
+  }
+
+  // ---------- con lo que sobra, ¿qué más sale? ----------
+  // por cada pieza del catálogo, cuántas caben en los espacios libres (las grandes primero); devuelve las que salen
+  function sugerir(espacios, catalogo, cfg0) {
+    const cfg = Object.assign({}, DEF, cfg0 || {}), out = [];
+    catalogo.slice().sort((a, b) => huella(b) - huella(a)).forEach(p => {
+      let n = 0;
+      espacios.forEach(e => e.libres.forEach(r => { const items = expandir([{ pieza: p, cant: 40 }]); n += corrida(items, r.w, r.h, cfg.kerf, ['area', 'corto', 'sobraCorto']).puestas.length; }));
+      if (n) out.push({ pieza: p, n, et: etiqueta(p) });
+    });
+    return out;
+  }
+  const huella = p => p.forma === 'red' ? p.d * p.d : p.w * p.h;
+
+  // ---------- orden de los cortes, en palabras para el taller ----------
+  function pasos(e) {
+    return e.cortes.map(c => c.o === 'ref' ? c.txt : c.o === 'h'
+      ? 'Corte horizontal a ' + c.pos + ' cm de arriba (de ' + c.a + ' a ' + c.b + ' cm)'
+      : 'Corte vertical a ' + c.pos + ' cm del lado izquierdo (de ' + c.a + ' a ' + c.b + ' cm de arriba)');
+  }
+
+  // ---------- revisión: ¿se puede separar todo con cortes de lado a lado y con el kerf respetado? (para pruebas) ----------
+  function esGuillotina(ps, kerf) {
+    if (ps.length <= 1) return true;
+    for (const [ax, sz] of [['x', 'w'], ['y', 'h']]) {
+      const cand = [...new Set(ps.map(p => p[ax] + p[sz]))];
+      for (const c of cand) {
+        const a = ps.filter(p => p[ax] + p[sz] <= c + EPS), b = ps.filter(p => p[ax] >= c + kerf - 1e-3);
+        if (a.length && b.length && a.length + b.length === ps.length) return esGuillotina(a, kerf) && esGuillotina(b, kerf);
+      }
+    }
+    return false;
+  }
+  function seEnciman(ps, kerf) {
+    for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+      const a = ps[i], b = ps[j];
+      const sepX = a.x + a.w + kerf <= b.x + 1e-3 || b.x + b.w + kerf <= a.x + 1e-3, sepY = a.y + a.h + kerf <= b.y + 1e-3 || b.y + b.h + kerf <= a.y + 1e-3;
+      if (!sepX && !sepY) return true;
+    }
+    return false;
+  }
+
+  const CORTES = { DEF, expandir, cortarEn, meCabe, sugerir, pasos, etiqueta, medida, esGuillotina, seEnciman };
+  if (typeof module !== 'undefined' && module.exports) module.exports = CORTES; else root.DKAS_CORTES = CORTES;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+;
+/* DKAS · precios: costo, precio, 10%, entrega, acomodo en la placa y paquetes de placa completa. Todo en cm y pesos.
+   Lo usan el panel (Cotizar) y lista-precios.js (PDF). Números del dueño (libreta 2026-11-15): placa 9,000 · +500 por pieza ·
+   MDF 650 la hoja · grapa 40×40 70 cm = 1,200 · base mesita 0.80 = 1,500 · bases grandes 6–7 mil · flete 2,000 · precio = costo × 1.6. */
+(function (root) {
+const CORTES = typeof module !== 'undefined' && module.exports ? require('./cortes.js') : root.DKAS_CORTES;
+const C = {
+  placa: { w: 320, h: 160, precio: 9000 },
+  extra: 500,                        // dueño: +500 por pieza
+  mdf: { hoja: 650, w: 244, h: 122, corte: 50 },
+  corteRecto: 150, corteCurvo: 350, canto: 100, // por metro lineal (estimado)
+  margen: 1.6,
+  flete: 2000, minivanComedor: 800, minivanChica: 400,
+  chiquita: 1125,                    // valor de un 0.80×0.80 que sale del sobrante
+  pesoM2: 29,                        // kg por m² de sinterizado 12 mm
+};
+const VOLADO = { lateral: 8, centro: 12, consola: 8, escritorio: 15, periquera: 15, comedor: 25 };
+const ALTO = { lateral: 55, centro: 40, consola: 80, escritorio: 75, periquera: 105, comedor: 75 };
+// base por uso según el área de la piedra (m²); calibrada con los números del dueño
+const BASE = {
+  lateral: a => 800 + 1000 * a,          // Ø0.60 ≈ 1,200 (grapa chica)
+  centro: a => 700 + 1250 * a,           // 0.80×0.80 = 1,500
+  consola: a => 1200 + 1500 * a,
+  escritorio: a => 1500 + 1500 * a,
+  periquera: a => 1000 + 1500 * a,
+  comedor: a => Math.min(7000, 2000 + 1800 * a), // tope 7,000 (dueño: bases grandes 6–7 mil)
+};
+const r100 = n => Math.round(n / 100) * 100, up100 = n => Math.ceil(n / 100) * 100;
+
+// ---------- catálogo de medidas (cm) ----------
+const L = [];
+const add = (grupo, uso, forma, w, h, pers, nota) => L.push({ grupo, uso, forma, w, h: h ?? w, pers, nota });
+// laterales
+[40, 45, 50, 60].forEach(d => add('Mesas laterales', 'lateral', 'red', d));
+[40, 50, 60].forEach(d => add('Mesas laterales', 'lateral', 'rect', d, d));
+// centro
+[[80, 80], [90, 90], [100, 100], [100, 60], [120, 60], [120, 70], [140, 70], [140, 80], [160, 80]].forEach(([w, h]) => add('Mesas de centro', 'centro', 'rect', w, h));
+[80, 90, 100, 120].forEach(d => add('Mesas de centro', 'centro', 'red', d));
+[[120, 80], [140, 90], [150, 100]].forEach(([w, h]) => add('Mesas de centro', 'centro', 'org', w, h));
+// consolas y escritorios
+[[100, 35], [120, 40], [150, 40], [180, 40]].forEach(([w, h]) => add('Consolas y escritorios', 'consola', 'rect', w, h));
+[[120, 60], [140, 70], [160, 80]].forEach(([w, h]) => add('Consolas y escritorios', 'escritorio', 'rect', w, h));
+// periqueras y barras
+[60, 70, 80].forEach(d => add('Periqueras y barras (alto 1.05)', 'periquera', 'red', d, d, d <= 60 ? '2' : d <= 70 ? '2–3' : '3–4'));
+[[120, 60], [160, 60], [200, 60], [240, 60]].forEach(([w, h]) => add('Periqueras y barras (alto 1.05)', 'periquera', 'rect', w, h, Math.round(w / 60) + ''));
+// comedor redondo
+[[100, '2–4'], [110, '4'], [120, '4'], [130, '4–5'], [140, '5–6'], [150, '6'], [160, '6–7']].forEach(([d, p]) => add('Comedor redondo', 'comedor', 'red', d, d, p));
+// comedor cuadrado
+[[90, '4'], [100, '4'], [120, '4'], [140, '8'], [160, '8']].forEach(([d, p]) => add('Comedor cuadrado', 'comedor', 'rect', d, d, p));
+// comedor rectangular
+[[140, 80, '4'], [160, 90, '4–6'], [180, 90, '6'], [180, 100, '6'], [200, 90, '6–8'], [200, 100, '6–8'], [200, 110, '8'], [200, 120, '8'], [220, 100, '8'],
+ [220, 110, '8'], [240, 100, '8–10'], [240, 110, '8–10'], [240, 120, '8–10'], [260, 120, '10'], [280, 120, '10'], [280, 140, '10–12'],
+ [280, 150, '10–12', 'Maestra'], [300, 120, '10–12'], [300, 140, '12'], [320, 160, '12–14', 'Placa completa']].forEach(([w, h, p, n]) => add('Comedor rectangular', 'comedor', 'rect', w, h, p, n));
+// comedor ovalado
+[[180, 100, '6'], [200, 110, '6–8'], [240, 120, '8–10'], [280, 140, '10–12']].forEach(([w, h, p]) => add('Comedor ovalado', 'comedor', 'oval', w, h, p));
+
+// ---------- cálculo ----------
+function perimetro(f, w, h) {
+  if (f === 'red') return Math.PI * w;
+  if (f === 'rect') return 2 * (w + h);
+  const a = w / 2, b = h / 2, ram = Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
+  return f === 'org' ? ram * 1.15 : ram;
+}
+function area(f, w, h) { return (f === 'rect' ? w * h : Math.PI * w * h / 4) / 1e4; } // m²
+function acomodo(w, h) {
+  const pieza = { forma: 'rect', w, h }, esp = { tipo: 'retazo', w: C.placa.w, h: C.placa.h }, cfg = { kerf: 0, refilado: 0, minSob: 15 };
+  const items = [];
+  for (let i = 0; i < 40; i++) items.push({ k: 0, forma: 'rect', w, h, et: '' });
+  const r = CORTES.cortarEn(items, esp, cfg), n = r.puestas.length;
+  // sobrante: el máximo de mesitas de 0.80×0.80 que caben junto con las n mesas (todas las mesas deben entrar)
+  let mejor = { puestas: r.puestas, chicas: [] };
+  if (!(w === 80 && h === 80)) for (let k = 1; k <= 8; k++) {
+    const its = items.slice(0, n).concat(Array.from({ length: k }, () => ({ k: 1, forma: 'rect', w: 80, h: 80, et: '' })));
+    const s = CORTES.cortarEn(its, esp, cfg);
+    if (s.faltan.length) break;
+    mejor = { puestas: s.puestas.filter(p => p.k === 0), chicas: s.puestas.filter(p => p.k === 1) };
+  }
+  return { n, puestas: mejor.puestas, chicas: mejor.chicas };
+}
+function calcular(m) {
+  const a = area(m.forma, m.w, m.h), P = perimetro(m.forma, m.w, m.h) / 100;
+  const ac = acomodo(m.w, m.h);
+  const credito = ac.chicas.length * C.chiquita;
+  const piedra = Math.max(0, (C.placa.precio - credito) / ac.n);
+  const curvo = m.forma !== 'rect';
+  const corte = curvo ? P * (C.corteCurvo + C.canto) : (P / 2) * C.corteRecto + P * C.canto;
+  const v = VOLADO[m.uso], mw = Math.max(20, m.w - 2 * v), mh = Math.max(20, m.h - 2 * v);
+  const hojas = (mw > C.mdf.w || mh > C.mdf.h) && (mh > C.mdf.w || mw > C.mdf.h) ? 2 : 1;
+  const amdf = mw * mh / 1e4, octavo = C.mdf.w * C.mdf.h / 1e4 / 8;
+  const mdf = hojas === 2 ? 2 * C.mdf.hoja + C.mdf.corte : Math.min(C.mdf.hoja, Math.ceil(amdf / octavo) * C.mdf.hoja / 8) + C.mdf.corte;
+  const base = r100(BASE[m.uso](a));
+  const pegamento = r100(100 + 80 * a) || 100, empaque = r100(100 + 60 * a) || 100;
+  const costo = piedra + C.extra + corte + mdf + base + pegamento + empaque;
+  const precio = up100(costo * C.margen);
+  const largo = Math.max(m.w, m.h), ancho = Math.min(m.w, m.h);
+  const minivan = largo <= 190 && ancho <= 110;
+  const chico = ['lateral', 'centro', 'consola', 'escritorio'].includes(m.uso) || (m.uso === 'periquera' && largo <= 80);
+  const entrega = minivan ? (chico ? C.minivanChica : C.minivanComedor) : C.flete;
+  const total = chico ? precio : precio + entrega;
+  return Object.assign(m, { a, P, ac, credito, piedra, corte, mdf, hojas, mdfMed: [mw, mh], base, pegamento, empaque, otros: C.extra + mdf + pegamento + empaque,
+    costo, precio, ganancia: precio - costo, minivan, chico, entrega, total, peso: Math.round(a * C.pesoM2), alto: ALTO[m.uso] });
+}
+
+// 10% de descuento: conviene (verde) si todavía ganas 30% o más sobre el costo
+const MIN_GANA = 0.30;
+const semaforo = pct => pct >= MIN_GANA ? 'ok' : pct >= 0.15 ? 'meh' : 'no';
+
+// ---------- paquetes de placa completa ----------
+const PAQ = [
+  { nombre: 'Comedor de 8 + sala completa', para: 'Casa: comedor, centro, recibidor', piezas: [['comedor', 'rect', 240, 120, 'Comedor 8'], ['centro', 'rect', 80, 80, 'Centro'], ['centro', 'rect', 80, 80, 'Centro'], ['consola', 'rect', 180, 40, 'Consola'], ['lateral', 'rect', 40, 40, 'Lateral']] },
+  { nombre: 'Comedor de 8 + centro + laterales', para: 'Casa: comedor y sala', piezas: [['comedor', 'rect', 200, 120, 'Comedor 8'], ['centro', 'rect', 120, 80, 'Centro'], ['lateral', 'red', 60, 60, 'Lateral'], ['lateral', 'red', 60, 60, 'Lateral'], ['consola', 'rect', 150, 40, 'Consola'], ['lateral', 'rect', 40, 40, 'Lateral']] },
+  { nombre: 'Comedor de 6 + sala', para: 'Departamento', piezas: [['comedor', 'rect', 180, 100, 'Comedor 6'], ['centro', 'rect', 140, 80, 'Centro'], ['consola', 'rect', 140, 40, 'Consola'], ['lateral', 'red', 60, 60, 'Lateral'], ['lateral', 'red', 60, 60, 'Lateral'], ['lateral', 'red', 60, 60, 'Lateral']] },
+  { nombre: 'Maestra + 4 laterales', para: 'Casa grande: comedor de 10 a 12', piezas: [['comedor', 'rect', 280, 150, 'Maestra'], ['lateral', 'rect', 40, 40, 'Lat.'], ['lateral', 'rect', 40, 40, 'Lat.'], ['lateral', 'rect', 40, 40, 'Lat.'], ['lateral', 'rect', 40, 40, 'Lat.']] },
+  { nombre: 'Comedor redondo + sala orgánica', para: 'Casa: comedor de 6 y sala', piezas: [['comedor', 'red', 160, 160, 'Comedor Ø1.60'], ['centro', 'org', 150, 100, 'Centro orgánica'], ['lateral', 'red', 60, 60, 'Lateral'], ['lateral', 'red', 60, 60, 'Lateral']] },
+  { nombre: 'Dos comedores redondos Ø1.60', para: 'Dos casas, o casa + terraza (tu libreta)', piezas: [['comedor', 'red', 160, 160, 'Comedor Ø1.60'], ['comedor', 'red', 160, 160, 'Comedor Ø1.60']] },
+  { nombre: 'Comedor redondo + comedor cuadrado', para: 'Comedor + desayunador (tu libreta)', piezas: [['comedor', 'red', 160, 160, 'Redondo Ø1.60'], ['comedor', 'rect', 160, 160, 'Cuadrado 1.60']] },
+  { nombre: 'Sala orgánica + 4 mesitas + 2 laterales', para: 'Tu libreta: media placa orgánica y media placa en 4', piezas: [['centro', 'org', 150, 100, 'Orgánica'], ['lateral', 'red', 60, 60, 'Lateral'], ['lateral', 'red', 60, 60, 'Lateral'], ['centro', 'rect', 80, 80, 'Mesita'], ['centro', 'rect', 80, 80, 'Mesita'], ['centro', 'rect', 80, 80, 'Mesita'], ['centro', 'rect', 80, 80, 'Mesita']] },
+  { nombre: 'Restaurante o café: 8 mesas de 2', para: 'Negocio', piezas: Array.from({ length: 8 }, () => ['centro', 'rect', 80, 80, 'Mesa 0.80']) },
+  { nombre: 'Bar o terraza: 10 periqueras + barra', para: 'Negocio', piezas: Array.from({ length: 10 }, () => ['periquera', 'red', 60, 60, 'Periq.']).concat([['periquera', 'rect', 240, 40, 'Barra de pared 2.40 × 0.40']]) },
+];
+const DESC = [0.10, 0.15, 0.20];
+function calcPaquetes() {
+  PAQ.forEach(q => {
+  q.ps = q.piezas.map(([uso, forma, w, h, nom]) => calcular({ grupo: '', uso, forma, w, h, nom }));
+  const items = q.ps.map((m, i) => ({ k: i, forma: 'rect', w: m.w, h: m.h, et: '' }));
+  const r = CORTES.cortarEn(items, { tipo: 'retazo', w: C.placa.w, h: C.placa.h }, { kerf: 0, refilado: 0, minSob: 15 });
+  if (r.faltan.length) throw new Error('No cabe el paquete ' + q.nombre);
+  q.puestas = r.puestas;
+  q.usado = Math.round(q.ps.reduce((s, m) => s + m.w * m.h, 0) / (C.placa.w * C.placa.h) * 100);
+  q.costo = C.placa.precio + q.ps.reduce((s, m) => s + m.costo - m.piedra, 0);
+  q.lista = q.ps.reduce((s, m) => s + m.precio, 0);
+  q.entrega = q.ps.some(m => !m.minivan) ? C.flete : q.ps.some(m => !m.chico) ? C.minivanComedor : C.minivanChica;
+  q.desc = DESC.map(d => { const p = r100(q.lista * (1 - d)); return { d, p, pct: (p - q.costo) / q.costo }; });
+  q.reco = q.desc.filter(x => x.pct >= MIN_GANA).pop() || q.desc[0];
+  q.max = Math.floor((1 - (1 + MIN_GANA) * q.costo / q.lista) * 100);
+  q.principal = q.ps.reduce((a, b) => b.precio > a.precio ? b : a);
+  q.resto = q.reco.p - q.principal.precio;
+});
+  return PAQ;
+}
+function agrupar(ps) {
+  const g = [];
+  ps.forEach(m => { const x = g.find(([o]) => o.nom === m.nom && o.w === m.w && o.h === m.h && o.forma === m.forma); x ? x[1]++ : g.push([m, 1]); });
+  return g;
+}
+// ---------- cotizar una medida: precio, 10%, entrega, placa, qué más sale del sobrante y medidas que convienen ----------
+// igual que DKAS.personas (dkas-data.js): 70 cm por persona; así la hoja y el plano dicen lo mismo
+const PERSONAS = (uso, forma, w, h) => {
+  if (uso !== 'comedor' && uso !== 'periquera') return null;
+  const L = Math.max(w, h), W = Math.min(w, h);
+  if (forma === 'rect' && L === W) return 4 * Math.max(1, Math.floor(L / 70));
+  if (forma === 'rect') return 2 * Math.floor(L / 70) + (W >= 90 ? 2 : 0);
+  return Math.floor(perimetro(forma === 'org' ? 'oval' : forma, L, W) / 70);
+};
+// piezas chicas que se ofrecen con lo que sobra (de la más cara a la más barata)
+const EXTRAS = [['centro', 'rect', 120, 60, 'Mesa de centro'], ['consola', 'rect', 180, 40, 'Consola'], ['centro', 'rect', 80, 80, 'Mesa de centro'], ['consola', 'rect', 120, 40, 'Consola'],
+  ['lateral', 'red', 60, 60, 'Lateral'], ['lateral', 'rect', 50, 50, 'Lateral'], ['lateral', 'rect', 40, 40, 'Lateral']];
+const CFG0 = { kerf: 0, refilado: 0, minSob: 15 };
+const cabeEn = (w, h) => (w <= C.placa.w && h <= C.placa.h) || (h <= C.placa.w && w <= C.placa.h);
+function cotizar(q) {
+  const uso = q.uso, forma = q.forma, w = +q.w, h = forma === 'red' ? +q.w : +q.h, cant = Math.max(1, Math.floor(+q.cant || 1));
+  if (!(w > 0 && h > 0)) return { error: 'Escribe las medidas.' };
+  if (w < 30 || h < 30) return { error: 'La medida más chica que se corta es de 30 cm.' };
+  if (!cabeEn(w, h)) return { error: 'No sale de una sola placa (la placa mide 3.20 × 1.60). Para esa medida se necesitan 2 placas unidas: cotízala aparte.' };
+  const m = calcular({ uso, forma, w, h, nom: 'La mesa' });
+  m.pers = PERSONAS(uso, forma, w, h);
+  const r = { m, cant, placas: Math.ceil(cant / m.ac.n) };
+  // precios
+  r.precio = m.precio * cant;
+  r.d10 = r100(r.precio * 0.9); r.pct10 = (r.d10 - m.costo * cant) / (m.costo * cant);
+  r.entrega = m.entrega; r.total = r.precio + (m.chico ? 0 : m.entrega);
+  // qué más sale del sobrante (en la última placa): se agregan piezas mientras todo quepa
+  const enUltima = cant - (r.placas - 1) * m.ac.n;
+  const base = Array.from({ length: enUltima }, (_, i) => ({ k: 'm', forma: 'rect', w, h, et: '' }));
+  let extras = [], acomodo1 = CORTES.cortarEn(base, { tipo: 'retazo', w: C.placa.w, h: C.placa.h }, CFG0).puestas;
+  const otraIgual = [uso, forma, w, h, 'Otra igual'];
+  for (const ex of [otraIgual].concat(EXTRAS)) for (let i = 0; i < (ex === otraIgual ? 12 : 2); i++) {
+    const prueba = base.concat(extras.concat([ex]).map((e, j) => ({ k: j, forma: 'rect', w: e[2], h: e[3], et: '' })));
+    const s = CORTES.cortarEn(prueba, { tipo: 'retazo', w: C.placa.w, h: C.placa.h }, CFG0);
+    if (s.faltan.length) break;
+    extras.push(ex); acomodo1 = s.puestas;
+  }
+  r.extras = extras.map(([u, f, ew, eh, nom]) => calcular({ uso: u, forma: f, w: ew, h: eh, nom }));
+  r.puestas = acomodo1;
+  r.usado = Math.round((enUltima * w * h + r.extras.reduce((s, e) => s + e.w * e.h, 0)) / (C.placa.w * C.placa.h) * 100);
+  // paquete: la(s) mesa(s) + todo lo que sale del sobrante, con el descuento más grande que deja 30%
+  if (r.extras.length) {
+    const todas = Array.from({ length: cant }, () => m).concat(r.extras);
+    const costo = r.placas * C.placa.precio + todas.reduce((s, x) => s + x.costo - x.piedra, 0), lista = todas.reduce((s, x) => s + x.precio, 0);
+    const desc = DESC.map(d => { const p = r100(lista * (1 - d)); return { d, p, pct: (p - costo) / costo }; });
+    const reco = desc.filter(x => x.pct >= MIN_GANA).pop() || null;
+    const entrega = todas.some(x => !x.minivan) ? C.flete : todas.some(x => !x.chico) ? C.minivanComedor : C.minivanChica;
+    r.paquete = { costo, lista, desc, reco, entrega, extrasLista: r.extras.reduce((s, x) => s + x.precio, 0), resto: reco ? reco.p - r.precio : null };
+  }
+  // medidas parecidas (±20 cm) que salen más baratas porque aprovechan mejor la placa
+  r.parecidas = L.filter(x => x.uso === uso && x.forma === forma && !(x.w === w && x.h === h) && Math.abs(x.w - w) <= 20 && Math.abs(x.h - h) <= 20)
+    .map(x => x.precio ? x : calcular(x)).filter(x => x.precio <= m.precio * 0.95).sort((a, b) => a.precio - b.precio).slice(0, 3);
+  return r;
+}
+
+const PRECIOS = { C, VOLADO, ALTO, BASE, r100, up100, perimetro, area, acomodo, calcular, CATALOGO: L, MIN_GANA, semaforo, PAQ, DESC, calcPaquetes, agrupar, cotizar, PERSONAS };
+if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; else root.DKAS_PRECIOS = PRECIOS;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+;
+/* DKAS · Admin · PIEDRAS (botón del menú de abajo): las placas y pedazos que tenemos, cortar (se dibuja y se descuenta),
+   historial de cada pedazo, cotizar (calculadora automática conectada al stock) y la cotización en PDF para el cliente.
+   Los precios y el acomodo salen de precios.js (DKAS_PRECIOS) y cortes.js (DKAS_CORTES): los mismos del cotizador anterior.
+   Datos (Firebase):
+     dinero/sobrantes/<id>    { piedra, w, h, tipo:'placa'|'sobrante', costo, proveedor, fecha, origen, pedido, estado:'disponible'|'usado',
+                                usadoEn, usadoFecha, nota, foto:true }       (todas las piedras: placas completas y pedazos)
+     piedra/fotos/<id>        foto (jpg en base64, chica) — aparte para que no pese en la sincronización
+     dinero/piedraHist/<id>   { accion:'Entró'|'Corte'|'Editó'|'Borró'|'Foto', fecha, pieza, piedra, detalle, cortadas[], quedan[], pedido, por, creado }
+     dinero/cotizaciones/<id> { folio, fecha, cliente, tel, clienteId, items[{desc,cant,precio,uso,forma,w,h,alto,piedra,base}], entrega, descuento, vigencia, tiempo, notas, total, por, creado }
+     dinero/precios           { placa, extra, mdfHoja, mdfCorte, corteRecto, corteCurvo, canto, margen, flete, minivanComedor, minivanChica, chiquita, baseF }
+   Rutas: #piedras · #piedras/s=<id> · #piedras/cotizar · #piedras/cliente · #piedras/cliente=<id> · #piedras/historial · #piedras/precios */
+(function (root) {
+  root.DKAS_PIEDRAS_MOD = function (X) {
+    const P = root.DKAS_PRECIOS, K = root.DKAS_CORTES, N = X.N, A = X.A;
+    const { esc, pesos, fC, hoy, $, $$ } = X;
+    const num = N.num;
+    const CFG = { kerf: 0.5, refilado: 1, minSob: 15 };
+    const PLACA = () => ({ w: P.C.placa.w, h: P.C.placa.h });
+    const nid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const TS = { '.sv': 'timestamp' };
+    const sinAc = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    const mismoColor = (a, b) => { a = sinAc(a); b = sinAc(b); return !!a && !!b && (a === b || a.includes(b) || b.includes(a)); };
+    const r1 = n => Math.round(n * 10) / 10;
+    const medTxt = x => x.forma === 'red' ? 'Ø' + r1(x.d || x.w) : r1(x.w) + '×' + r1(x.h);
+
+    // ---------- precios editables (se guardan en dinero/precios y se aplican al motor) ----------
+    const BASE0 = Object.assign({}, P.BASE);
+    const CAMPOS_P = [
+      ['placa', 'Placa completa 320 × 160', () => P.C.placa.precio, v => { P.C.placa.precio = v; }],
+      ['extra', 'Extra por pieza (taller)', () => P.C.extra, v => { P.C.extra = v; }],
+      ['corteRecto', 'Corte recto · por metro', () => P.C.corteRecto, v => { P.C.corteRecto = v; }],
+      ['corteCurvo', 'Corte curvo · por metro', () => P.C.corteCurvo, v => { P.C.corteCurvo = v; }],
+      ['canto', 'Canto pulido · por metro', () => P.C.canto, v => { P.C.canto = v; }],
+      ['mdfHoja', 'Hoja de MDF', () => P.C.mdf.hoja, v => { P.C.mdf.hoja = v; }],
+      ['mdfCorte', 'Corte de MDF', () => P.C.mdf.corte, v => { P.C.mdf.corte = v; }],
+      ['baseF', 'Bases de herrería · ajuste %', () => baseF, v => { baseF = v; aplicarBase(); }],
+      ['flete', 'Flete en camión', () => P.C.flete, v => { P.C.flete = v; }],
+      ['minivanComedor', 'Entrega en minivan · comedor', () => P.C.minivanComedor, v => { P.C.minivanComedor = v; }],
+      ['minivanChica', 'Entrega en minivan · mesa chica', () => P.C.minivanChica, v => { P.C.minivanChica = v; }],
+      ['chiquita', 'Valor de una mesita 80×80 del sobrante', () => P.C.chiquita, v => { P.C.chiquita = v; }],
+      ['margen', 'Multiplicador de precio (costo × …)', () => P.C.margen, v => { P.C.margen = v; }]];
+    let baseF = 100;
+    const aplicarBase = () => Object.keys(BASE0).forEach(k => { P.BASE[k] = a => BASE0[k](a) * baseF / 100; });
+    const DEF_P = {}; CAMPOS_P.forEach(([k, , g]) => { DEF_P[k] = g(); });
+    let firmaP = '';
+    function aplicarPrecios() {
+      const g = (X.D().precios) || {}, f = JSON.stringify(g); if (f === firmaP) return; firmaP = f;
+      CAMPOS_P.forEach(([k, , , s]) => s(num(g[k]) > 0 ? num(g[k]) : DEF_P[k]));
+    }
+
+    // ---------- stock ----------
+    const todas = () => X.M().sobrantes.map(s => Object.assign({ tipo: 'sobrante' }, s));
+    const disponibles = () => todas().filter(s => s.estado !== 'usado');
+    const usadas = () => todas().filter(s => s.estado === 'usado');
+    const arr = v => Array.isArray(v) ? v.filter(x => x != null) : v && typeof v === 'object' ? Object.values(v) : [];
+    const hist = () => Object.entries(X.D().piedraHist || {}).map(([id, x]) => Object.assign({ id }, x, { quedan: arr(x.quedan), cortadas: arr(x.cortadas) })).sort((a, b) => (b.creado || 0) - (a.creado || 0));
+    const pieza = id => todas().find(s => s.id === id);
+    const colores = () => { const s = new Set(); todas().forEach(x => x.piedra && s.add(x.piedra)); ['Negra', 'Dark grey', 'Blanca veteada', 'Taj Mahal', 'Statuario', 'Calacatta'].forEach(c => s.add(c)); return [...s]; };
+    const espacio = s => ({ tipo: s.tipo === 'placa' ? 'placa' : 'retazo', id: s.id, w: num(s.w), h: num(s.h) });
+    const tipoTxt = s => s.tipo === 'placa' ? 'Placa completa' : 'Pedazo';
+    const nomPieza = s => (s.piedra || 'Piedra') + ' · ' + r1(num(s.w)) + '×' + r1(num(s.h));
+    // reqs: [{forma:'red'|'rect', d | w,h, cant, nombre}] → lista de piezas para el motor
+    const items = reqs => K.expandir(reqs.map(r => ({ pieza: { nombre: r.nombre || '', forma: r.forma, d: num(r.d), w: num(r.w), h: num(r.h) }, cant: Math.max(1, Math.floor(num(r.cant) || 1)) })));
+    const corte = (s, reqs) => K.cortarEn(items(reqs), espacio(s), CFG);
+    // ¿en qué piedras cabe todo? (primero las del color pedido y las más chicas, para no gastar placas completas)
+    function buscar(reqs, color) {
+      if (!reqs.length) return [];
+      let its; try { its = items(reqs); } catch (e) { return []; }
+      return disponibles().map(s => { const r = K.cortarEn(its, espacio(s), CFG); return { s, r, cabe: !r.faltan.length, color: !color || mismoColor(s.piedra, color) }; })
+        .filter(x => x.cabe).sort((a, b) => (b.color - a.color) || (a.s.tipo === 'placa') - (b.s.tipo === 'placa') || num(a.s.w) * num(a.s.h) - num(b.s.w) * num(b.s.h));
+    }
+    // cuántas de una medida salen de una piedra
+    const cuantas = (s, req) => { const ref = s.tipo === 'placa' ? 2 * CFG.refilado : 0, a = req.forma === 'red' ? num(req.d) : num(req.w), b = req.forma === 'red' ? num(req.d) : num(req.h); return a > 0 && b > 0 ? N.cuantasCaben(num(s.w) - ref, num(s.h) - ref, a, b, CFG.kerf) : 0; };
+    const alcanza = s => (X.piezas() || []).map(p => ({ et: K.etiqueta(p), n: cuantas(s, { forma: p.forma === 'red' ? 'red' : 'rect', d: p.d, w: p.w, h: p.h }) })).filter(x => x.n > 0);
+
+    // ---------- dibujo de una piedra con sus piezas (SVG) ----------
+    const tono = c => { c = sinAc(c); return /negr|black|nero|dark negra/.test(c) ? ['#2a2a2c', '#f2f2f2'] : /grey|gris|gray/.test(c) ? ['#6e6f73', '#fff'] : /blanc|white|statuar|calacat|carrara|taj/.test(c) ? ['#ecebe7', '#111'] : ['#b9b2a6', '#111']; };
+    function dibujo(s, r, op) {
+      op = op || {}; const W = num(s.w), H = num(s.h), [bg, fg] = tono(s.piedra), fs = Math.max(5, Math.min(W, H) / 9);
+      let h = '<svg class="pz-svg" viewBox="-2 -2 ' + (W + 4) + ' ' + (H + 4) + '" role="img" aria-label="' + esc(nomPieza(s)) + '"><rect x="0" y="0" width="' + W + '" height="' + H + '" rx="1.5" fill="' + bg + '" stroke="#111" stroke-width="0.6"/>';
+      if (r) {
+        (r.libres || []).forEach(l => { const sob = l.w >= CFG.minSob && l.h >= CFG.minSob; h += '<rect x="' + l.x + '" y="' + l.y + '" width="' + l.w + '" height="' + l.h + '" fill="' + (sob ? 'rgba(52,199,89,.28)' : 'rgba(255,255,255,.12)') + '" stroke="' + (sob ? '#34c759' : 'none') + '" stroke-width="0.8" stroke-dasharray="3 2"/>' + (sob && l.w >= 24 && l.h >= 12 ? '<text x="' + (l.x + l.w / 2) + '" y="' + (l.y + l.h / 2) + '" font-size="' + Math.min(fs, l.h / 2.6, l.w / 6) + '" fill="' + fg + '" text-anchor="middle" dominant-baseline="middle">queda ' + r1(l.w) + '×' + r1(l.h) + '</text>' : ''); });
+        r.puestas.forEach(p => {
+          const cx = p.x + p.w / 2, cy = p.y + p.h / 2, f = Math.min(fs, p.w / 4.5, p.h / 3);
+          h += p.forma === 'red' ? '<rect x="' + p.x + '" y="' + p.y + '" width="' + p.w + '" height="' + p.h + '" fill="none" stroke="' + fg + '" stroke-opacity=".35" stroke-width="0.4"/><circle cx="' + cx + '" cy="' + cy + '" r="' + (p.w / 2) + '" fill="#fff" stroke="#0a84ff" stroke-width="1"/>'
+            : '<rect x="' + p.x + '" y="' + p.y + '" width="' + p.w + '" height="' + p.h + '" fill="#fff" stroke="#0a84ff" stroke-width="1"/>';
+          h += '<text x="' + cx + '" y="' + cy + '" font-size="' + f + '" font-weight="700" fill="#0a84ff" text-anchor="middle" dominant-baseline="middle">' + esc(p.forma === 'red' ? 'Ø' + r1(p.w) : r1(p.w) + '×' + r1(p.h)) + '</text>';
+        });
+      } else if (op.etiqueta !== false) h += '<text x="' + W / 2 + '" y="' + H / 2 + '" font-size="' + fs + '" fill="' + fg + '" text-anchor="middle" dominant-baseline="middle">' + r1(W) + ' × ' + r1(H) + '</text>';
+      return h + '</svg>';
+    }
+
+    // ---------- fotos (se cargan aparte, una por una) ----------
+    const FOTOS = {};
+    async function foto(id) { if (FOTOS[id] !== undefined) return FOTOS[id]; try { FOTOS[id] = (await A.nodo('piedra/fotos/' + id)) || ''; } catch (e) { FOTOS[id] = ''; } return FOTOS[id]; }
+    function pintarFotos(cont) { $$('[data-foto]', cont).forEach(async el => { const f = await foto(el.dataset.foto); if (f) { el.style.backgroundImage = 'url(' + f + ')'; el.classList.add('con'); } }); }
+    // achica la foto del teléfono: máx 1100 px, jpg 0.72 (≈ 100–200 KB)
+    const achicar = file => new Promise((ok, bad) => { const rd = new FileReader(); rd.onerror = () => bad(new Error('No se pudo leer la foto.')); rd.onload = () => { const img = new Image(); img.onerror = () => bad(new Error('Esa foto no se pudo abrir. Prueba con otra.')); img.onload = () => { const m = 1100, k = Math.min(1, m / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); ok(cv.toDataURL('image/jpeg', 0.72)); }; img.src = rd.result; }; rd.readAsDataURL(file); });
+
+    // ---------- piezas de pantalla ----------
+    const tabs = sel => '<nav class="tabs">' + [['', 'Mis piedras', disponibles().length], ['cotizar', 'Cotizar', ''], ['historial', 'Historial', hist().length], ['precios', 'Precios', '']].map(([k, t, n]) => '<a href="#piedras' + (k ? '/' + k : '') + '"' + (k === sel ? ' class="on"' : '') + '>' + t + (n !== '' ? ' <small>' + n + '</small>' : '') + '</a>').join('') + '</nav>';
+    const chipsH = (k, l, val, cls) => '<div class="chips' + (cls ? ' ' + cls : '') + '" data-q="' + k + '">' + l.map(([v, t, sub]) => '<button type="button" data-v="' + esc(v) + '"' + (String(val) === String(v) ? ' class="on"' : '') + '>' + esc(t) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>').join('') + '</div>';
+    function tarjeta(s, extra) {
+      const al = s.estado === 'usado' ? [] : alcanza(s).slice(0, 4);
+      return '<a class="pz' + (s.estado === 'usado' ? ' usada' : '') + '" href="#piedras/s=' + esc(s.id) + '">' + (s.foto ? '<i class="pz-foto" data-foto="' + esc(s.id) + '"></i>' : '') + dibujo(s)
+        + '<span><b>' + esc(s.piedra || 'Piedra') + '</b><small>' + esc(tipoTxt(s)) + ' · ' + r1(num(s.w)) + ' × ' + r1(num(s.h)) + ' cm</small>'
+        + (s.estado === 'usado' ? '<small>Usada' + (s.usadoEn ? ': ' + esc(s.usadoEn) : '') + '</small>' : al.length ? '<small class="alc">Salen: ' + al.map(x => x.n + '× ' + esc(x.et)).join(' · ') + '</small>' : '<small class="alc">Muy chica para el catálogo</small>')
+        + (extra || '') + '</span></a>';
+    }
+    // lo que se pide (forma + medida + cuántas) en una sola línea de campos
+    const pideH = (q, id) => '<div class="pide" id="' + id + '">' + chipsH('forma', [['red', 'Redonda Ø'], ['rect', 'Cuadrada / rect.']], q.forma)
+      + '<div class="tres-i">' + (q.forma === 'red' ? '<input data-c="d" inputmode="decimal" placeholder="Ø cm" value="' + esc(q.d || '') + '">' : '<input data-c="w" inputmode="decimal" placeholder="Largo" value="' + esc(q.w || '') + '"><input data-c="h" inputmode="decimal" placeholder="Ancho" value="' + esc(q.h || '') + '">')
+      + '<input data-c="cant" inputmode="numeric" placeholder="Cuántas" value="' + esc(q.cant || '') + '"></div></div>';
+    const leerPide = (box, q) => { $$('[data-c]', box).forEach(i => { q[i.dataset.c] = i.value.replace(/[^\d.,]/g, '').replace(',', '.'); }); };
+    const reqDe = q => { const n = Math.max(1, Math.floor(num(q.cant) || 1)); if (q.forma === 'red') return num(q.d) > 0 ? [{ forma: 'red', d: num(q.d), cant: n }] : []; return num(q.w) > 0 && num(q.h) > 0 ? [{ forma: 'rect', w: num(q.w), h: num(q.h), cant: n }] : []; };
+    const reqTxt = reqs => reqs.map(r => (num(r.cant) > 1 ? num(r.cant) + '× ' : '') + (r.nombre ? r.nombre + ' ' : '') + medTxt(r)).join(' + ');
+
+    // ================= MIS PIEDRAS =================
+    let qB = (() => { try { return JSON.parse(localStorage.getItem('dkas-pz-busca')) || null; } catch (e) { return null; } })() || { forma: 'red', d: '', w: '', h: '', cant: '1', color: '' };
+    function inicio() {
+      const disp = disponibles(), placas = disp.filter(s => s.tipo === 'placa'), ped = disp.filter(s => s.tipo !== 'placa');
+      const m2 = disp.reduce((a, s) => a + num(s.w) * num(s.h), 0) / 1e4, valor = placas.reduce((a, s) => a + (num(s.costo) || P.C.placa.precio), 0);
+      const por = {}; disp.forEach(s => { (por[s.piedra || 'Sin nombre'] = por[s.piedra || 'Sin nombre'] || []).push(s); });
+      X.main().innerHTML = X.tit('Piedras', 'Placas y pedazos que tenemos', '<div class="tit-b"><button class="b negro" id="pz-add">＋ Agregar piedra</button></div>') + tabs('')
+        + '<section class="caja busca"><h2>¿Tengo piedra para…?</h2><div id="pz-q"></div><div id="pz-r"></div></section>'
+        + '<section class="kpis cuatro">' + X.kpi('Placas completas', String(placas.length), '', placas.length ? 'valen ' + pesos(valor) : 'ninguna') + X.kpi('Pedazos', String(ped.length), '', 'sobrantes y retazos') + X.kpi('Piedra guardada', m2.toFixed(2) + ' m²', '', disp.length + ' en total') + X.kpi('Ya usadas', String(usadas().length), '', 'en el historial', '#piedras/historial') + '</section>'
+        + (Object.keys(por).length ? Object.entries(por).sort((a, b) => b[1].length - a[1].length).map(([c, l]) => '<section class="caja"><div class="caja-t"><h2>' + esc(c) + '</h2><span class="sub">' + l.length + '</span></div><div class="pzs">' + l.sort((a, b) => (b.tipo === 'placa') - (a.tipo === 'placa') || num(b.w) * num(b.h) - num(a.w) * num(a.h)).map(s => tarjeta(s)).join('') + '</div></section>').join('')
+          : '<section class="caja">' + X.vacioTxt('Todavía no hay piedras. Toca “＋ Agregar piedra” y registra tu primera placa con su foto.') + '</section>')
+        + (usadas().length ? X.plegable('Ya usadas', usadas().length + '', '<div class="pzs">' + usadas().sort((a, b) => (b.usadoFecha || '').localeCompare(a.usadoFecha || '')).map(s => tarjeta(s)).join('') + '</div>') : '');
+      $('#pz-add').onclick = () => agregar();
+      pintarBusca(); pintarFotos(X.main());
+    }
+    function pintarBusca() {
+      const box = $('#pz-q'); if (!box) return;
+      box.innerHTML = pideH(qB, 'pz-pide') + '<div class="campo">Color' + chipsH('color', [['', 'Cualquiera']].concat(colores().map(c => [c, c])), qB.color) + '</div>';
+      const out = () => {
+        try { localStorage.setItem('dkas-pz-busca', JSON.stringify(qB)); } catch (e) {}
+        const reqs = reqDe(qB), r = $('#pz-r'); if (!r) return;
+        if (!reqs.length) { r.innerHTML = '<p class="nota">Escribe la medida y te digo si la tienes y de qué pedazo sale.</p>'; return; }
+        const l = buscar(reqs, qB.color), mismo = l.filter(x => x.color), txt = reqTxt(reqs) + (qB.color ? ' ' + qB.color.toLowerCase() : '');
+        const placaN = (() => { try { return K.cortarEn(items(reqs.map(x => Object.assign({}, x, { cant: 60 }))), { tipo: 'placa', w: PLACA().w, h: PLACA().h }, CFG).puestas.length; } catch (e) { return 0; } })();
+        r.innerHTML = (mismo.length ? '<p class="ok-g">✓ Sí tienes para ' + esc(txt) + '</p>' : '<p class="aviso r">✕ No tienes ' + esc(txt) + ' en stock' + (l.length ? ' de ese color' : '') + '.</p>' + (placaN ? '<p class="nota">Hay que comprar placa: de una placa de 320×160 (' + pesos(P.C.placa.precio) + ') salen ' + placaN + '.</p>' : ''))
+          + (l.length ? '<div class="pzs">' + l.slice(0, 6).map(x => tarjeta(x.s, (x.color ? '' : '<em class="pill">otro color</em>') + '<button class="b chico verde" data-cortar="' + esc(x.s.id) + '">Cortar de aquí</button>')).join('') + '</div>' : '');
+        $$('[data-cortar]', r).forEach(b => b.onclick = e => { e.preventDefault(); cortar(pieza(b.dataset.cortar), { reqs }); });
+        pintarFotos(r);
+      };
+      $$('[data-q]', box).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leerPide(box, qB); qB[g.dataset.q] = b.dataset.v; pintarBusca(); });
+      $$('[data-c]', box).forEach(i => i.oninput = () => { leerPide(box, qB); out(); });
+      out();
+    }
+
+    // ---------- agregar / editar una piedra ----------
+    function agregar(s0, pre) {
+      s0 = s0 || {}; pre = pre || {};
+      const d = { tipo: s0.tipo || pre.tipo || 'placa', piedra: s0.piedra || pre.piedra || '', w: s0.w || pre.w || (s0.id || pre.tipo === 'sobrante' ? '' : PLACA().w), h: s0.h || pre.h || (s0.id || pre.tipo === 'sobrante' ? '' : PLACA().h), cant: '1', costo: s0.costo != null ? s0.costo : (s0.id ? '' : P.C.placa.precio), proveedor: s0.proveedor || '', fecha: s0.fecha || hoy(), nota: s0.nota || '', pedido: s0.pedido || pre.pedido || '', foto: null };
+      X.hoja(s0.id ? 'Editar piedra' : 'Agregar piedra', '<div id="ag"></div>', h => {
+        const pintar = () => {
+          $('#ag', h).innerHTML = (s0.id ? '' : '<div class="campo">¿Qué es?' + chipsH('tipo', [['placa', 'Placa completa', '320 × 160 nueva'], ['sobrante', 'Pedazo', 'sobrante o retazo']], d.tipo, 'grandes') + '</div>')
+            + '<div class="campo">Piedra / color' + chipsH('piedra', colores().map(c => [c, c]), d.piedra) + '<input id="ag-p" maxlength="40" placeholder="O escribe el nombre, ej. Negra, Dark grey" value="' + esc(d.piedra) + '"></div>'
+            + '<div class="campo">Medida (cm)<div class="tres-i"><input id="ag-w" inputmode="decimal" placeholder="Largo" value="' + esc(d.w) + '"><input id="ag-h" inputmode="decimal" placeholder="Ancho" value="' + esc(d.h) + '">' + (s0.id ? '' : '<input id="ag-n" inputmode="numeric" placeholder="Cuántas" value="' + esc(d.cant) + '">') + '</div>'
+              + (d.tipo === 'placa' ? '<small class="nota">Placa normal: 320 × 160. Si compraste varias iguales, pon cuántas.</small>' : '<small class="nota">Mide el pedazo rectangular que sí se puede usar.</small>') + '</div>'
+            + '<div class="dos-i"><label class="campo">' + (d.tipo === 'placa' ? 'Lo que costó (cada una)' : 'Valor (opcional)') + '<input id="ag-c" inputmode="decimal" placeholder="$0" value="' + esc(d.costo) + '"></label><label class="campo">Proveedor (opcional)<input id="ag-pr" maxlength="40" placeholder="ej. Jaime, Quarmol" value="' + esc(d.proveedor) + '"></label></div>'
+            + '<div class="dos-i"><label class="campo">Fecha<input id="ag-f" type="date" value="' + esc(d.fecha) + '"></label><label class="campo">Nota (opcional)<input id="ag-no" maxlength="80" value="' + esc(d.nota) + '"></label></div>'
+            + '<div class="campo">Foto' + (d.foto ? '<img class="ag-foto" src="' + d.foto + '" alt="">' : s0.foto ? '<p class="nota">Ya tiene foto. Elige otra solo si la quieres cambiar.</p>' : '') + '<label class="b grande foto-b">📷 ' + (d.foto || s0.foto ? 'Cambiar foto' : 'Tomar o elegir foto') + '<input id="ag-foto" type="file" accept="image/*" hidden></label></div>'
+            + '<button class="b negro grande" id="ag-ok">' + (s0.id ? 'Guardar cambios' : 'Guardar en mis piedras') + '</button>' + (s0.id ? '<button class="b rojo" id="ag-b">Borrar esta piedra</button>' : '');
+          const leer = () => { d.piedra = $('#ag-p', h).value.trim(); d.w = $('#ag-w', h).value; d.h = $('#ag-h', h).value; if ($('#ag-n', h)) d.cant = $('#ag-n', h).value; d.costo = $('#ag-c', h).value; d.proveedor = $('#ag-pr', h).value.trim(); d.fecha = $('#ag-f', h).value || hoy(); d.nota = $('#ag-no', h).value.trim(); };
+          $$('[data-q]', h).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leer(); d[g.dataset.q] = b.dataset.v; if (g.dataset.q === 'tipo') { if (d.tipo === 'placa') { d.w = PLACA().w; d.h = PLACA().h; d.costo = P.C.placa.precio; } else { d.w = ''; d.h = ''; d.costo = ''; } } pintar(); });
+          $('#ag-foto', h).onchange = async e => { const f = e.target.files && e.target.files[0]; if (!f) return; leer(); try { X.aviso('Preparando foto…'); d.foto = await achicar(f); pintar(); } catch (er) { X.aviso(er.message, true); } };
+          $('#ag-ok', h).onclick = async () => {
+            leer(); const w = num(d.w), hh = num(d.h), n = s0.id ? 1 : Math.max(1, Math.min(20, Math.floor(num(d.cant) || 1)));
+            if (!d.piedra) return X.aviso('Escribe qué piedra es (color o nombre).', true);
+            if (!(w >= 5 && hh >= 5)) return X.aviso('Escribe la medida (largo y ancho en cm).', true);
+            if (w > 400 || hh > 400) return X.aviso('Esa medida es muy grande. Revisa: va en centímetros.', true);
+            const W_ = Math.max(w, hh), H_ = Math.min(w, hh);
+            if (!await X.clave(s0.id ? 'Guardar cambios de la piedra' : 'Guardar piedra', [['Qué', (n > 1 ? n + ' × ' : '') + (d.tipo === 'placa' ? 'Placa completa' : 'Pedazo')], ['Piedra', d.piedra], ['Medida', W_ + ' × ' + H_ + ' cm'], ['Costo', num(d.costo) ? pesos(num(d.costo)) + (n > 1 ? ' c/u' : '') : '—'], ['Foto', d.foto ? 'sí' : s0.foto ? 'la que ya tiene' : 'sin foto']])) return;
+            X.cerrarHoja();
+            await X.guardarYa(async () => {
+              const u = {}, me = X.me().nombre || '', hId = nid('h');
+              if (s0.id) {
+                Object.assign(u, { ['dinero/sobrantes/' + s0.id + '/piedra']: d.piedra.slice(0, 40), ['dinero/sobrantes/' + s0.id + '/w']: W_, ['dinero/sobrantes/' + s0.id + '/h']: H_, ['dinero/sobrantes/' + s0.id + '/costo']: num(d.costo) || null, ['dinero/sobrantes/' + s0.id + '/proveedor']: d.proveedor || null, ['dinero/sobrantes/' + s0.id + '/fecha']: d.fecha, ['dinero/sobrantes/' + s0.id + '/nota']: d.nota || null, ['dinero/sobrantes/' + s0.id + '/editado']: TS });
+                if (d.foto) { u['piedra/fotos/' + s0.id] = d.foto; u['dinero/sobrantes/' + s0.id + '/foto'] = true; FOTOS[s0.id] = d.foto; }
+                u['dinero/piedraHist/' + hId] = { accion: 'Editó', fecha: hoy(), pieza: s0.id, piedra: d.piedra.slice(0, 40), detalle: 'Corrigió ' + nomPieza(s0) + ' → ' + d.piedra + ' ' + W_ + '×' + H_ + (d.foto ? ' (foto nueva)' : ''), por: me, creado: TS };
+              } else {
+                const ids = [];
+                for (let i = 0; i < n; i++) {
+                  const id = nid('pz'); ids.push(id);
+                  u['dinero/sobrantes/' + id] = { piedra: d.piedra.slice(0, 40), w: W_, h: H_, tipo: d.tipo, costo: num(d.costo) || null, proveedor: d.proveedor || null, fecha: d.fecha, nota: d.nota || null, pedido: d.pedido || null, estado: 'disponible', foto: d.foto ? true : null, por: me, creado: TS };
+                  if (d.foto) { u['piedra/fotos/' + id] = d.foto; FOTOS[id] = d.foto; }
+                }
+                u['dinero/piedraHist/' + hId] = { accion: 'Entró', fecha: d.fecha, pieza: ids[0], quedan: ids, piedra: d.piedra.slice(0, 40), pedido: d.pedido || null, detalle: (n > 1 ? n + ' × ' : '') + (d.tipo === 'placa' ? 'Placa completa ' : 'Pedazo ') + d.piedra + ' ' + W_ + '×' + H_ + (num(d.costo) ? ' · ' + pesos(num(d.costo)) + (n > 1 ? ' c/u' : '') : '') + (d.proveedor ? ' · ' + d.proveedor : ''), por: me, creado: TS };
+              }
+              await A.nodoVarios(u);
+            }, s0.id ? 'Piedra guardada' : (n > 1 ? n + ' piedras guardadas' : 'Piedra guardada'), (s0.id ? 'Editó piedra ' : 'Agregó ') + (n > 1 ? n + ' × ' : '') + d.piedra + ' ' + W_ + '×' + H_);
+          };
+          if (s0.id) $('#ag-b', h).onclick = async () => {
+            if (!await X.clave('Borrar piedra', [['Piedra', nomPieza(s0)], ['Ojo', 'Se borra del stock; el historial se queda']])) return;
+            X.cerrarHoja(); await X.guardarYa(async () => { const u = { ['dinero/sobrantes/' + s0.id]: null, ['piedra/fotos/' + s0.id]: null }; u['dinero/piedraHist/' + nid('h')] = { accion: 'Borró', fecha: hoy(), pieza: s0.id, piedra: s0.piedra || '', detalle: 'Borró ' + tipoTxt(s0).toLowerCase() + ' ' + nomPieza(s0), por: X.me().nombre || '', creado: TS }; await A.nodoVarios(u); }, 'Piedra borrada', 'Borró piedra ' + nomPieza(s0));
+            location.hash = '#piedras';
+          };
+        };
+        pintar();
+      });
+    }
+
+    // ---------- una piedra: foto, dibujo, de dónde salió, en qué se usó ----------
+    function detalle(s) {
+      const H = hist().filter(x => x.pieza === s.id || (x.quedan || []).includes(s.id)), hijos = todas().filter(x => x.origen === s.id), madre = s.origen ? pieza(s.origen) : null, al = s.estado === 'usado' ? [] : alcanza(s);
+      X.main().innerHTML = '<a class="volver" href="#piedras">‹ Piedras</a>' + X.tit(esc(s.piedra || 'Piedra'), esc(tipoTxt(s)) + ' · ' + r1(num(s.w)) + ' × ' + r1(num(s.h)) + ' cm' + (s.estado === 'usado' ? ' · ya usada' : ''), s.estado === 'usado' ? '' : '<div class="tit-b"><button class="b negro" id="d-cut">✂ Cortar</button><button class="b" id="d-ed">Editar</button></div>')
+        + '<section class="caja det"><i class="pz-foto grande" ' + (s.foto ? 'data-foto="' + esc(s.id) + '"' : '') + '>' + (s.foto ? '' : '<button class="b" id="d-foto">📷 Agregar foto</button>') + '</i>' + dibujo(s) + '</section>'
+        + '<section class="caja"><dl class="conf">' + [['Medida', r1(num(s.w)) + ' × ' + r1(num(s.h)) + ' cm (' + (num(s.w) * num(s.h) / 1e4).toFixed(2) + ' m²)'], ['Tipo', tipoTxt(s)], ['Estado', s.estado === 'usado' ? 'Usada' + (s.usadoEn ? ': ' + s.usadoEn : '') : 'Disponible'], ['Fecha', fC(s.fecha) || '—'], ['Costo', num(s.costo) ? pesos(num(s.costo)) : '—'], ['Proveedor', s.proveedor || '—'], ['Salió de', madre ? nomPieza(madre) : s.origen ? 'otra piedra' : '—'], ['Pedido', s.pedido ? X.M().nomPed(s.pedido) : '—'], ['Nota', s.nota || '—']].map(([k, v]) => '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>').join('') + '</dl>'
+        + (madre ? '<a class="lnk" href="#piedras/s=' + esc(madre.id) + '">Ver la piedra de donde salió ›</a>' : '') + '</section>'
+        + (al.length ? '<section class="caja"><h2>De aquí salen</h2><p>' + al.map(x => '<b>' + x.n + '</b> ' + esc(x.et)).join(' · ') + '</p><p class="nota">Cada medida por separado (si cortas solo esa).</p></section>' : '')
+        + (hijos.length ? '<section class="caja"><h2>Pedazos que quedaron de esta</h2><div class="pzs">' + hijos.map(x => tarjeta(x)).join('') + '</div></section>' : '')
+        + '<section class="caja"><h2>Historial de esta piedra</h2>' + (H.length ? '<ul class="hist">' + H.map(filaHist).join('') + '</ul>' : X.vacioTxt('Sin movimientos todavía.')) + '</section>';
+      if ($('#d-cut')) $('#d-cut').onclick = () => cortar(s);
+      if ($('#d-ed')) $('#d-ed').onclick = () => agregar(s);
+      if ($('#d-foto')) $('#d-foto').onclick = () => agregar(s);
+      pintarFotos(X.main());
+    }
+
+    // ================= CORTAR: se dibuja en la piedra, se descuenta y lo que queda se guarda =================
+    function cortar(s, pre) {
+      if (!s) return X.aviso('Esa piedra ya no está.', true);
+      pre = pre || {};
+      let reqs = (pre.reqs || []).map(r => Object.assign({}, r)), pedido = pre.pedido || '', q = { forma: 'red', d: '', w: '', h: '', cant: '1' }, conCortes = false;
+      const activos = X.M().pedidos.filter(p => !p.cerrado);
+      X.hoja('Cortar · ' + nomPieza(s), '<div id="ct"></div>', h => {
+        const pintar = () => {
+          const r = reqs.length ? corte(s, reqs) : null, sob = r ? r.sobrantes.map(x => ({ w: Math.floor(x.w), h: Math.floor(x.h) })).filter(x => x.w >= CFG.minSob && x.h >= CFG.minSob) : [];
+          $('#ct', h).innerHTML = '<div class="campo">Piezas a cortar' + (reqs.length ? '<ul class="corta">' + reqs.map((x, i) => '<li><b>' + (num(x.cant) > 1 ? num(x.cant) + ' × ' : '') + esc((x.nombre ? x.nombre + ' ' : '') + medTxt(x)) + '</b><button type="button" class="x" data-del="' + i + '" aria-label="Quitar">✕</button></li>').join('') + '</ul>' : '<p class="nota">Agrega lo que vas a sacar de esta piedra.</p>') + '</div>'
+            + '<div class="campo">Del catálogo' + '<div class="chips">' + (X.piezas() || []).map((p, i) => '<button type="button" data-cat="' + i + '">＋ ' + esc(K.etiqueta(p)) + '</button>').join('') + '</div></div>'
+            + '<div class="campo">Otra medida' + pideH(q, 'ct-pide') + '<button type="button" class="b chico" id="ct-add">＋ Agregar esta medida</button></div>'
+            + (r ? '<div class="dib">' + dibujo(s, r) + '</div>' + (r.faltan.length ? '<p class="aviso r">✕ No caben ' + r.faltan.length + ' pieza(s): ' + esc(r.faltan.map(x => x.et).join(', ')) + '. Quita alguna o usa otra piedra.</p>' : '<p class="ok-g">✓ Cabe todo · se usa ' + r.pct + '% de la piedra</p>')
+              + '<p class="nota"><b>Quedan ' + sob.length + ' pedazo(s) que se guardan solos:</b> ' + (sob.length ? sob.map(x => x.w + '×' + x.h).join(' · ') : 'ninguno que sirva (menos de 15 cm)') + '. Merma ≈ ' + r.mermaPct + '%. El disco se come 0.5 cm por corte' + (s.tipo === 'placa' ? ' y a la placa nueva se le refila 1 cm por lado' : '') + '.</p>'
+              + '<details class="plegable"><summary><span>Orden de los cortes</span><small>' + r.cortes.length + '</small></summary><div class="pl-c"><ol class="cola-ins">' + K.pasos(r).map(t => '<li>' + esc(t) + '</li>').join('') + '</ol></div></details>' : '')
+            + '<div class="campo">¿Para qué pedido? (opcional)' + chipsH('pedido', [['', 'Ninguno / stock']].concat(activos.map(p => [p.id, X.M().nomPedido(p)])), pedido) + '</div>'
+            + '<button class="b negro grande" id="ct-ok"' + (!r || r.faltan.length ? ' disabled' : '') + '>✂ Cortar y descontar</button>';
+          $$('[data-del]', h).forEach(b => b.onclick = () => { reqs.splice(+b.dataset.del, 1); pintar(); });
+          $$('[data-cat]', h).forEach(b => b.onclick = () => { const p = X.piezas()[+b.dataset.cat], ya = reqs.find(x => x.nombre === p.nombre && x.forma === (p.forma === 'red' ? 'red' : 'rect') && num(x.d) === num(p.d) && num(x.w) === num(p.w) && num(x.h) === num(p.h)); if (ya) ya.cant = num(ya.cant) + 1; else reqs.push({ nombre: p.nombre, forma: p.forma === 'red' ? 'red' : 'rect', d: num(p.d), w: num(p.w), h: num(p.h), cant: 1 }); pintar(); });
+          const box = $('#ct-pide', h);
+          $$('[data-q]', h).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; if (g.dataset.q === 'forma') { leerPide(box, q); q.forma = b.dataset.v; } else pedido = b.dataset.v; pintar(); });
+          $('#ct-add', h).onclick = () => { leerPide(box, q); const rq = reqDe(q); if (!rq.length) return X.aviso('Escribe la medida.', true); reqs.push(rq[0]); q = { forma: q.forma, d: '', w: '', h: '', cant: '1' }; pintar(); };
+          $('#ct-ok', h).onclick = async () => {
+            if (!r || r.faltan.length || conCortes) return;
+            const cort = reqTxt(reqs), pn = pedido ? X.M().nomPed(pedido) : '';
+            if (!await X.clave('Cortar piedra', [['De', tipoTxt(s) + ' ' + nomPieza(s)], ['Se corta', cort], ['Para', pn || 'stock'], ['Quedan', sob.length ? sob.map(x => x.w + '×' + x.h).join(' · ') : 'nada que sirva']])) return;
+            conCortes = true; X.cerrarHoja();
+            await X.guardarYa(async () => {
+              const u = {}, me = X.me().nombre || '', ids = [], f = hoy(), pre_ = 'dinero/sobrantes/' + s.id + '/';
+              sob.forEach(x => { const id = nid('pz'); ids.push(id); u['dinero/sobrantes/' + id] = { piedra: s.piedra || 'Sin nombre', w: Math.max(x.w, x.h), h: Math.min(x.w, x.h), tipo: 'sobrante', origen: s.id, fecha: f, estado: 'disponible', nota: 'Quedó al cortar ' + cort + (pn ? ' (' + pn + ')' : '') + ' de ' + nomPieza(s), por: me, creado: TS }; });
+              u[pre_ + 'estado'] = 'usado'; u[pre_ + 'usadoEn'] = (cort + (pn ? ' · ' + pn : '')).slice(0, 120); u[pre_ + 'usadoFecha'] = f; u[pre_ + 'editado'] = TS;
+              u['dinero/piedraHist/' + nid('h')] = { accion: 'Corte', fecha: f, pieza: s.id, piedra: s.piedra || '', pedido: pedido || null, cortadas: reqs.map(x => (num(x.cant) > 1 ? num(x.cant) + '× ' : '') + (x.nombre ? x.nombre + ' ' : '') + medTxt(x)), quedan: ids.length ? ids : null,
+                detalle: 'De ' + tipoTxt(s).toLowerCase() + ' ' + nomPieza(s) + ' se cortó ' + cort + (pn ? ' para ' + pn : '') + '. Quedó: ' + (sob.length ? sob.map(x => x.w + '×' + x.h).join(', ') : 'nada que sirva'), por: me, creado: TS };
+              await A.nodoVarios(u);
+            }, 'Cortado: quedan ' + sob.length + ' pedazo(s) en tus piedras', 'Cortó ' + cort + ' de ' + nomPieza(s) + (pn ? ' · ' + pn : ''));
+            location.hash = '#piedras/historial';
+          };
+        };
+        pintar();
+      });
+    }
+
+    // ================= HISTORIAL =================
+    const ICON = { 'Entró': '＋', 'Corte': '✂', 'Editó': '✎', 'Borró': '✕', 'Foto': '📷' };
+    function filaHist(x) {
+      const ped = x.pedido ? X.M().ped(x.pedido) : null;
+      return '<li class="h-' + esc((x.accion || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')) + '"><i>' + (ICON[x.accion] || '•') + '</i><span><b>' + esc(x.accion || '') + ' · ' + esc(x.piedra || '') + '</b><small>' + esc(x.detalle || '') + '</small><small>' + esc(fC(x.fecha)) + (x.por ? ' · ' + esc(x.por) : '') + (ped ? ' · <a href="#p=' + esc(ped.id) + '">' + esc(X.M().nomPedido(ped)) + '</a>' : '') + (x.pieza && pieza(x.pieza) ? ' · <a href="#piedras/s=' + esc(x.pieza) + '">ver piedra</a>' : '') + '</small></span></li>';
+    }
+    let filtroH = '';
+    function historial() {
+      const H = hist(), cols = [...new Set(H.map(x => x.piedra).filter(Boolean))], L = H.filter(x => !filtroH || x.piedra === filtroH);
+      const entraron = H.filter(x => x.accion === 'Entró').length, cortes = H.filter(x => x.accion === 'Corte').length;
+      X.main().innerHTML = X.tit('Piedras', 'Todo lo que entra, se corta y queda', '') + tabs('historial')
+        + '<section class="kpis cuatro">' + X.kpi('Entradas', String(entraron)) + X.kpi('Cortes', String(cortes)) + X.kpi('Disponibles', String(disponibles().length), 'v', '', '#piedras') + X.kpi('Ya usadas', String(usadas().length)) + '</section>'
+        + (cols.length > 1 ? '<div class="chips filtros" id="hf"><button data-v=""' + (!filtroH ? ' class="on"' : '') + '>Todas</button>' + cols.map(c => '<button data-v="' + esc(c) + '"' + (filtroH === c ? ' class="on"' : '') + '>' + esc(c) + '</button>').join('') + '</div>' : '')
+        + '<section class="caja">' + (L.length ? '<ul class="hist">' + L.map(filaHist).join('') + '</ul>' : X.vacioTxt('Todavía no hay movimientos de piedra. Cuando agregues una placa o cortes, queda aquí.')) + '</section>';
+      $$('#hf [data-v]').forEach(b => b.onclick = () => { filtroH = b.dataset.v; historial(); });
+    }
+
+    // ================= PRECIOS (editables) =================
+    function precios() {
+      const g = X.D().precios || {};
+      X.main().innerHTML = X.tit('Piedras', 'Precios: el cotizador calcula con estos', '') + tabs('precios')
+        + '<section class="caja"><h2>Precios y costos</h2><p class="nota">Cámbialos cuando cambien tus costos. La calculadora y la cotización al cliente se actualizan solas.</p><div class="precios">'
+        + CAMPOS_P.map(([k, t, gt]) => '<label class="campo">' + esc(t) + '<input data-p="' + k + '" inputmode="decimal" value="' + esc(gt()) + '">' + (String(DEF_P[k]) !== String(gt()) ? '<small class="nota">Antes: ' + esc(k === 'margen' ? '×' + DEF_P[k] : k === 'baseF' ? DEF_P[k] + '%' : pesos(DEF_P[k])) + '</small>' : '') + '</label>').join('') + '</div>'
+        + '<div id="pr-ej" class="vivo"></div><button class="b negro grande" id="pr-ok">Guardar precios</button>' + (Object.keys(g).length ? '<button class="b" id="pr-def">Volver a los precios de antes</button>' : '') + '</section>'
+        + '<section class="caja"><h2>Cómo calcula</h2><p class="nota">Costo = parte de la placa que usa (si de la placa salen 2, cada una paga la mitad; lo que sobra para mesitas de 80×80 se descuenta) + corte y canto por metro + MDF + base + pegamento y empaque + extra por pieza. Precio = costo × ' + esc(P.C.margen) + ', redondeado a $100. Mesas grandes: se suma la entrega. Si tienes la piedra en stock, la parte de la placa ya está pagada y la ganancia sube.</p></section>';
+      const ej = () => { const v = {}; $$('[data-p]').forEach(i => { v[i.dataset.p] = num(i.value); }); const viejo = {}; CAMPOS_P.forEach(([k, , gt, st]) => { viejo[k] = gt(); if (v[k] > 0) st(v[k]); });
+        const ms = [['centro', 'red', 80, 80, 'Centro Ø80'], ['lateral', 'red', 60, 60, 'Lateral Ø60'], ['comedor', 'rect', 200, 100, 'Comedor 200×100']].map(([u, f, w, hh, n]) => { const m = P.calcular({ uso: u, forma: f, w, h: hh }); return '<div>' + n + '<b>' + pesos(m.precio) + '</b><small>costo ' + pesos(m.costo) + '</small></div>'; }).join('');
+        CAMPOS_P.forEach(([k, , , st]) => st(viejo[k])); $('#pr-ej').innerHTML = ms; };
+      $$('[data-p]').forEach(i => i.oninput = ej); ej();
+      $('#pr-ok').onclick = async () => {
+        const v = {}, cam = []; $$('[data-p]').forEach(i => { const k = i.dataset.p, n = num(i.value); if (!(n > 0)) return; v[k] = n; if (String(n) !== String(DEF_P[k])) cam.push([CAMPOS_P.find(c => c[0] === k)[1], String(n)]); });
+        if (v.margen && (v.margen < 1 || v.margen > 5)) return X.aviso('El multiplicador va entre 1 y 5 (ej. 1.6).', true);
+        if (!await X.clave('Guardar precios', cam.length ? cam.slice(0, 8) : [['Precios', 'los de siempre']])) return;
+        await X.guardarYa(() => A.nodoPon('dinero/precios', v), 'Precios guardados', 'Cambió precios: ' + cam.map(x => x[0] + ' ' + x[1]).join(', '));
+      };
+      if ($('#pr-def')) $('#pr-def').onclick = async () => { if (!await X.clave('Volver a los precios de antes', [['Precios', 'los originales']])) return; await X.guardarYa(() => A.nodoPon('dinero/precios', null), 'Precios de antes', 'Regresó los precios originales'); };
+    }
+
+    // ================= COTIZAR: calculadora automática conectada al stock =================
+    const USOS = [['comedor', 'Comedor'], ['centro', 'Centro'], ['lateral', 'Lateral'], ['periquera', 'Periquera'], ['consola', 'Consola'], ['escritorio', 'Escritorio']];
+    const FORMAS = [['rect', 'Rectangular'], ['red', 'Redonda'], ['oval', 'Ovalada'], ['org', 'Orgánica']];
+    const nomUso = u => (USOS.find(x => x[0] === u) || [, 'Mesa'])[1];
+    const nomForma = f => (FORMAS.find(x => x[0] === f) || [, ''])[1].toLowerCase();
+    let qc = (() => { try { return JSON.parse(localStorage.getItem('dkas-pz-coti')) || null; } catch (e) { return null; } })() || { uso: 'centro', forma: 'red', w: '80', h: '', alto: '', cant: '1', piedra: '' };
+    // calcula una mesa: precio normal y, si hay piedra en stock de ese color donde quepa, el costo con esa piedra
+    function calcula(q) {
+      const forma = q.forma, w = num(q.w), h = forma === 'red' ? w : num(q.h), cant = Math.max(1, Math.floor(num(q.cant) || 1));
+      const r = P.cotizar({ uso: q.uso, forma, w, h, cant }); if (r.error) return r;
+      const req = [{ forma: forma === 'red' ? 'red' : 'rect', d: w, w, h, cant }]; // ovalada/orgánica: su rectángulo
+      const st = buscar(req, q.piedra), m = r.m, conStock = st.length && st[0].color ? st[0] : null;
+      r.stock = st; r.conStock = conStock; r.costoTotal = m.costo * cant; r.costoStock = (m.costo - m.piedra) * cant;
+      r.alto = num(q.alto) || m.alto; r.req = req;
+      return r;
+    }
+    function cotizar() {
+      X.main().innerHTML = X.tit('Piedras', 'Cotizar', '') + tabs('cotizar')
+        + '<a class="b verde grande coti-cli" href="#piedras/cliente">📄 Cotizar al cliente <small>arma la cotización y mándala en PDF</small></a>'
+        + '<section class="caja"><h2>Calculadora rápida</h2><div id="qc"></div></section><div id="qc-r"></div>'
+        + cotisGuardadas();
+      pintarQC();
+      $$('[data-cot]').forEach(a => a.onclick = e => { e.preventDefault(); location.hash = '#piedras/cliente=' + a.dataset.cot; });
+    }
+    function pintarQC() {
+      const box = $('#qc'); if (!box) return;
+      box.innerHTML = '<div class="campo">¿Qué mesa?' + chipsH('uso', USOS, qc.uso) + '</div><div class="campo">Forma' + chipsH('forma', FORMAS, qc.forma) + '</div>'
+        + '<div class="campo">Medidas (cm)<div class="tres-i"><input data-k="w" inputmode="decimal" placeholder="' + (qc.forma === 'red' ? 'Diámetro' : 'Largo') + '" value="' + esc(qc.w) + '">' + (qc.forma === 'red' ? '' : '<input data-k="h" inputmode="decimal" placeholder="Ancho" value="' + esc(qc.h) + '">') + '<input data-k="alto" inputmode="decimal" placeholder="Alto (' + (P.ALTO[qc.uso] || 75) + ')" value="' + esc(qc.alto) + '"><input data-k="cant" inputmode="numeric" placeholder="Cuántas" value="' + esc(qc.cant) + '"></div></div>'
+        + '<div class="campo">Piedra' + chipsH('piedra', colores().map(c => [c, c]), qc.piedra) + '<input data-k="piedra" maxlength="40" placeholder="O escribe el color" value="' + esc(qc.piedra) + '"></div>';
+      $$('[data-q]', box).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leerQC(box); qc[g.dataset.q] = b.dataset.v; pintarQC(); });
+      $$('[data-k]', box).forEach(i => i.oninput = () => { leerQC(box); resultadoQC(); });
+      resultadoQC();
+    }
+    const leerQC = box => { $$('[data-k]', box).forEach(i => { qc[i.dataset.k] = i.dataset.k === 'piedra' ? i.value : i.value.replace(/[^\d.,]/g, '').replace(',', '.'); }); };
+    function resultadoQC() {
+      try { localStorage.setItem('dkas-pz-coti', JSON.stringify(qc)); } catch (e) {}
+      const out = $('#qc-r'); if (!out) return;
+      if (!num(qc.w) || (qc.forma !== 'red' && !num(qc.h))) { out.innerHTML = ''; return; }
+      const r = calcula(qc);
+      if (r.error) { out.innerHTML = '<section class="caja"><p class="aviso r">' + esc(r.error) + '</p></section>'; return; }
+      const m = r.m, cant = r.cant, sem = P.semaforo(r.pct10), cs = r.conStock;
+      const fila = (t, v) => '<tr><td>' + t + '</td><td>' + pesos(v * cant) + '</td></tr>';
+      out.innerHTML = '<section class="caja precio-g"><small>' + esc(nomUso(qc.uso) + ' ' + nomForma(qc.forma) + ' ' + (qc.forma === 'red' ? 'Ø' + num(qc.w) : num(qc.w) + '×' + num(qc.h)) + ' cm' + (cant > 1 ? ' · ' + cant + ' piezas' : '')) + '</small><b>' + pesos(r.total) + '</b><p>' + (m.chico ? 'Precio con entrega incluida' : pesos(r.precio) + ' la mesa + ' + pesos(r.entrega) + ' de entrega (' + (m.minivan ? 'minivan' : 'flete') + ')') + '</p>'
+        + '<div class="vivo"><div>Costo<b>' + pesos(r.costoTotal) + '</b></div><div>Ganancia<b class="v">' + pesos(r.precio - r.costoTotal) + '</b></div><div>Con 10%<b class="' + (sem === 'ok' ? 'v' : sem === 'no' ? 'r' : '') + '">' + pesos(r.d10) + '</b></div></div></section>'
+        + (cs ? '<section class="caja ok"><h2>✓ Tienes la piedra en stock</h2><p>' + esc(nomPieza(cs.s)) + ' (' + esc(tipoTxt(cs.s).toLowerCase()) + '). La placa ya está pagada: tu costo baja a <b>' + pesos(r.costoStock) + '</b> y ganas <b class="v">' + pesos(r.precio - r.costoStock) + '</b> (' + pesos(m.piedra * cant) + ' más).</p><div class="dib chico">' + dibujo(cs.s, cs.r) + '</div><button class="b chico verde" id="qc-cut">✂ Cortar de ahí</button></section>'
+          : '<section class="caja"><h2>' + (r.stock.length ? 'Hay piedra de otro color donde cabe' : 'No tienes esa piedra en stock') + '</h2><p class="nota">Hay que comprar placa (' + pesos(P.C.placa.precio) + '). De una placa salen ' + m.ac.n + ' de esta medida' + (r.placas > 1 ? '; para ' + cant + ' necesitas ' + r.placas + ' placas' : '') + '.</p>' + (r.stock.length ? '<div class="pzs">' + r.stock.slice(0, 3).map(x => tarjeta(x.s)).join('') + '</div>' : '') + '</section>')
+        + X.plegable('Desglose del costo', pesos(r.costoTotal), '<div class="tabla"><table><tbody>' + fila('Piedra (parte de la placa)', m.piedra) + fila('Corte y canto', m.corte) + fila('MDF', m.mdf) + fila('Base de herrería', m.base) + fila('Pegamento', m.pegamento) + fila('Empaque', m.empaque) + fila('Extra por pieza (taller)', P.C.extra) + '</tbody><tfoot><tr><td>Costo</td><td>' + pesos(r.costoTotal) + '</td></tr><tr><td>Precio (× ' + P.C.margen + ')</td><td>' + pesos(r.precio) + '</td></tr></tfoot></table></div><p class="nota">Pesa ≈ ' + m.peso * cant + ' kg · alto sugerido ' + m.alto + ' cm' + (m.pers ? ' · ' + m.pers + ' personas' : '') + '.</p>')
+        + X.plegable('Cómo sale de la placa', m.ac.n + ' por placa', '<div class="dib">' + dibujo({ piedra: qc.piedra, w: PLACA().w, h: PLACA().h }, { puestas: r.puestas.map(p => Object.assign({}, p, { forma: p.k === 'm' && qc.forma === 'red' ? 'red' : p.forma })), libres: [] }) + '</div>' + (r.extras.length ? '<p class="nota">Con lo que sobra salen además: ' + esc(P.agrupar(r.extras).map(([x, n]) => n + '× ' + x.nom + ' ' + (x.forma === 'red' ? 'Ø' + x.w : x.w + '×' + x.h)).join(' · ')) + (r.paquete && r.paquete.reco ? '. Ofrécelas en paquete por ' + pesos(r.paquete.reco.p) + ' (−' + Math.round(r.paquete.reco.d * 100) + '%).' : '.') + '</p>' : ''))
+        + (r.parecidas.length ? X.plegable('Medidas parecidas más baratas', r.parecidas.length + '', '<ul class="fondos">' + r.parecidas.map(x => '<li><span>' + (x.forma === 'red' ? 'Ø' + x.w : x.w + '×' + x.h) + ' cm</span><b>' + pesos(x.precio) + '</b></li>').join('') + '</ul>') : '')
+        + '<div class="botones"><button class="b negro" id="qc-cli">＋ A la cotización del cliente</button><button class="b" id="qc-ped">Pasar a pedido</button></div>';
+      if ($('#qc-cut')) $('#qc-cut').onclick = () => cortar(cs.s, { reqs: r.req });
+      $('#qc-cli').onclick = () => { const b = borrador(); b.items.push(itemDe(qc, r)); guardarBorrador(b); location.hash = '#piedras/cliente'; X.aviso('Agregada a la cotización'); };
+      $('#qc-ped').onclick = () => aPedido([itemDe(qc, r)], {}, r.total);
+    }
+    const itemDe = (q, r) => ({ uso: q.uso, forma: q.forma, w: num(q.w), h: q.forma === 'red' ? num(q.w) : num(q.h), alto: r.alto, piedra: (q.piedra || '').trim(), base: '', cant: r.cant, precio: r.m.precio, auto: r.m.precio, desc: descDe(q.uso, q.forma, num(q.w), q.forma === 'red' ? num(q.w) : num(q.h), r.alto, q.piedra, '') });
+    const descDe = (uso, forma, w, h, alto, piedra, base) => 'Mesa ' + ({ comedor: 'de comedor', centro: 'de centro', lateral: 'lateral', periquera: 'periquera', consola: 'consola', escritorio: 'escritorio' }[uso] || '') + ' ' + nomForma(forma) + ' ' + (forma === 'red' ? 'Ø ' + w + ' cm' : w + ' × ' + h + ' cm') + (alto ? ', ' + alto + ' cm de alto' : '') + '. Cubierta de piedra sinterizada 12 mm' + (piedra ? ' ' + piedra.trim() : '') + (base ? '. Base: ' + base : '') + '.';
+
+    // ================= COTIZACIÓN AL CLIENTE (PDF) =================
+    const vacia = () => ({ cliente: '', tel: '', clienteId: '', items: [], entrega: '', entregaAuto: true, descuento: '', vigencia: 15, tiempo: '7 a 10 días hábiles después del anticipo', notas: '', fecha: hoy() });
+    const borrador = () => { try { return Object.assign(vacia(), JSON.parse(localStorage.getItem('dkas-pz-cot')) || {}); } catch (e) { return vacia(); } };
+    const guardarBorrador = b => { try { localStorage.setItem('dkas-pz-cot', JSON.stringify(b)); } catch (e) {} };
+    const cotis = () => Object.entries(X.D().cotizaciones || {}).map(([id, x]) => Object.assign({ id }, x, { items: arr(x.items) })).sort((a, b) => (b.creado || 0) - (a.creado || 0));
+    function cotisGuardadas() {
+      const l = cotis(); if (!l.length) return '';
+      return X.plegable('Cotizaciones guardadas', l.length + '', '<div class="lista">' + l.slice(0, 40).map(c => '<a class="fila-a" href="#piedras/cliente=' + esc(c.id) + '" data-cot="' + esc(c.id) + '"><span class="fila-c"><b>' + esc(c.cliente || 'Sin nombre') + ' <span class="folio">C-' + esc(c.folio) + '</span></b><small>' + esc(fC(c.fecha)) + ' · ' + (c.items || []).length + ' mesa(s)</small></span><span class="fila-d"><b>' + pesos(c.total) + '</b></span></a>').join('') + '</div>', false);
+    }
+    function entregaAuto(b) {
+      const ms = b.items.map(it => { try { return P.calcular({ uso: it.uso, forma: it.forma, w: num(it.w), h: num(it.h) }); } catch (e) { return null; } }).filter(Boolean);
+      return ms.some(m => !m.chico) ? (ms.some(m => !m.minivan) ? P.C.flete : P.C.minivanComedor) : 0;
+    }
+    const totales = b => { const sub = b.items.reduce((a, it) => a + num(it.precio) * Math.max(1, num(it.cant) || 1), 0), ent = b.entregaAuto ? entregaAuto(b) : num(b.entrega), des = num(b.descuento), tot = Math.max(0, sub - des + ent); return { sub, ent, des, tot, ant: Math.round(tot / 2) }; };
+    let entregaVista = 0;
+    function cliente(id) {
+      let b = id ? (() => { const c = cotis().find(x => x.id === id); return c ? Object.assign(vacia(), JSON.parse(JSON.stringify(c)), { entregaAuto: false }) : null; })() : borrador();
+      if (!b) { location.hash = '#piedras/cotizar'; return; }
+      const guardar = () => { if (!id) guardarBorrador(b); };
+      const pintar = () => {
+        const T = totales(b), clientes = X.M().clientes; entregaVista = T.ent;
+        X.main().innerHTML = '<a class="volver" href="#piedras/cotizar">‹ Cotizar</a>' + X.tit('Cotizar al cliente', id ? 'Cotización C-' + esc(b.folio) + ' · ' + esc(fC(b.fecha)) : 'Llena, revisa y manda el PDF', '')
+          + '<section class="caja"><h2>1 · Cliente</h2><div class="dos-i"><label class="campo">Nombre<input id="cc-n" maxlength="80" value="' + esc(b.cliente) + '" placeholder="ej. David Shamy"></label><label class="campo">WhatsApp<input id="cc-t" inputmode="tel" maxlength="20" value="' + esc(b.tel) + '" placeholder="55 1234 5678"></label></div>'
+            + (clientes.length ? '<details class="plegable"><summary><span>Elegir un cliente que ya tenemos</span></summary><div class="pl-c"><div class="chips" id="cc-cl">' + clientes.map(c => '<button type="button" data-v="' + esc(c.id) + '">' + esc(c.nombre) + '</button>').join('') + '</div></div></details>' : '') + '</section>'
+          + '<section class="caja"><div class="caja-t"><h2>2 · Mesas</h2><span class="sub">' + b.items.length + '</span></div>'
+            + (b.items.length ? '<ol class="cot-items">' + b.items.map((it, i) => '<li><div class="ci-t"><b>' + (i + 1) + '</b><textarea data-i="' + i + '" data-f="desc" maxlength="300">' + esc(it.desc) + '</textarea><button type="button" class="x" data-del="' + i + '" aria-label="Quitar">✕</button></div>'
+              + '<div class="dos-i"><label class="campo">Cuántas<input data-i="' + i + '" data-f="cant" inputmode="numeric" value="' + esc(it.cant) + '"></label><label class="campo">Precio c/u<input data-i="' + i + '" data-f="precio" inputmode="decimal" value="' + esc(it.precio) + '"></label></div>'
+              + (num(it.auto) && num(it.auto) !== num(it.precio) ? '<button type="button" class="sug" data-auto="' + i + '">El calculador dice ' + pesos(it.auto) + ' · usar</button>' : '') + '</li>').join('') + '</ol>' : X.vacioTxt('Agrega las mesas que quiere el cliente.'))
+            + '<button class="b grande" id="cc-add">＋ Agregar mesa</button></section>'
+          + '<section class="caja"><h2>3 · Entrega, descuento y condiciones</h2><div class="dos-i"><label class="campo">Entrega e instalación' + (b.entregaAuto ? ' <small>(automática)</small>' : '') + '<input id="cc-e" inputmode="decimal" value="' + esc(b.entregaAuto ? T.ent : b.entrega) + '"></label><label class="campo">Descuento ($)<input id="cc-d" inputmode="decimal" placeholder="$0" value="' + esc(b.descuento) + '"></label></div>'
+            + '<div class="dos-i"><label class="campo">Tiempo de entrega<input id="cc-ti" maxlength="80" value="' + esc(b.tiempo) + '"></label><label class="campo">Vigencia (días)<input id="cc-v" inputmode="numeric" value="' + esc(b.vigencia) + '"></label></div>'
+            + '<label class="campo">Notas para el cliente (opcional)<textarea id="cc-no" maxlength="400" placeholder="ej. Incluye instalación en CDMX">' + esc(b.notas) + '</textarea></label></section>'
+          + '<section class="caja precio-g"><small>Total</small><b>' + pesos(T.tot) + '</b><p>Mesas ' + pesos(T.sub) + (T.des ? ' − descuento ' + pesos(T.des) : '') + (T.ent ? ' + entrega ' + pesos(T.ent) : ' · entrega incluida') + '</p><p>Anticipo 50%: <b>' + pesos(T.ant) + '</b> · saldo contra entrega ' + pesos(T.tot - T.ant) + '</p></section>'
+          + '<div class="botones col"><button class="b verde grande" id="cc-pdf"' + (b.items.length && b.cliente ? '' : ' disabled') + '>📄 PDF para el cliente</button><button class="b negro grande" id="cc-g"' + (b.items.length && b.cliente ? '' : ' disabled') + '>' + (id ? 'Guardar cambios' : 'Guardar cotización') + '</button>' + (b.tel ? '<button class="b grande" id="cc-wa">Mandar mensaje por WhatsApp</button>' : '') + (b.items.length ? '<button class="b grande" id="cc-ped">Pasar a pedido</button>' : '') + (id ? '' : '<button class="b" id="cc-nueva">Empezar una nueva</button>') + (id ? '<button class="b rojo" id="cc-b">Borrar cotización</button>' : '') + '</div>'
+          + (!b.cliente || !b.items.length ? '<p class="nota">Para sacar el PDF: pon el nombre del cliente y al menos una mesa.</p>' : '');
+        const leer = () => { b.cliente = $('#cc-n').value.trim(); b.tel = $('#cc-t').value.trim(); b.descuento = $('#cc-d').value.replace(/[^\d.]/g, ''); b.tiempo = $('#cc-ti').value; b.vigencia = Math.max(1, Math.floor(num($('#cc-v').value) || 15)); b.notas = $('#cc-no').value; $$('[data-i]').forEach(x => { const it = b.items[+x.dataset.i]; if (!it) return; it[x.dataset.f] = x.dataset.f === 'desc' ? x.value : x.value.replace(/[^\d.]/g, ''); }); const e = $('#cc-e').value.replace(/[^\d.]/g, ''); if (!b.entregaAuto || num(e) !== entregaVista) { b.entregaAuto = false; b.entrega = e; } guardar(); };
+        const vivo = () => { leer(); const T2 = totales(b), pg = $('.precio-g'); if (pg) { pg.querySelector('b').textContent = pesos(T2.tot); pg.querySelectorAll('p')[0].textContent = 'Mesas ' + pesos(T2.sub) + (T2.des ? ' − descuento ' + pesos(T2.des) : '') + (T2.ent ? ' + entrega ' + pesos(T2.ent) : ' · entrega incluida'); pg.querySelectorAll('p')[1].innerHTML = 'Anticipo 50%: <b>' + pesos(T2.ant) + '</b> · saldo contra entrega ' + pesos(T2.tot - T2.ant); } const ok = b.items.length && b.cliente; ['#cc-pdf', '#cc-g'].forEach(s => { if ($(s)) $(s).disabled = !ok; }); };
+        $$('#app input, #app textarea').forEach(i => i.addEventListener('input', vivo));
+        $$('#cc-cl [data-v]').forEach(x => x.onclick = () => { leer(); const c = X.M().cli(x.dataset.v); b.cliente = c.nombre; b.tel = c.telefono || b.tel; b.clienteId = c.id; guardar(); pintar(); });
+        $$('[data-del]').forEach(x => x.onclick = () => { leer(); b.items.splice(+x.dataset.del, 1); guardar(); pintar(); });
+        $$('[data-auto]').forEach(x => x.onclick = () => { leer(); const it = b.items[+x.dataset.auto]; it.precio = it.auto; guardar(); pintar(); });
+        $('#cc-add').onclick = () => { leer(); mesaNueva(it => { b.items.push(it); guardar(); pintar(); }); };
+        $('#cc-pdf').onclick = () => { leer(); pdfCliente(b); };
+        $('#cc-g').onclick = async () => {
+          leer(); const T2 = totales(b);
+          if (!await X.clave(id ? 'Guardar cambios de la cotización' : 'Guardar cotización', [['Cliente', b.cliente], ['Mesas', String(b.items.length)], ['Total', pesos(T2.tot)]])) return;
+          const folio = b.folio || cotis().reduce((m, c) => Math.max(m, num(c.folio)), 0) + 1;
+          const x = { folio, fecha: b.fecha || hoy(), cliente: b.cliente.slice(0, 80), tel: b.tel || null, clienteId: b.clienteId || null, items: b.items.map(it => ({ desc: String(it.desc || '').slice(0, 300), cant: Math.max(1, num(it.cant) || 1), precio: num(it.precio), auto: num(it.auto) || null, uso: it.uso || null, forma: it.forma || null, w: num(it.w) || null, h: num(it.h) || null, alto: num(it.alto) || null, piedra: it.piedra || null, base: it.base || null })), entrega: T2.ent, descuento: T2.des || null, vigencia: b.vigencia, tiempo: b.tiempo || null, notas: b.notas || null, total: T2.tot };
+          let nuevo = id;
+          await X.guardarYa(async () => { if (id) await A.nodoCambia('dinero/cotizaciones/' + id, x); else nuevo = await A.nodoAgrega('dinero/cotizaciones', x); }, 'Cotización C-' + folio + ' guardada', 'Cotización C-' + folio + ' · ' + b.cliente + ' · ' + pesos(T2.tot));
+          if (!id) { try { localStorage.removeItem('dkas-pz-cot'); } catch (e) {} if (nuevo) location.hash = '#piedras/cliente=' + nuevo; }
+        };
+        if ($('#cc-wa')) $('#cc-wa').onclick = () => { leer(); const T2 = totales(b), tel = b.tel.replace(/\D/g, ''), n = tel.length === 10 ? '52' + tel : tel;
+          const txt = 'Hola ' + b.cliente.split(' ')[0] + ', te comparto tu cotización de DKAS:\n\n' + b.items.map((it, i) => (i + 1) + '. ' + it.desc + (num(it.cant) > 1 ? ' (' + num(it.cant) + ' piezas)' : '') + ' — ' + pesos(num(it.precio) * Math.max(1, num(it.cant) || 1))).join('\n') + (T2.des ? '\nDescuento: −' + pesos(T2.des) : '') + (T2.ent ? '\nEntrega e instalación: ' + pesos(T2.ent) : '') + '\n\nTotal: ' + pesos(T2.tot) + '\nAnticipo para iniciar (50%): ' + pesos(T2.ant) + '\nTiempo de entrega: ' + b.tiempo + '\n\nTe mando también el PDF. ¡Cualquier duda aquí estoy!';
+          open('https://wa.me/' + n + '?text=' + encodeURIComponent(txt), '_blank'); };
+        if ($('#cc-ped')) $('#cc-ped').onclick = () => { leer(); aPedido(b.items, { nombre: b.cliente, telefono: b.tel, id: b.clienteId }, totales(b).tot, b.folio); };
+        if ($('#cc-nueva')) $('#cc-nueva').onclick = () => { if (b.items.length && !confirmar()) return; b = vacia(); guardar(); pintar(); };
+        if ($('#cc-b')) $('#cc-b').onclick = async () => { if (!await X.clave('Borrar cotización', [['Cotización', 'C-' + b.folio + ' · ' + b.cliente]])) return; await X.guardarYa(() => A.nodoBorra('dinero/cotizaciones/' + id), 'Cotización borrada', 'Borró cotización C-' + b.folio); location.hash = '#piedras/cotizar'; };
+      };
+      const confirmar = () => { const e = $('#cc-nueva'); if (e.dataset.seguro) return true; e.dataset.seguro = '1'; e.textContent = 'Toca otra vez para borrar esta y empezar otra'; return false; };
+      pintar();
+    }
+    // una mesa para la cotización del cliente (con el calculador)
+    function mesaNueva(listo) {
+      const q = Object.assign({}, qc, { base: '' });
+      X.hoja('Agregar mesa', '<div id="mn"></div>', h => {
+        const pintar = () => {
+          const ok = num(q.w) && (q.forma === 'red' || num(q.h)), r = ok ? calcula(q) : null;
+          $('#mn', h).innerHTML = '<div class="campo">¿Qué mesa?' + chipsH('uso', USOS, q.uso) + '</div><div class="campo">Forma' + chipsH('forma', FORMAS, q.forma) + '</div>'
+            + '<div class="campo">Medidas (cm)<div class="tres-i"><input data-k="w" inputmode="decimal" placeholder="' + (q.forma === 'red' ? 'Diámetro' : 'Largo') + '" value="' + esc(q.w) + '">' + (q.forma === 'red' ? '' : '<input data-k="h" inputmode="decimal" placeholder="Ancho" value="' + esc(q.h) + '">') + '<input data-k="alto" inputmode="decimal" placeholder="Alto (' + (P.ALTO[q.uso] || 75) + ')" value="' + esc(q.alto) + '"><input data-k="cant" inputmode="numeric" placeholder="Cuántas" value="' + esc(q.cant) + '"></div></div>'
+            + '<div class="campo">Piedra' + chipsH('piedra', colores().map(c => [c, c]), q.piedra) + '<input data-k="piedra" maxlength="40" placeholder="O escribe el color" value="' + esc(q.piedra) + '"></div>'
+            + '<label class="campo">Base (opcional)<input data-k="base" maxlength="60" placeholder="ej. estructura oro mate" value="' + esc(q.base) + '"></label>'
+            + (r ? (r.error ? '<p class="aviso r">' + esc(r.error) + '</p>' : '<div class="vivo"><div>Precio c/u<b>' + pesos(r.m.precio) + '</b></div><div>Costo<b>' + pesos(r.conStock ? r.m.costo - r.m.piedra : r.m.costo) + '</b></div><div>' + (r.conStock ? 'Piedra<b class="v">en stock ✓</b>' : 'Piedra<b>hay que comprar</b>') + '</div></div>') : '')
+            + '<button class="b negro grande" id="mn-ok"' + (r && !r.error ? '' : ' disabled') + '>Agregar a la cotización</button>';
+          $$('[data-q]', h).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leerMN(); q[g.dataset.q] = b.dataset.v; pintar(); });
+          $$('[data-k]', h).forEach(i => i.onchange = () => { leerMN(); pintar(); });
+          $$('[data-k]', h).forEach(i => i.oninput = () => { leerMN(); const ok2 = num(q.w) && (q.forma === 'red' || num(q.h)); $('#mn-ok', h).disabled = !ok2; });
+          $('#mn-ok', h).onclick = () => { leerMN(); const r2 = calcula(q); if (r2.error) return X.aviso(r2.error, true); const it = itemDe(q, r2); it.base = q.base.trim(); it.desc = descDe(q.uso, q.forma, it.w, it.h, it.alto, q.piedra, it.base); X.cerrarHoja(); listo(it); };
+        };
+        const leerMN = () => { $$('[data-k]', h).forEach(i => { q[i.dataset.k] = ['piedra', 'base'].includes(i.dataset.k) ? i.value : i.value.replace(/[^\d.,]/g, '').replace(',', '.'); }); };
+        pintar();
+      });
+    }
+    // pasar mesas (de la calculadora o de una cotización) al alta de pedido, ya llenas
+    function aPedido(its, cli, total, folio) {
+      const FM = { rect: 'Rectangular', red: 'Redonda', oval: 'Ovalada', org: 'Irregular' }, TP = { comedor: 'Comedor', centro: 'Centro', lateral: 'Lateral', periquera: 'Periquera', escritorio: 'Escritorio' };
+      const a = its[0] || {}, una = its.length === 1 && Math.max(1, num(a.cant)) >= 1, forma = a.forma === 'rect' && num(a.w) === num(a.h) ? 'Cuadrada' : FM[a.forma] || '';
+      const piedras = [...new Set(its.map(x => (x.piedra || '').trim()).filter(Boolean))];
+      const p0 = { forma, tipo: TP[a.uso] || 'Otra', tipoOtra: TP[a.uso] ? '' : nomUso(a.uso), material: 'Piedra sinterizada', espesor: 12, color: piedras.length ? 'Otra' : '', colorOtra: piedras.join(', '), base: its.some(x => x.base) ? 'Otra' : '', baseOtra: [...new Set(its.map(x => x.base).filter(Boolean))].join(', '),
+        precio: Math.round(num(total)) || null, anticipo: num(total) ? Math.round(num(total) / 2) : null, notas: (folio ? 'De la cotización C-' + folio + '. ' : '') + its.map(x => x.desc + (num(x.cant) > 1 ? ' (' + num(x.cant) + ')' : '')).join(' ').slice(0, 280) };
+      if (una) Object.assign(p0, { largo: num(a.w), ancho: a.forma === 'red' ? null : num(a.h), altura: num(a.alto) || null, cantidad: Math.max(1, num(a.cant) || 1) });
+      else Object.assign(p0, { cantidad: its.reduce((s, x) => s + Math.max(1, num(x.cant) || 1), 0), piezas: [].concat(...its.map(x => Array.from({ length: Math.max(1, num(x.cant) || 1) }, () => ({ n: 'Mesa ' + nomUso(x.uso).toLowerCase(), forma: x.forma === 'red' ? 'red' : 'rect', d: x.forma === 'red' ? num(x.w) : null, w: x.forma === 'red' ? null : num(x.w), h: x.forma === 'red' ? null : num(x.h), a: num(x.alto) || null, piedra: x.piedra || null })))) });
+      const c = cli && cli.id ? X.M().cli(cli.id) : null;
+      X.alta(p0, c ? c.id : null, c ? null : (cli && cli.nombre ? { nombre: cli.nombre, telefono: cli.telefono || '' } : null));
+    }
+
+    // ---------- PDF de la cotización para el cliente ----------
+    function pdfCliente(b) {
+      return X.ocupado(async () => {
+        await X.libPDF(); const { jsPDF } = root.jspdf, doc = new jsPDF({ unit: 'mm', format: 'letter' }), W = 215.9, Hh = 279.4, Mg = 16, T = totales(b), L = await X.imgData('img/dkas-claro.png'), S = X.sinRaros;
+        const folio = b.folio || (cotis().reduce((m, c) => Math.max(m, num(c.folio)), 0) + 1), f0 = b.fecha || hoy(), fD = f => f.slice(8, 10) + '/' + f.slice(5, 7) + '/' + f.slice(0, 4), vence = N.mas(f0, num(b.vigencia) || 15);
+        const $p = n => N.pesos(n);
+        // encabezado
+        doc.setFillColor(17, 17, 17); doc.rect(0, 0, W, 38, 'F'); if (L) doc.addImage(L.d, 'PNG', Mg, 9, 20 * L.r, 20);
+        doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.text('COTIZACIÓN', W - Mg, 18, { align: 'right' });
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(200); doc.text(S('Nº C-' + folio + '   ·   ' + fD(f0) + '   ·   válida hasta el ' + fD(vence)), W - Mg, 26, { align: 'right' });
+        doc.setTextColor(17); let y = 52;
+        doc.setFontSize(8); doc.setTextColor(120); doc.text('PREPARADA PARA', Mg, y); doc.setTextColor(17); doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text(S(b.cliente), Mg, y + 7);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(90); if (b.tel) doc.text(S('WhatsApp ' + b.tel), Mg, y + 13);
+        doc.text(doc.splitTextToSize('Gracias por considerar DKAS. Esta es la propuesta para tus mesas de piedra sinterizada hechas a la medida.', 80), W - Mg, y + 2, { align: 'right' });
+        y += 22; doc.setTextColor(17);
+        // dibujos de las mesas (vista de arriba con medidas)
+        const nD = Math.min(b.items.length, 4);
+        if (nD) {
+          const bw = (W - 2 * Mg) / nD, bh = 34, mx = Math.max(...b.items.slice(0, nD).map(it => Math.max(num(it.w), num(it.h)))) || 1;
+          b.items.slice(0, nD).forEach((it, i) => {
+            const cx = Mg + bw * i + bw / 2, cy = y + bh / 2 - 2, k = Math.min((bw - 14) / mx, (bh - 12) / mx), ww = num(it.w) * k, hh = (it.forma === 'red' ? num(it.w) : num(it.h)) * k;
+            const tc = tono(it.piedra)[0], rgb = [1, 3, 5].map(j => parseInt(tc.slice(j, j + 2), 16));
+            doc.setDrawColor(17); doc.setLineWidth(0.5); doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+            if (it.forma === 'red') doc.circle(cx, cy, ww / 2, 'FD'); else if (it.forma === 'oval' || it.forma === 'org') doc.ellipse(cx, cy, ww / 2, hh / 2, 'FD'); else doc.rect(cx - ww / 2, cy - hh / 2, ww, hh, 'FD');
+            doc.setFontSize(8); doc.setTextColor(17); doc.setFont('helvetica', 'bold'); doc.text(S((i + 1) + '  ' + (it.forma === 'red' ? 'Ø ' + num(it.w) + ' cm' : num(it.w) + ' × ' + num(it.h) + ' cm')), cx, y + bh + 1, { align: 'center' });
+            doc.setFont('helvetica', 'normal'); doc.setTextColor(110); if (num(it.alto)) doc.text(S('alto ' + num(it.alto) + ' cm'), cx, y + bh + 5, { align: 'center' });
+          });
+          y += bh + 12; doc.setTextColor(17);
+        }
+        // partidas
+        doc.autoTable({ startY: y, margin: { left: Mg, right: Mg }, head: [['#', 'Descripción', 'Cant.', 'Precio unitario', 'Importe']],
+          body: b.items.map((it, i) => [String(i + 1), S(it.desc), String(Math.max(1, num(it.cant) || 1)), $p(num(it.precio)), $p(num(it.precio) * Math.max(1, num(it.cant) || 1))]),
+          theme: 'plain', styles: { font: 'helvetica', fontSize: 9, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 }, textColor: [17, 17, 17], lineColor: [225, 225, 225], lineWidth: { bottom: 0.2 } },
+          headStyles: { fillColor: [17, 17, 17], textColor: 255, fontStyle: 'bold', fontSize: 8.5 }, didParseCell: c => { if (c.section === 'head' && c.column.index >= 2) c.cell.styles.halign = c.column.index === 2 ? 'center' : 'right'; }, columnStyles: { 0: { cellWidth: 8 }, 2: { cellWidth: 14, halign: 'center' }, 3: { cellWidth: 30, halign: 'right' }, 4: { cellWidth: 30, halign: 'right' } } });
+        y = doc.lastAutoTable.finalY + 6;
+        // totales
+        const fila = (t, v, fuerte) => { doc.setFont('helvetica', fuerte ? 'bold' : 'normal'); doc.setFontSize(fuerte ? 13 : 9.5); doc.text(S(t), W - Mg - 42, y, { align: 'right' }); doc.text(S(v), W - Mg, y, { align: 'right' }); y += fuerte ? 8 : 5.5; };
+        fila('Subtotal', $p(T.sub)); if (T.des) fila('Descuento', '−' + $p(T.des)); fila('Entrega e instalación', T.ent ? $p(T.ent) : 'Incluida');
+        doc.setDrawColor(17); doc.setLineWidth(0.4); doc.line(W - Mg - 80, y - 2, W - Mg, y - 2); y += 3; fila('TOTAL', $p(T.tot), true);
+        doc.setFillColor(242, 242, 247); doc.roundedRect(Mg, y - 2, W - 2 * Mg, 14, 2, 2, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text(S('Anticipo para iniciar (50%): ' + $p(T.ant)), Mg + 5, y + 6.5); doc.setFont('helvetica', 'normal'); doc.text(S('Saldo contra entrega: ' + $p(T.tot - T.ant)), W - Mg - 5, y + 6.5, { align: 'right' }); y += 22;
+        // condiciones
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.text('Condiciones', Mg, y); y += 5; doc.setFont('helvetica', 'normal'); doc.setFontSize(8.8); doc.setTextColor(60);
+        const cond = ['Precios en pesos mexicanos (MXN).', 'Para iniciar la fabricación se paga el 50% de anticipo; el saldo se paga contra entrega.', 'Tiempo de entrega: ' + (b.tiempo || 'por confirmar') + '.', 'Cubiertas de piedra sinterizada de 12 mm, hechas a la medida. Cada placa tiene sus propias vetas y tonos: pueden variar un poco de las fotos.', 'Esta cotización es válida hasta el ' + fD(vence) + '.'].concat(b.notas ? [b.notas] : []);
+        cond.forEach(c => { const l = doc.splitTextToSize(S('•  ' + c), W - 2 * Mg); if (y + l.length * 4.2 > Hh - 22) { doc.addPage(); y = 20; } doc.text(l, Mg, y); y += l.length * 4.2 + 1.2; });
+        // pie
+        const wa = (root.DKAS_WA || [])[0], pags = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pags; i++) { doc.setPage(i); doc.setDrawColor(200); doc.setLineWidth(0.2); doc.line(Mg, Hh - 16, W - Mg, Hh - 16); doc.setFontSize(8.5); doc.setTextColor(90); doc.text(S('DKAS · mesas de piedra a la medida · dkas.mx' + (wa ? ' · WhatsApp ' + wa.label : '')), Mg, Hh - 10); doc.text(S('C-' + folio + (pags > 1 ? ' · ' + i + '/' + pags : '')), W - Mg, Hh - 10, { align: 'right' }); }
+        await X.bajar(doc.output('blob'), 'DKAS cotizacion C-' + folio + ' ' + S(b.cliente).replace(/[^\w ]+/g, '') + '.pdf');
+      });
+    }
+
+    // ================= EN PEDIDOS: ¿tengo piedra para este pedido? =================
+    function reqsPedido(p) {
+      if ((p.piezas || []).length) return p.piezas.map(x => num(x.w) && num(x.h) ? { forma: 'rect', w: num(x.w), h: num(x.h), cant: 1, nombre: x.n || '' } : { forma: 'red', d: num(x.d), cant: 1, nombre: x.n || '' }).filter(x => num(x.d) || num(x.w));
+      const L = num(p.largo), W = num(p.ancho), n = Math.max(1, num(p.cantidad) || 1);
+      if (!L) return []; if (p.forma === 'Redonda') return [{ forma: 'red', d: L, cant: n }];
+      return W ? [{ forma: 'rect', w: L, h: W, cant: n }] : [];
+    }
+    const colorPedido = p => ((p.color === 'Otra' || p.color === 'Otro') ? p.colorOtra : p.color) || '';
+    function seccionPedido(p) {
+      const H = hist().filter(x => x.pedido === p.id && x.accion === 'Corte'), reqs = reqsPedido(p);
+      if (H.length) return X.plegable('Piedra de este pedido', 'cortada ✓', '<ul class="hist">' + H.map(filaHist).join('') + '</ul>');
+      if (!reqs.length) return X.plegable('Piedra de este pedido', '', '<p class="nota">Pon las medidas del pedido y te digo si tienes piedra.</p>');
+      // por pieza (varias mesas con distintas piedras) o todo junto
+      const grupos = (p.piezas || []).length ? p.piezas.map((x, i) => ({ t: (x.n || 'Mesa ' + (i + 1)) + ' · ' + (num(x.w) ? num(x.w) + '×' + num(x.h) : 'Ø' + num(x.d)), color: x.piedra || colorPedido(p), reqs: [reqs[i]].filter(Boolean) })) : [{ t: reqTxt(reqs), color: colorPedido(p), reqs }];
+      const res = grupos.map(g => ({ g, l: buscar(g.reqs, g.color) })), hay = res.filter(x => x.l.some(y => y.color)).length;
+      const reservada = p.stock ? pieza(p.stock) : null;
+      return X.plegable('Piedra de este pedido', hay ? 'tienes para ' + hay + ' de ' + grupos.length : 'hay que comprar', (reservada && reservada.estado !== 'usado' ? '<p class="aviso">Apartaste ' + esc(nomPieza(reservada)) + ' para este pedido. <button class="b chico verde" data-pzcut="' + esc(reservada.id) + '" data-gi="-1">✂ Cortar ahora</button></p>' : '')
+        + res.map(({ g, l }, gi) => { const m = l.filter(y => y.color); return '<div class="pz-g"><b>' + esc(g.t) + (g.color ? ' · ' + esc(g.color) : '') + '</b>' + (m.length ? '<p class="ok-g">✓ Tienes: ' + esc(nomPieza(m[0].s)) + '</p><button class="b chico verde" data-pzcut="' + esc(m[0].s.id) + '" data-gi="' + gi + '">✂ Cortar de ' + esc(tipoTxt(m[0].s).toLowerCase()) + ' ' + esc(r1(num(m[0].s.w)) + '×' + r1(num(m[0].s.h))) + '</button>' : '<p class="a">No hay en stock' + (l.length ? ' de ese color (sí de otro: ' + esc(nomPieza(l[0].s)) + ')' : '') + ': hay que comprar placa.</p>') + '</div>'; }).join(''), !!hay);
+    }
+    function enlazarPedido(p) {
+      const reqs = reqsPedido(p), grupos = (p.piezas || []).length ? reqs.map(r => [r]) : [reqs];
+      $$('[data-pzcut]').forEach(b => b.onclick = () => { const gi = +b.dataset.gi; cortar(pieza(b.dataset.pzcut), { reqs: gi < 0 ? reqs : grupos[gi] || reqs, pedido: p.id }); });
+    }
+    // en el alta del pedido (paso Cubierta): piedras del stock donde cabe esta mesa
+    function stockAlta(w) {
+      const reqs = reqsPedido(w); if (!reqs.length) return '<p class="nota">Pon las medidas (paso anterior) y aquí te salen las piedras que tienes donde cabe.</p>';
+      const l = buscar(reqs, colorPedido(w)).slice(0, 8);
+      return l.length ? '<div class="chips" id="a-stock">' + l.map(x => '<button type="button" data-v="' + esc(x.s.id) + '"' + (w.stock === x.s.id ? ' class="on"' : '') + '>' + esc(x.s.piedra) + '<small>' + esc(tipoTxt(x.s).toLowerCase() + ' ' + r1(num(x.s.w)) + '×' + r1(num(x.s.h))) + '</small></button>').join('') + '</div><p class="nota">Tócala para apartarla: la piedra del pedido queda con ese color y en el pedido te sale “Cortar ahora”.</p>'
+        : '<p class="nota">No tienes piedra en stock donde quepa ' + esc(reqTxt(reqs)) + '. Hay que comprar placa.</p>';
+    }
+
+    // ---------- rutas de la sección ----------
+    function ruta(h) {
+      aplicarPrecios();
+      if (h === 'piedras') return inicio();
+      if (h === 'piedras/cotizar') return cotizar();
+      if (h === 'piedras/historial') return historial();
+      if (h === 'piedras/precios') return precios();
+      if (h === 'piedras/cliente') return cliente();
+      if (/^piedras\/cliente=/.test(h)) return cliente(h.slice(16));
+      if (/^piedras\/s=/.test(h)) { const s = pieza(h.slice(10)); return s ? detalle(s) : inicio(); }
+      inicio();
+    }
+    return { ruta, aplicarPrecios, seccionPedido, enlazarPedido, stockAlta, agregar, cortar, pieza, buscar, reqsPedido, disponibles };
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+;
+/* DKAS · Admin nuevo (pantallas). Menú: Dashboard · Pedidos · Piedras · Dinero · Ajustes (Piedras vive en piedras.js). Todo sale de DKAS_N (nucleo.js).
    Rutas: #inicio · #pedidos · #pedidos/clientes · #pedidos/deudas · #p=<pedido> · #c=<cliente> · #d=<deuda> · #dinero · #sobrantes · #ajustes */
 (function () {
   const N = window.DKAS_N, A = window.DAZK_API, C = N.C;
@@ -294,7 +1234,7 @@
   const cls = n => n > 0 ? 'v' : n < 0 ? 'r' : '';
   const otra = (v, o) => (v === 'Otra' || v === 'Otro') && o ? o : v;
   const CLAVE = '55'; // confirma lo importante; no es seguridad (está en el código de la página)
-  let me = null, D = {}, M = null, piezas = [], main = null;
+  let me = null, D = {}, M = null, piezas = [], main = null, PZ = null;
 
   // ---------- arranque y datos ----------
   async function arrancar() {
@@ -302,6 +1242,7 @@
     try { me = await A.yo(); } catch (e) { me = null; }
     if (!me) return login();
     if (!me.nombre) return nombre();
+    if (!PZ) PZ = window.DKAS_PIEDRAS_MOD({ N, A, esc, pesos, fC, hoy, $, $$, M: () => M, D: () => D, me: () => me, main: () => main, piezas: () => piezas, tit, kpi, pill, plegable, vacioTxt, hoja, cerrarHoja, clave, guardarYa, aviso, alta, ocupado, libPDF, imgData, bajar, sinRaros });
     document.body.classList.add('dentro');
     main.innerHTML = '<p class="cargando">Cargando…</p>';
     await cargar(); if (!location.hash) history.replaceState(null, '', '#inicio'); ruta();
@@ -339,7 +1280,7 @@
   async function bitacora(accion, detalle) { try { await A.nodoAgrega('dinero/bitacora', { accion, detalle: String(detalle || '').slice(0, 300) }); } catch (e) {} }
 
   // ---------- rutas y menú ----------
-  const MENU = [['inicio', 'Dashboard', 'M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z'], ['pedidos', 'Pedidos', 'M4 4h16v4H4zm0 6h16v10H4zm4 3v2h8v-2z'], ['dinero', 'Dinero', 'M12 2a10 10 0 100 20 10 10 0 000-20zm1 15v2h-2v-2c-1.7-.3-3-1.4-3-3h2c0 .6.9 1 2 1s2-.4 2-1-.6-1-2-1.3c-2.2-.4-4-1.1-4-3 0-1.4 1.3-2.5 3-2.8V5h2v1.9c1.7.3 3 1.4 3 3h-2c0-.6-.9-1-2-1s-2 .4-2 1 .6.8 2 1.1c2.2.5 4 1.2 4 3.2 0 1.4-1.3 2.5-3 2.8z'], ['ajustes', 'Ajustes', 'M19.4 13a7.5 7.5 0 000-2l2.1-1.6-2-3.5-2.5 1a7 7 0 00-1.7-1L15 3h-4l-.3 2.7a7 7 0 00-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 000 2l-2.1 1.6 2 3.5 2.5-1a7 7 0 001.7 1L11 21h4l.3-2.7a7 7 0 001.7-1l2.5 1 2-3.5zM13 15a3 3 0 110-6 3 3 0 010 6z']];
+  const MENU = [['inicio', 'Dashboard', 'M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z'], ['pedidos', 'Pedidos', 'M4 4h16v4H4zm0 6h16v10H4zm4 3v2h8v-2z'], ['piedras', 'Piedras', 'M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z'], ['dinero', 'Dinero', 'M12 2a10 10 0 100 20 10 10 0 000-20zm1 15v2h-2v-2c-1.7-.3-3-1.4-3-3h2c0 .6.9 1 2 1s2-.4 2-1-.6-1-2-1.3c-2.2-.4-4-1.1-4-3 0-1.4 1.3-2.5 3-2.8V5h2v1.9c1.7.3 3 1.4 3 3h-2c0-.6-.9-1-2-1s-2 .4-2 1 .6.8 2 1.1c2.2.5 4 1.2 4 3.2 0 1.4-1.3 2.5-3 2.8z'], ['ajustes', 'Ajustes', 'M19.4 13a7.5 7.5 0 000-2l2.1-1.6-2-3.5-2.5 1a7 7 0 00-1.7-1L15 3h-4l-.3 2.7a7 7 0 00-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 000 2l-2.1 1.6 2 3.5 2.5-1a7 7 0 001.7 1L11 21h4l.3-2.7a7 7 0 001.7-1l2.5 1 2-3.5zM13 15a3 3 0 110-6 3 3 0 010 6z']];
   function menu(sec) {
     $('#menu').innerHTML = '<div class="m-logo"><img src="img/dkas-oscuro.png" alt="DKAS"></div>' + MENU.map(([k, t, d]) => '<a href="#' + k + '"' + (k === sec ? ' class="on" aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg><span>' + t + '</span></a>').join('')
       + '<button class="m-reg" id="m-reg"><b>＋</b><span>Registrar dinero</span></button><div class="m-sync"><span class="sync"></span></div>';
@@ -347,7 +1288,7 @@
   }
   function ruta(quieto) {
     if (!M) return;
-    const h = location.hash.slice(1) || 'inicio', sec = /^v\//.test(h) ? seccionVieja(h.slice(2)) : /^p=|^c=|^d=|^pedidos|^sobrantes/.test(h) ? 'pedidos' : MENU.some(m => m[0] === h) ? h : 'inicio';
+    const h = location.hash.slice(1) || 'inicio', sec = /^v\//.test(h) ? seccionVieja(h.slice(2)) : /^piedras|^sobrantes|^pedidos\/sobrantes/.test(h) ? 'piedras' : /^p=|^c=|^d=|^pedidos/.test(h) ? 'pedidos' : MENU.some(m => m[0] === h) ? h : 'inicio';
     menu(sec); if (!quieto) window.scrollTo(0, 0);
     setTimeout(pintarSync, 0);
     if (/^v\//.test(h)) return viejo(h.slice(2));
@@ -356,12 +1297,12 @@
     if (h === 'pedidos/clientes') return pedidos('clientes');
     if (h === 'pedidos/deudas') return pedidos('deudas');
     if (h === 'pedidos/solicitudes') return solicitudes();
-    if (h === 'pedidos/sobrantes') return sobrantes();
+    if (h === 'pedidos/sobrantes' || h === 'sobrantes') { location.replace('#piedras'); return; }
+    if (/^piedras/.test(h)) return PZ.ruta(h);
     if (/^p=/.test(h)) { const p = M.ped(h.slice(2)); return p ? pedido(p) : pedidos('pedidos'); }
     if (/^c=/.test(h)) { const c = M.cli(h.slice(2)); return c ? cliente(c) : pedidos('clientes'); }
     if (/^d=/.test(h)) { const x = M.deu(h.slice(2)); return x ? deuda(x) : pedidos('deudas'); }
     if (h === 'dinero') return dinero();
-    if (h === 'sobrantes') { location.replace('#pedidos/sobrantes'); return; }
     if (h === 'ajustes') return ajustes();
     inicio();
   }
@@ -374,9 +1315,10 @@
   const pill = (t, c) => '<em class="pill ' + (c || '') + '">' + esc(t) + '</em>';
   const plegable = (t, resumen, html, abierto, cls2) => '<details class="plegable' + (cls2 ? ' ' + cls2 : '') + '"' + (abierto ? ' open' : '') + '><summary><span>' + t + '</span>' + (resumen ? '<small>' + resumen + '</small>' : '') + '</summary><div class="pl-c">' + html + '</div></details>';
   const vacioTxt = t => '<p class="vacio">' + t + '</p>';
-  const mesaTxt = x => [x.n || 'Mesa', 'Ø' + num(x.d) + (num(x.a) ? ' × ' + num(x.a) + ' alto' : '') + ' cm', x.piedra ? 'piedra ' + x.piedra : ''].filter(Boolean).join(' · ');
+  const medMesa = x => num(x.w) && num(x.h) ? num(x.w) + ' × ' + num(x.h) : 'Ø ' + num(x.d);
+  const mesaTxt = x => [x.n || 'Mesa', medMesa(x) + (num(x.a) ? ' cm × ' + num(x.a) + ' alto' : '') + ' cm', x.piedra ? 'piedra ' + x.piedra : ''].filter(Boolean).join(' · ');
   const piezaTxt = p => {
-    if ((p.piezas || []).length) return p.piezas.length + ' mesas: ' + p.piezas.map(x => (x.n || 'mesa').toLowerCase() + ' Ø' + num(x.d) + '×' + num(x.a) + (x.piedra ? ' ' + x.piedra.toLowerCase() : '')).join(' · ') + (p.base ? ' · base ' + otra(p.base, p.baseOtra).toLowerCase() : '');
+    if ((p.piezas || []).length) return p.piezas.length + ' mesas: ' + p.piezas.map(x => (x.n || 'mesa').toLowerCase() + ' ' + medMesa(x).replace(/ /g, '') + (num(x.a) ? '×' + num(x.a) : '') + (x.piedra ? ' ' + x.piedra.toLowerCase() : '')).join(' · ') + (p.base ? ' · base ' + otra(p.base, p.baseOtra).toLowerCase() : '');
     const med = p.forma === 'Redonda' ? (num(p.largo) ? 'Ø' + num(p.largo) : '') : (num(p.largo) ? num(p.largo) + '×' + num(p.ancho) : '');
     return [num(p.cantidad) > 1 ? num(p.cantidad) + '×' : '', otra(p.tipo, p.tipoOtra) || '', p.forma ? p.forma.toLowerCase() : '', med ? med + ' cm' : '', otra(p.color, p.colorOtra) || '', p.base ? '· base ' + otra(p.base, p.baseOtra).toLowerCase() : ''].filter(Boolean).join(' ') || 'Falta decir qué mesa es';
   };
@@ -529,7 +1471,7 @@
   }
   function pedidos(tab) {
     const T = M.totales();
-    const tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['solicitudes', 'Solicitudes', solicitudesN()], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length], ['sobrantes', 'Sobrantes', M.sobrantes.filter(x => x.estado !== 'usado').length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === tab ? ' class="on"' : '') + '>' + t + ' <small>' + n + '</small></a>').join('') + '</nav>';
+    const tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['solicitudes', 'Solicitudes', solicitudesN()], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === tab ? ' class="on"' : '') + '>' + t + ' <small>' + n + '</small></a>').join('') + '</nav>';
     if (tab === 'clientes') {
       const l = M.clientes.map(c => [c, M.statsCliente(c)]).sort((a, b) => b[1].activos - a[1].activos || (a[0].nombre || '').localeCompare(b[0].nombre || ''));
       main.innerHTML = tit('Pedidos', '', '<button class="b negro" id="nuevo">＋ Nuevo</button>') + tabs
@@ -575,7 +1517,7 @@
         + '<ol class="cola">' + s.pasos.map((x, i) => '<li class="' + (x.done ? 'si' : '') + (s.actual === x ? ' ya' : '') + '"><i>' + (x.done ? '✓' : i + 1) + '</i><span><b>' + esc(x.n) + '</b><small>' + (x.done ? (x.fecha ? fC(x.fecha) : 'hecho') : 'pendiente') + '</small></span>'
           + (p.cerrado || (x.done && !(p.pasos || {})[x.k]) ? '' : x.auto ? (x.k === 'pedido' ? '' : '<button class="b chico" data-cob="1">Cobrar</button>') : '<button class="b chico" data-paso="' + x.k + '">' + ((p.pasos || {})[x.k] ? 'Quitar' : x.done ? 'Fecha' : 'Marcar') + '</button>') + '</li>').join('') + '</ol>'
         + (p.cerrado ? '<button class="b" id="reabrir">Reabrir pedido</button>' : fin ? '<button class="b verde grande" id="finalizar">Finalizar pedido ✓</button>' : '') + '</section>'
-      + ((p.piezas || []).length ? '<section class="caja"><div class="caja-t"><h2>Las mesas de este pedido</h2><span class="sub">' + p.piezas.length + '</span></div><ol class="cola">' + p.piezas.map((x, i) => '<li><i>' + (i + 1) + '</i><span><b>' + esc(x.n || 'Mesa') + ' · Ø ' + num(x.d) + ' cm × ' + num(x.a) + ' cm de alto</b><small>Piedra: ' + esc(x.piedra || 'pendiente') + '</small></span></li>').join('') + '</ol></section>' : '')
+      + ((p.piezas || []).length ? '<section class="caja"><div class="caja-t"><h2>Las mesas de este pedido</h2><span class="sub">' + p.piezas.length + '</span></div><ol class="cola">' + p.piezas.map((x, i) => '<li><i>' + (i + 1) + '</i><span><b>' + esc(x.n || 'Mesa') + ' · ' + medMesa(x) + ' cm' + (num(x.a) ? ' × ' + num(x.a) + ' cm de alto' : '') + '</b><small>Piedra: ' + esc(x.piedra || 'pendiente') + '</small></span></li>').join('') + '</ol></section>' : '')
       + (s.pend.length ? plegable('Datos pendientes', s.pend.length + '', '<p class="a">' + s.pend.map(esc).join(' · ') + '</p><button class="b chico" data-edit2="1">Completar</button>', false, 'pend') : '')
       + (nc.length ? plegable('⚠ No cuadra', nc.length + '', '<ul class="nocuadra">' + nc.map(itemNoCuadra).join('') + '</ul>', false, 'mal') : '')
       + plegable('Movimientos', s.ms.length + '', s.ms.length ? '<div class="lista">' + s.ms.slice().reverse().map(filaMov).join('') + '</div>' : vacioTxt('Sin movimientos.'))
@@ -584,17 +1526,17 @@
       + plegable('Formato de pedido', '', specsHTML(p, c) + '<button class="b chico" id="fp" style="margin-top:12px">PDF del formato</button>')
       + (p.notas ? plegable('Notas', '', '<p class="notas">' + esc(p.notas) + '</p>') : '')
       + (cs.frecuente ? plegable('Cliente frecuente', cs.ps.length + ' pedidos', '<p>Pagó ' + pesos(cs.pagado) + ' en total · debe ' + pesos(cs.debe) + '. <a class="lnk" href="#c=' + esc(c.id) + '">Ver su perfil</a></p>') : '')
-      + sobrantesDePedido(p);
+      + PZ.seccionPedido(p);
     $('#mas').onclick = () => hoja('Más opciones', '<button class="b grande" id="o-ed">Editar pedido</button><button class="b grande" id="o-fp">PDF del formato de pedido</button>' + (p.cerrado ? '' : '<button class="b rojo-b grande" id="o-fa">⚠ Falla técnica / reponer</button>') + (s.fallas.length ? '<button class="b grande" id="o-sob">Guardar pedazos rotos como sobrante</button>' : ''), h => {
       $('#o-ed', h).onclick = () => { cerrarHoja(); alta(p); }; $('#o-fp', h).onclick = () => { cerrarHoja(); pdfFormato(p); };
-      if ($('#o-fa', h)) $('#o-fa', h).onclick = () => { cerrarHoja(); hojaFalla(p, s); }; if ($('#o-sob', h)) $('#o-sob', h).onclick = () => { cerrarHoja(); hojaSobrante(null, { piedra: otra(p.color, p.colorOtra), pedido: p.id }); }; });
+      if ($('#o-fa', h)) $('#o-fa', h).onclick = () => { cerrarHoja(); hojaFalla(p, s); }; if ($('#o-sob', h)) $('#o-sob', h).onclick = () => { cerrarHoja(); PZ.agregar(null, { tipo: 'sobrante', piedra: otra(p.color, p.colorOtra) || '', pedido: p.id }); }; });
     $('#reg').onclick = () => registrar(null, { pedido: p.id }); $$('[data-edit2]').forEach(b => b.onclick = () => alta(p));
     $$('[data-cob]').forEach(b => b.onclick = () => registrar(null, { tipo: 'in', origen: 'pedido', pedido: p.id }));
     $$('[data-paso]').forEach(b => b.onclick = () => marcarPaso(p, b.dataset.paso));
     $('#fp').onclick = () => pdfFormato(p);
     if ($('#finalizar')) $('#finalizar').onclick = async () => { if (!await clave('Finalizar pedido', [['Pedido', M.nomPedido(p)], ['Cobrado', pesos(s.ent)], ['Gastado', pesos(s.sal)], ['Ganancia real', pesos(s.ent - s.sal)]])) return; await guardarYa(() => A.nodoCambia('dinero/pedidos/' + p.id, { cerrado: true }), 'Pedido finalizado', 'Finalizó ' + M.nomPedido(p)); };
     if ($('#reabrir')) $('#reabrir').onclick = async () => { if (!await clave('Reabrir pedido', [['Pedido', M.nomPedido(p)]])) return; await guardarYa(() => A.nodoCambia('dinero/pedidos/' + p.id, { cerrado: false }), 'Pedido reabierto', 'Reabrió ' + M.nomPedido(p)); };
-    enlazarMovs(); enlazarNC(); enlazarSobrantesPedido(p);
+    enlazarMovs(); enlazarNC(); PZ.enlazarPedido(p);
   }
   function hojaFalla(p, s) {
     let motivo = '', paga = 'Por definir', base = false;
@@ -683,7 +1625,7 @@
   const spec = (x, k) => { const it = (x.items || [])[0] || {}; const f = (it.specs || []).find(z => z[0] === k); return f ? f[1] : ''; };
   async function solicitudes() {
     const T = M.totales();
-    const tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['solicitudes', 'Solicitudes', ''], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length], ['sobrantes', 'Sobrantes', M.sobrantes.filter(x => x.estado !== 'usado').length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === 'solicitudes' ? ' class="on"' : '') + '>' + t + (n !== '' ? ' <small>' + n + '</small>' : '') + '</a>').join('') + '</nav>';
+    const tabs = '<nav class="tabs">' + [['pedidos', 'Pedidos', T.act.length], ['solicitudes', 'Solicitudes', ''], ['clientes', 'Clientes', M.clientes.length], ['deudas', 'Deudas', M.deudas.length]].map(([k, t, n]) => '<a href="#pedidos' + (k === 'pedidos' ? '' : '/' + k) + '"' + (k === 'solicitudes' ? ' class="on"' : '') + '>' + t + (n !== '' ? ' <small>' + n + '</small>' : '') + '</a>').join('') + '</nav>';
     main.innerHTML = tit('Pedidos', '') + tabs + '<div class="chips filtros" id="fs">' + [['nuevo', 'Por cotizar'], ['cotizado', 'Esperan respuesta'], ['todas', 'Todas']].map(([k, t]) => '<button data-v="' + k + '"' + (filSol === k ? ' class="on"' : '') + '>' + t + '</button>').join('') + '<a class="b chico" href="#v/clientes">Por aprobar y diseños ›</a></div><section class="caja"><div class="lista" id="sl"><p class="cargando">Cargando…</p></div></section>';
     $$('#fs [data-v]').forEach(b => b.onclick = () => { filSol = b.dataset.v; $$('#fs [data-v]').forEach(o => o.classList.toggle('on', o === b)); pintar(); });
     try { SOL = await A.listar(); } catch (e) { $('#sl').innerHTML = '<p class="err">No se pudieron cargar: ' + esc(e.message) + '</p>'; return; }
@@ -802,7 +1744,7 @@
 
   // ================= LO DEL PANEL VIEJO, DENTRO DEL NUEVO =================
   // cada pantalla vieja vive en uno de los 4 botones; se abre aquí mismo, sin los botones de arriba del panel viejo
-  const VIEJAS = { agenda: ['inicio', 'Agenda completa', '#inicio'], clientes: ['pedidos', 'Solicitudes · por aprobar y diseños', '#pedidos/solicitudes'], piedra: ['pedidos', 'Inventario de placas', '#pedidos/sobrantes'],
+  const VIEJAS = { agenda: ['inicio', 'Agenda completa', '#inicio'], clientes: ['pedidos', 'Solicitudes · por aprobar y diseños', '#pedidos/solicitudes'], piedra: ['piedras', 'Inventario de placas (anterior)', '#piedras'],
     'dinero-anterior': ['dinero', 'Dinero anterior (archivo)', '#dinero'], cotizar: ['ajustes', 'Cotizador rápido', '#ajustes'], precios: ['ajustes', 'Precios', '#ajustes'], taller: ['ajustes', 'Mesas en el taller', '#ajustes'],
     bases: ['ajustes', 'Diseñar bases', '#ajustes'], estudio: ['ajustes', 'Estudio de diseño', '#ajustes'], portada: ['ajustes', 'Presentación de la página', '#ajustes'], visitas: ['ajustes', 'Auditoría y bloqueos', '#ajustes'],
     accesos: ['ajustes', 'Links de acceso al 3D', '#ajustes'], equipo: ['ajustes', 'Administradores', '#ajustes'], '': ['pedidos', 'Pedidos web', '#pedidos/solicitudes'] };
@@ -810,7 +1752,7 @@
   function seccionVieja(r0) { const k = claveVieja(r0); return k === 'cotiz' ? 'pedidos' : (VIEJAS[k] || ['ajustes'])[0]; }
   function viejo(r0) {
     const k = claveVieja(r0), v = k === 'cotiz' ? ['pedidos', 'Cotizar', '#pedidos/solicitudes'] : VIEJAS[k] || ['ajustes', 'Panel', '#ajustes'];
-    main.innerHTML = '<a class="volver" href="' + v[2] + '">‹ ' + ({ inicio: 'Dashboard', pedidos: 'Pedidos', dinero: 'Dinero', ajustes: 'Ajustes' }[v[0]]) + '</a><h1 class="h-viejo">' + esc(v[1]) + '</h1>'
+    main.innerHTML = '<a class="volver" href="' + v[2] + '">‹ ' + ({ inicio: 'Dashboard', pedidos: 'Pedidos', piedras: 'Piedras', dinero: 'Dinero', ajustes: 'Ajustes' }[v[0]]) + '</a><h1 class="h-viejo">' + esc(v[1]) + '</h1>'
       + '<iframe class="viejo" src="panel-viejo.html?embed=1#' + esc(r0) + '" title="' + esc(v[1]) + '"></iframe>';
   }
 
@@ -818,7 +1760,7 @@
   function ajustes() {
     const bit = Object.entries(D.bitacora || {}).map(([id, x]) => Object.assign({ id }, x)).sort((a, b) => (b.creado || 0) - (a.creado || 0));
     main.innerHTML = tit('Ajustes', esc(me.nombre || '') + (A.demo ? ' · modo prueba (no toca datos reales)' : ''), '<button class="b" id="salir">Salir</button>')
-      + plegable('Ventas', 'cotizar y precios', '<ul class="links"><li><a href="#v/cotizar">Cotizador rápido</a></li><li><a href="#v/precios">Precios</a></li></ul>', true)
+      + plegable('Ventas', 'cotizar y precios', '<ul class="links"><li><a href="#piedras/cliente">Cotizar al cliente<small>PDF para mandar</small></a></li><li><a href="#piedras/cotizar">Calculadora de precios</a></li><li><a href="#piedras/precios">Precios<small>editables</small></a></li><li><a href="#v/cotizar">Cotizador anterior</a></li></ul>', true)
       + plegable('Taller', 'mesas, bases y diseño', '<ul class="links"><li><a href="#v/taller">Mesas en el taller<small>cortes, croquis y orden de compra</small></a></li><li><a href="#v/bases">Diseñar bases</a></li><li><a href="#v/estudio">Estudio de diseño</a></li></ul>')
       + plegable('Página web', 'portada, visitas y links', '<ul class="links"><li><a href="#v/portada">Presentación de la página</a></li><li><a href="#v/visitas">Auditoría y bloqueos<small>quién entra a dkas.mx</small></a></li><li><a href="#v/accesos">Links de acceso al 3D</a></li></ul>')
       + plegable('Avisos al teléfono', { activo: 'activados', apagado: 'apagados', instalar: 'falta instalar', bloqueado: 'bloqueados', no: 'no disponible', demo: 'modo prueba' }[estadoPush()], '<p class="nota">Tu socio te manda avisos: en la mañana la prioridad del día, al mediodía lo que sigue, en la noche el cuadre del banco, y al momento cuando alguien registra dinero o aparece algo raro.</p>' + (estadoPush() === 'activo' ? '<p class="ok-g">✓ Activados en este teléfono</p><button class="b grande" id="push-prueba">Mandar aviso de prueba</button>' : '<button class="b negro grande" id="push-aj">Activar avisos aquí</button>'), estadoPush() !== 'activo')
@@ -936,7 +1878,7 @@
       if (paso === 3) return caja('material', 'Tipo de cubierta', ch('material', C.MATERIALES, 'materialOtro')) + caja('marca', 'Marca / proveedor', inp('marca', 'maxlength="60" placeholder="ej. Quarmol"')) + caja('color', 'Color / piedra', ch('color', C.PIEDRAS, 'colorOtra', 'Nombre de la piedra'))
         + caja('acabado', 'Acabado', ch('acabado', C.ACABADOS)) + caja('canto', 'Tipo de canto', ch('canto', C.CANTOS, 'cantoOtro', 'ej. Pulido'))
         + '<div class="dos-i">' + caja('espesor', 'Espesor (mm)', inp('espesor', 'inputmode="decimal" placeholder="12"') + (w.material === 'Piedra sinterizada' && !w.espesor ? '<button type="button" class="sug" data-pon="espesor" data-val="12">Sinterizada: 12 mm · usar</button>' : '')) + caja('refuerzo', 'Refuerzo inferior', ch('refuerzo', C.SINO)) + '</div>'
-        + caja('', 'Observaciones (opcional)', area('obsCubierta', 'ej. canto pulido'));
+        + caja('', 'Observaciones (opcional)', area('obsCubierta', 'ej. canto pulido')) + caja('', 'De mis piedras (stock)', PZ.stockAlta(w));
       if (paso === 4) return caja('base', 'Diseño de la base', ch('base', C.BASES, 'baseOtra', 'ej. especial, Base Maestra')) + caja('pintura', 'Color de pintura', inp('pintura', 'maxlength="40" placeholder="ej. Negro"')) + caja('pacabado', 'Acabado de pintura', ch('pacabado', C.ACABADOS))
         + caja('ptipo', 'Tipo de pintura', inp('ptipo', 'maxlength="40" placeholder="ej. Electrostática"')) + '<div class="dos-i">' + caja('niveladores', 'Niveladores', ch('niveladores', C.SINO)) + caja('placasm', 'Placas de montaje', ch('placasm', C.SINO)) + '</div>' + caja('', 'Observaciones (opcional)', area('obsBase'));
       if (paso === 5) { const co = costoW(), sug = co ? Math.ceil(co * N.REGLA / 100) * 100 : null;
@@ -963,6 +1905,7 @@
         $$('#a-cli [data-v]', h).forEach(b => b.onclick = () => { leer(h); if (b.dataset.v === 'nuevo') { cli = {}; nuevoCli = true; } else { cli = Object.assign({}, M.cli(b.dataset.v)); nuevoCli = false; } pintar(); });
         $$('[data-g]', h).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leer(h); w[g.dataset.g] = b.dataset.v; delete w.pend[g.dataset.g]; pintar(); const o = /^Otr[ao]$/.test(b.dataset.v) && $('.otra', h); if (o) o.focus(); });
         $$('[data-nt]', h).forEach(b => b.onclick = () => { leer(h); const k = b.dataset.nt; if (w.pend[k]) delete w.pend[k]; else w.pend[k] = true; pintar(); });
+        $$('#a-stock [data-v]', h).forEach(b => b.onclick = e => { e.stopPropagation(); leer(h); const s = PZ.pieza(b.dataset.v); if (w.stock === s.id) delete w.stock; else { w.stock = s.id; w.color = 'Otra'; w.colorOtra = s.piedra; delete w.pend.color; } pintar(); });
         $$('[data-pon]', h).forEach(b => b.onclick = () => { leer(h); w[b.dataset.pon] = num(b.dataset.val); delete w.pend[b.dataset.pon]; pintar(); });
         $$('input,textarea', h).forEach(i => i.addEventListener('input', () => { leer(h); const v = $('.vivo', h); if (v) v.outerHTML = vivo(); }));
         if ($('#calc', h)) $('#calc', h).onclick = () => { leer(h); const sg = N.costosSugeridos(w); N.COST.forEach(([k]) => { if (vacio(w.costos[k])) w.costos[k] = sg[k]; }); pintar(); aviso('Costos sugeridos puestos: corrígelos con lo real'); };
@@ -972,9 +1915,10 @@
           e.textContent = sinNom ? 'Escribe el nombre del cliente.' : 'Faltan ' + f.length + ' dato(s). Llénalos o toca "No lo tengo aún" y quedan pendientes.'; const x = $('.campo-a.falta', h); if (x) x.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
         if ($('#sig', h)) $('#sig', h).onclick = () => { if (validar()) { paso++; pintar(); h.scrollTop = 0; } };
         if ($('#ok', h)) $('#ok', h).onclick = async () => {
-          if (!validar()) return;
+          // al editar se guarda al momento: lo que falte queda como pendiente solo (no frena)
+          if (p0.id && cli.nombre) { leer(h); N.CAMPOS.forEach(([pp, k]) => { if (!N.lleno(pp === 0 ? cli : w, k)) w.pend[k] = true; }); } else if (!validar()) return;
           Object.keys(w.pend).forEach(k => { if (N.lleno(['telefono', 'direccion'].includes(k) ? cli : w, k)) delete w.pend[k]; });
-          const pd = {}; ['solicitud', 'folio', 'fecha', 'entrega', 'vendedor', 'vendedorOtro', 'forma', 'tipo', 'tipoOtra', 'largo', 'ancho', 'cantidad', 'altura', 'material', 'materialOtro', 'marca', 'color', 'colorOtra', 'acabado', 'canto', 'cantoOtro', 'espesor', 'refuerzo', 'obsCubierta', 'base', 'baseOtra', 'pintura', 'pacabado', 'ptipo', 'niveladores', 'placasm', 'obsBase', 'precio', 'anticipo', 'notas'].forEach(k => { pd[k] = vacio(w[k]) ? null : w[k]; });
+          const pd = {}; ['solicitud', 'folio', 'fecha', 'entrega', 'vendedor', 'vendedorOtro', 'forma', 'tipo', 'tipoOtra', 'largo', 'ancho', 'cantidad', 'altura', 'material', 'materialOtro', 'marca', 'color', 'colorOtra', 'acabado', 'canto', 'cantoOtro', 'espesor', 'refuerzo', 'obsCubierta', 'base', 'baseOtra', 'pintura', 'pacabado', 'ptipo', 'niveladores', 'placasm', 'obsBase', 'precio', 'anticipo', 'notas', 'piezas', 'stock'].forEach(k => { pd[k] = vacio(w[k]) ? null : w[k]; });
           pd.costos = Object.fromEntries(N.COST.map(([k]) => [k, vacio(w.costos[k]) ? null : num(w.costos[k])])); const pl = Object.fromEntries(Object.keys(w.pend).filter(k => w.pend[k]).map(k => [k.replace(/[.#$\[\]\/]/g, '_'), true])); pd.pend = Object.keys(pl).length ? pl : null;
           const pend = N.pendientes(Object.assign({}, pd, { costos: w.costos }), cli);
           if (!await clave(p0.id ? 'Guardar cambios del pedido' : 'Dar de alta el pedido', [['Nº de pedido', String(pd.folio)], ['Cliente', cli.nombre + (nuevoCli ? ' (nuevo)' : '')], ['Mesa', piezaTxt(pd)], ['Entrega', pd.entrega ? fC(pd.entrega) : 'pendiente'], ['Precio', pd.precio ? pesos(pd.precio) : 'pendiente'], ['Costo estimado', costoW() ? pesos(costoW()) : 'pendiente'], ['Datos pendientes', pend.length ? String(pend.length) : 'ninguno']])) return;

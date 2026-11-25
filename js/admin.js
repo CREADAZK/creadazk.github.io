@@ -1086,11 +1086,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
         X.main().innerHTML = '<a class="volver" href="#piedras/cotizar">‹ Cotizar</a>' + X.tit('Cotizar al cliente', id ? 'Cotización C-' + esc(b.folio) + ' · ' + esc(fC(b.fecha)) : 'Llena, revisa y manda el PDF', '')
           + '<section class="caja"><h2>1 · Cliente</h2><div class="dos-i"><label class="campo">Nombre<input id="cc-n" maxlength="80" value="' + esc(b.cliente) + '" placeholder="ej. David Shamy"></label><label class="campo">WhatsApp<input id="cc-t" inputmode="tel" maxlength="20" value="' + esc(b.tel) + '" placeholder="55 1234 5678"></label></div>'
             + (clientes.length ? '<details class="plegable"><summary><span>Elegir un cliente que ya tenemos</span></summary><div class="pl-c"><div class="chips" id="cc-cl">' + clientes.map(c => '<button type="button" data-v="' + esc(c.id) + '">' + esc(c.nombre) + '</button>').join('') + '</div></div></details>' : '') + '</section>'
-          + '<section class="caja"><div class="caja-t"><h2>2 · Mesas</h2><span class="sub">' + b.items.length + '</span></div>'
+          + '<section class="caja"><div class="caja-t"><h2>2 · Mesas</h2><span class="sub" id="cc-suma">' + piezasTxt(b) + '</span></div>'
             + (b.items.length ? '<ol class="cot-items">' + b.items.map((it, i) => '<li><div class="ci-t"><b>' + (i + 1) + '</b><textarea data-i="' + i + '" data-f="desc" maxlength="300">' + esc(it.desc) + '</textarea><button type="button" class="x" data-del="' + i + '" aria-label="Quitar">✕</button></div>'
               + '<div class="dos-i"><label class="campo">Cuántas<input data-i="' + i + '" data-f="cant" inputmode="numeric" value="' + esc(it.cant) + '"></label><label class="campo">Precio c/u<input data-i="' + i + '" data-f="precio" inputmode="decimal" value="' + esc(it.precio) + '"></label></div>'
+              + '<div class="ci-sub"><span data-sub="' + i + '">' + subTxt(it) + '</span><button type="button" class="b chico" data-dup="' + i + '">⧉ Duplicar</button></div>'
               + (num(it.auto) && num(it.auto) !== num(it.precio) ? '<button type="button" class="sug" data-auto="' + i + '">El calculador dice ' + pesos(it.auto) + ' · usar</button>' : '') + '</li>').join('') + '</ol>' : X.vacioTxt('Agrega las mesas que quiere el cliente.'))
-            + '<button class="b grande" id="cc-add">＋ Agregar mesa</button></section>'
+            + '<button class="b negro grande" id="cc-add">＋ Agregar mesas</button><p class="nota">Puedes meter varias seguidas: en la hoja toca “＋ Agregar y meter otra”.</p></section>'
           + '<section class="caja"><h2>3 · Entrega, descuento y condiciones</h2><div class="dos-i"><label class="campo">Entrega e instalación' + (b.entregaAuto ? ' <small>(automática)</small>' : '') + '<input id="cc-e" inputmode="decimal" value="' + esc(b.entregaAuto ? T.ent : b.entrega) + '"></label><label class="campo">Descuento ($)<input id="cc-d" inputmode="decimal" placeholder="$0" value="' + esc(b.descuento) + '"></label></div>'
             + '<div class="dos-i"><label class="campo">Tiempo de entrega<input id="cc-ti" maxlength="80" value="' + esc(b.tiempo) + '"></label><label class="campo">Vigencia (días)<input id="cc-v" inputmode="numeric" value="' + esc(b.vigencia) + '"></label></div>'
             + '<label class="campo">Notas para el cliente (opcional)<textarea id="cc-no" maxlength="400" placeholder="ej. Incluye instalación en CDMX">' + esc(b.notas) + '</textarea></label></section>'
@@ -1098,12 +1099,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
           + '<div class="botones col"><button class="b verde grande" id="cc-pdf"' + (b.items.length && b.cliente ? '' : ' disabled') + '>📄 PDF para el cliente</button><button class="b negro grande" id="cc-g"' + (b.items.length && b.cliente ? '' : ' disabled') + '>' + (id ? 'Guardar cambios' : 'Guardar cotización') + '</button>' + (b.tel ? '<button class="b grande" id="cc-wa">Mandar mensaje por WhatsApp</button>' : '') + (b.items.length ? '<button class="b grande" id="cc-ped">Pasar a pedido</button>' : '') + (id ? '' : '<button class="b" id="cc-nueva">Empezar una nueva</button>') + (id ? '<button class="b rojo" id="cc-b">Borrar cotización</button>' : '') + '</div>'
           + (!b.cliente || !b.items.length ? '<p class="nota">Para sacar el PDF: pon el nombre del cliente y al menos una mesa.</p>' : '');
         const leer = () => { b.cliente = $('#cc-n').value.trim(); b.tel = $('#cc-t').value.trim(); b.descuento = $('#cc-d').value.replace(/[^\d.]/g, ''); b.tiempo = $('#cc-ti').value; b.vigencia = Math.max(1, Math.floor(num($('#cc-v').value) || 15)); b.notas = $('#cc-no').value; $$('[data-i]').forEach(x => { const it = b.items[+x.dataset.i]; if (!it) return; it[x.dataset.f] = x.dataset.f === 'desc' ? x.value : x.value.replace(/[^\d.]/g, ''); }); const e = $('#cc-e').value.replace(/[^\d.]/g, ''); if (!b.entregaAuto || num(e) !== entregaVista) { b.entregaAuto = false; b.entrega = e; } guardar(); };
-        const vivo = () => { leer(); const T2 = totales(b), pg = $('.precio-g'); if (pg) { pg.querySelector('b').textContent = pesos(T2.tot); pg.querySelectorAll('p')[0].textContent = 'Mesas ' + pesos(T2.sub) + (T2.des ? ' − descuento ' + pesos(T2.des) : '') + (T2.ent ? ' + entrega ' + pesos(T2.ent) : ' · entrega incluida'); pg.querySelectorAll('p')[1].innerHTML = 'Anticipo 50%: <b>' + pesos(T2.ant) + '</b> · saldo contra entrega ' + pesos(T2.tot - T2.ant); } const ok = b.items.length && b.cliente; ['#cc-pdf', '#cc-g'].forEach(s => { if ($(s)) $(s).disabled = !ok; }); };
+        const vivo = () => { leer(); const T2 = totales(b), pg = $('.precio-g'); if (pg) { pg.querySelector('b').textContent = pesos(T2.tot); pg.querySelectorAll('p')[0].textContent = 'Mesas ' + pesos(T2.sub) + (T2.des ? ' − descuento ' + pesos(T2.des) : '') + (T2.ent ? ' + entrega ' + pesos(T2.ent) : ' · entrega incluida'); pg.querySelectorAll('p')[1].innerHTML = 'Anticipo 50%: <b>' + pesos(T2.ant) + '</b> · saldo contra entrega ' + pesos(T2.tot - T2.ant); } $$('[data-sub]').forEach(x => { const it = b.items[+x.dataset.sub]; if (it) x.textContent = subTxt(it); }); if ($('#cc-suma')) $('#cc-suma').textContent = piezasTxt(b); const ok = b.items.length && b.cliente; ['#cc-pdf', '#cc-g'].forEach(s => { if ($(s)) $(s).disabled = !ok; }); };
         $$('#app input, #app textarea').forEach(i => i.addEventListener('input', vivo));
         $$('#cc-cl [data-v]').forEach(x => x.onclick = () => { leer(); const c = X.M().cli(x.dataset.v); b.cliente = c.nombre; b.tel = c.telefono || b.tel; b.clienteId = c.id; guardar(); pintar(); });
         $$('[data-del]').forEach(x => x.onclick = () => { leer(); b.items.splice(+x.dataset.del, 1); guardar(); pintar(); });
         $$('[data-auto]').forEach(x => x.onclick = () => { leer(); const it = b.items[+x.dataset.auto]; it.precio = it.auto; guardar(); pintar(); });
-        $('#cc-add').onclick = () => { leer(); mesaNueva(it => { b.items.push(it); guardar(); pintar(); }); };
+        $$('[data-dup]').forEach(x => x.onclick = () => { leer(); const i = +x.dataset.dup; b.items.splice(i + 1, 0, JSON.parse(JSON.stringify(b.items[i]))); guardar(); pintar(); X.aviso('Mesa duplicada: cámbiale lo que necesites'); });
+        $('#cc-add').onclick = () => { leer(); mesaNueva(it => { b.items.push(it); guardar(); pintar(); }, () => ({ n: b.items.length, t: piezasTxt(b) })); };
         $('#cc-pdf').onclick = () => { leer(); pdfCliente(b); };
         $('#cc-g').onclick = async () => {
           leer(); const T2 = totales(b);
@@ -1125,22 +1127,28 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       pintar();
     }
     // una mesa para la cotización del cliente (con el calculador)
-    function mesaNueva(listo) {
+    const subTxt = it => { const n = Math.max(1, num(it.cant) || 1); return n + ' × ' + pesos(num(it.precio)) + ' = ' + pesos(n * num(it.precio)); };
+    const piezasTxt = b => { const n = b.items.reduce((a, it) => a + Math.max(1, num(it.cant) || 1), 0); return n + (n === 1 ? ' mesa' : ' mesas') + ' · ' + pesos(b.items.reduce((a, it) => a + Math.max(1, num(it.cant) || 1) * num(it.precio), 0)); };
+    function mesaNueva(listo, cuenta) {
       const q = Object.assign({}, qc, { base: '' });
       X.hoja('Agregar mesa', '<div id="mn"></div>', h => {
         const pintar = () => {
           const ok = num(q.w) && (q.forma === 'red' || num(q.h)), r = ok ? calcula(q) : null;
-          $('#mn', h).innerHTML = '<div class="campo">¿Qué mesa?' + chipsH('uso', USOS, q.uso) + '</div><div class="campo">Forma' + chipsH('forma', FORMAS, q.forma) + '</div>'
+          const c0 = cuenta ? cuenta() : null;
+          $('#mn', h).innerHTML = (c0 && c0.n ? '<p class="ok-g">Ya van ' + esc(c0.t) + '</p>' : '') + '<div class="campo">¿Qué mesa?' + chipsH('uso', USOS, q.uso) + '</div><div class="campo">Forma' + chipsH('forma', FORMAS, q.forma) + '</div>'
             + '<div class="campo">Medidas (cm)<div class="tres-i"><input data-k="w" inputmode="decimal" placeholder="' + (q.forma === 'red' ? 'Diámetro' : 'Largo') + '" value="' + esc(q.w) + '">' + (q.forma === 'red' ? '' : '<input data-k="h" inputmode="decimal" placeholder="Ancho" value="' + esc(q.h) + '">') + '<input data-k="alto" inputmode="decimal" placeholder="Alto (' + (P.ALTO[q.uso] || 75) + ')" value="' + esc(q.alto) + '"><input data-k="cant" inputmode="numeric" placeholder="Cuántas" value="' + esc(q.cant) + '"></div></div>' + (comunes(q.uso, q.forma).length ? '<div class="campo">Medidas que más se venden (toca una)' + comunesH(comunes(q.uso, q.forma), 'data-mmed') + '</div>' : '')
             + '<div class="campo">Piedra' + chipsPiedra('piedra', q.piedra, { conOtra: true }) + (otraAbierta(q.piedra) ? '<input data-k="piedra" maxlength="40" placeholder="Nombre de la piedra" value="' + esc(limpiaP(q.piedra)) + '">' : '') + '</div>'
             + '<label class="campo">Base (opcional)<input data-k="base" maxlength="60" placeholder="ej. estructura oro mate" value="' + esc(q.base) + '"></label>'
             + (r ? (r.error ? '<p class="aviso r">' + esc(r.error) + '</p>' : '<div class="vivo"><div>Precio c/u<b>' + pesos(r.m.precio) + '</b></div><div>Costo<b>' + pesos(r.conStock ? r.m.costo - r.m.piedra : r.m.costo) + '</b></div><div>' + (r.conStock ? 'Piedra<b class="v">en stock ✓</b>' : 'Piedra<b>hay que comprar</b>') + '</div></div>') : '')
-            + '<button class="b negro grande" id="mn-ok"' + (r && !r.error ? '' : ' disabled') + '>Agregar a la cotización</button>';
+            + '<button class="b verde grande" id="mn-otra"' + (r && !r.error ? '' : ' disabled') + '>＋ Agregar y meter otra</button><button class="b negro grande" id="mn-ok"' + (r && !r.error ? '' : ' disabled') + '>Agregar y terminar</button>';
           $$('[data-q]', h).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leerMN(); q[g.dataset.q] = b.dataset.v; pintar(); });
           $$('[data-k]', h).forEach(i => i.onchange = () => { leerMN(); pintar(); });
           $$('[data-mmed]', h).forEach(b => b.onclick = () => { leerMN(); const [a, c] = b.dataset.mmed.split(','); q.w = a; q.h = q.forma === 'red' ? '' : c; pintar(); });
-          $$('[data-k]', h).forEach(i => i.oninput = () => { leerMN(); const ok2 = num(q.w) && (q.forma === 'red' || num(q.h)); $('#mn-ok', h).disabled = !ok2; });
-          $('#mn-ok', h).onclick = () => { leerMN(); const r2 = calcula(q); if (r2.error) return X.aviso(r2.error, true); const it = itemDe(q, r2); it.base = q.base.trim(); it.desc = descDe(q.uso, q.forma, it.w, it.h, it.alto, it.piedra, it.base); X.cerrarHoja(); listo(it); };
+          $$('[data-k]', h).forEach(i => i.oninput = () => { leerMN(); const ok2 = num(q.w) && (q.forma === 'red' || num(q.h)); $('#mn-ok', h).disabled = !ok2; $('#mn-otra', h).disabled = !ok2; });
+          const hacer = () => { leerMN(); const r2 = calcula(q); if (r2.error) { X.aviso(r2.error, true); return null; } const it = itemDe(q, r2); it.base = q.base.trim(); it.desc = descDe(q.uso, q.forma, it.w, it.h, it.alto, it.piedra, it.base); return it; };
+          $('#mn-ok', h).onclick = () => { const it = hacer(); if (!it) return; X.cerrarHoja(); listo(it); };
+          // se queda abierta: misma mesa, piedra y base; solo cambias la medida
+          $('#mn-otra', h).onclick = () => { const it = hacer(); if (!it) return; listo(it); X.aviso('Mesa agregada ✓ · mete la siguiente'); q.w = ''; q.h = ''; q.alto = ''; q.cant = '1'; pintar(); const c = $('.hoja-c'); if (c) c.scrollTop = 0; };
         };
         const leerMN = () => { $$('[data-k]', h).forEach(i => { q[i.dataset.k] = i.dataset.k === 'piedra' ? (i.value.trim() || OTRA) : i.dataset.k === 'base' ? i.value : i.value.replace(/[^\d.,]/g, '').replace(',', '.'); }); };
         pintar();

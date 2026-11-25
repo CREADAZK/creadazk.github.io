@@ -1274,6 +1274,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     pintarSync();
   }
   function pintarSync() { const t = syncMal ? 'Sin conexión · reintentando' : 'Sincronizado' + (ultimaSync ? ' · ' + new Date(ultimaSync).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : ''); $$('.sync').forEach(e => { e.classList.toggle('mal', syncMal); e.innerHTML = '<i></i>' + t; }); }
+  // versión nueva publicada en dkas.mx → la app se recarga sola (si no hay una hoja abierta ni se está guardando)
+  let ultVer = 0;
+  async function revisarVersion() {
+    if (A.demo || document.hidden || Date.now() - ultVer < 60000) return; ultVer = Date.now();
+    try {
+      const mio = ((document.querySelector('script[src*="js/admin.js"]') || {}).src || '').split('v=')[1], h = await (await fetch(location.pathname + '?ver=' + Date.now(), { cache: 'no-store' })).text(), nueva = (h.match(/js\/admin\.js\?v=([a-f0-9]+)/) || [])[1];
+      if (mio && nueva && nueva !== mio) { if ($('#capa') || $('.capa') || ocupadoGuardando) { ultVer = 0; return; } location.reload(); }
+    } catch (e) {}
+  }
+  setInterval(revisarVersion, 15000); addEventListener('focus', revisarVersion); document.addEventListener('visibilitychange', () => { if (!document.hidden) revisarVersion(); });
   setInterval(sincronizar, 12000); addEventListener('focus', sincronizar); document.addEventListener('visibilitychange', () => { if (!document.hidden) sincronizar(); });
   const recargar = async () => { await cargar(); ruta(); };
   if ('serviceWorker' in navigator && !A.demo) { navigator.serviceWorker.register('panel-sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.ir) location.hash = e.data.ir; }); }

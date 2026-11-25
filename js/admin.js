@@ -1463,68 +1463,85 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
         : '<p class="nota">No tienes piedra en stock donde quepa ' + esc(reqTxt(reqs)) + '. Hay que comprar placa.</p>';
     }
 
-    // ================= PLANEACIÓN: acomodar pedidos en placas, guardar, editar y dar seguimiento =================
-    // dinero/planes/<id> { nombre, piedra, fuente:'nueva'|<id de piedra>, piezas:[{ n, pedido, gi, forma, d, w, h, cant }], nota, estado:'idea'|'comprar'|'hecho', pct, por, creado, editado }
-    const ESTADOS_PL = [['idea', 'Idea'], ['comprar', 'Por comprar'], ['hecho', 'Hecho']];
+    // ================= PLANEACIÓN (simple): piedra + piezas → el sistema calcula las placas solo =================
+    // dinero/planes/<id> { nombre, piedra, piezas:[{ n, pedido, gi, forma, d, w, h, cant }], nota, por, creado, editado }
     const planes = () => Object.entries(X.D().planes || {}).map(([id, x]) => Object.assign({ id }, x, { piezas: arr(x.piezas) })).sort((a, b) => (b.editado || b.creado || 0) - (a.editado || a.creado || 0));
     const reqsPlan = pl => pl.piezas.filter(z => num(z.d) || num(z.w)).map(z => ({ nombre: z.n || 'Pieza', forma: z.forma === 'red' ? 'red' : 'rect', d: num(z.d), w: num(z.w), h: num(z.h), cant: Math.max(1, num(z.cant) || 1) }));
-    const espPlan = pl => { const s = pl.fuente && pl.fuente !== 'nueva' ? pieza(pl.fuente) : null; return s ? { tipo: s.tipo === 'placa' ? 'placa' : 'retazo', id: s.id, w: num(s.w), h: num(s.h) } : { tipo: 'placa', w: PLACA().w, h: PLACA().h }; };
-    const corrPlan = pl => { const rq = reqsPlan(pl); if (!rq.length) return null; try { return K.cortarEn(items(rq), espPlan(pl), CFG); } catch (e) { return null; } };
     const medZ = z => z.forma === 'red' ? 'Ø' + num(z.d) : num(z.w) + '×' + num(z.h);
-    // lo que falta de piedra en los pedidos activos (para meterlo al plan con un toque)
+    // acomodo automático: primero lo que tengas de esa piedra en stock, luego placas nuevas
+    function calcPlan(pl) {
+      const rq = reqsPlan(pl); if (!rq.length) return null;
+      const col = limpiaP(pl.piedra), st = col ? disponibles().filter(s => mismoColor(s.piedra, col)) : [];
+      const inv = { placas: st.filter(s => s.tipo === 'placa').map(s => ({ id: s.id, w: num(s.w), h: num(s.h), cant: 1 })), retazos: st.filter(s => s.tipo !== 'placa').map(s => ({ id: s.id, w: num(s.w), h: num(s.h) })) };
+      let r; try { r = K.meCabe(rq.map(z => ({ pieza: { nombre: z.nombre, forma: z.forma, d: z.d, w: z.w, h: z.h }, cant: z.cant })), inv, CFG, PLACA()); } catch (e) { return { error: e.message }; }
+      if (r.estado === 'error') return { error: r.msg };
+      const esp = r.espacios.map(e => Object.assign(e, { stock: e.esp.id ? pieza(e.esp.id) : null }));
+      return { esp, nuevas: esp.filter(e => !e.stock).length, deStock: esp.filter(e => e.stock).length, sobra: [].concat(...esp.map(e => e.sobrantes)).map(s => Math.floor(Math.max(s.w, s.h)) + '×' + Math.floor(Math.min(s.w, s.h))) };
+    }
+    const resumenPlan = c => !c ? 'sin piezas' : c.error ? '⚠ ' + c.error : (c.nuevas ? c.nuevas + (c.nuevas === 1 ? ' placa nueva' : ' placas nuevas') : '') + (c.nuevas && c.deStock ? ' + ' : '') + (c.deStock ? c.deStock + ' de tu stock' : '');
     const pendientesPz = () => { const L = []; X.M().pedidos.filter(pedidoActivo).forEach(p => gruposPedido(p).forEach(g => { if (estadoGrupo(p, g).falta) L.push({ p, g }); })); return L; };
-    const segPlan = pl => { const ids = pl.piezas.filter(z => z.pedido); if (!ids.length) return ''; const pend = pendientesPz(), siguen = ids.filter(z => pend.some(x => x.p.id === z.pedido && x.g.gi === (z.gi || 0))).length; return siguen ? '⏳ ' + siguen + ' de ' + ids.length + ' pedido' + (ids.length > 1 ? 's' : '') + ' siguen esperando piedra' : '✓ Sus pedidos ya tienen piedra'; };
+    const tituloEsp = (e, i, n, col) => (e.stock ? 'Tu ' + nomPieza(e.stock) : 'Placa ' + (n > 1 ? (i + 1) + ' de ' + n + ' · ' : '') + (col || 'piedra') + ' · 320 × 160');
+    // ---- lista ----
     function listaPlanes() {
       const L = planes(), pend = pendientesPz();
-      X.main().innerHTML = '<a class="volver" href="#piedras">‹ Piedras</a>' + X.tit('Planeación', 'Acomoda pedidos en placas · se guarda todo', '<div class="tit-b"><a class="b negro" href="#piedras/plan=nuevo">＋ Nueva</a></div>')
-        + (pend.length ? '<section class="caja pend"><h2>Esperan piedra: ' + pend.length + '</h2><p class="nota">' + esc(pend.map(x => X.M().nomPedido(x.p).replace(/ #\d+$/, '') + ' ' + x.g.t.replace(/^Mesa (de )?/i, '') + (x.g.color ? ' (' + x.g.color + ')' : '')).join(' · ')) + '</p><a class="b grande negro" href="#piedras/plan=nuevo">🧩 Planear una placa para ellos</a></section>' : '')
-        + '<section class="caja"><div class="caja-t"><h2>Mis planeaciones</h2><span class="sub">' + L.length + '</span></div>'
-          + (L.length ? '<div class="pl-lista">' + L.map(pl => { const e = espPlan(pl), r = corrPlan(pl), seg = segPlan(pl);
-            return '<a class="pl-card" href="#piedras/plan=' + esc(pl.id) + '"><div class="dib chico">' + dibujo({ piedra: pl.piedra, w: e.w, h: e.h }, r) + '</div><span><b>' + esc(pl.nombre || 'Sin nombre') + '</b><small>' + esc((pl.piedra || 'Sin piedra') + ' · ' + (pl.fuente && pl.fuente !== 'nueva' ? 'de tu stock' : 'placa nueva') + ' · ' + pl.piezas.length + ' pieza' + (pl.piezas.length === 1 ? '' : 's') + (r ? ' · usa ' + r.pct + '%' + (r.faltan.length ? ' · ⚠ no caben ' + r.faltan.length : '') : '') + ' · ' + fC(N.ymd(new Date(pl.editado || pl.creado || Date.now()))) + (pl.por ? ' · ' + pl.por : '')) + '</small>' + (seg ? '<small>' + esc(seg) + '</small>' : '') + '</span>' + X.pill((ESTADOS_PL.find(x => x[0] === pl.estado) || ESTADOS_PL[0])[1], pl.estado === 'hecho' ? 'v' : pl.estado === 'comprar' ? 'a' : '') + '</a>'; }).join('') + '</div>'
-            : X.vacioTxt('Todavía no hay planeaciones. Toca “＋ Nueva”, elige la piedra y mete los pedidos.')) + '</section>';
+      X.main().innerHTML = '<a class="volver" href="#piedras">‹ Piedras</a>' + X.tit('Planeación', 'Tus planes de cómo acomodar piezas en placas', '')
+        + '<a class="b negro grande pl-nueva" href="#piedras/plan=nuevo">＋ Hacer una planeación</a>'
+        + (pend.length ? '<p class="nota">Esperan piedra: ' + esc(pend.map(x => X.M().nomPedido(x.p).replace(/ #\d+$/, '') + ' ' + x.g.t.replace(/^Mesa (de )?/i, '')).join(' · ')) + '</p>' : '')
+        + (L.length ? '<div class="pl-lista">' + L.map(pl => { const c = calcPlan(pl), e0 = c && c.esp && c.esp[0];
+            return '<a class="pl-card" href="#piedras/plan=' + esc(pl.id) + '">' + (e0 ? '<div class="dib chico">' + dibujo({ piedra: pl.piedra, w: e0.esp.w, h: e0.esp.h }, e0) + '</div>' : '<div></div>') + '<span><b>' + esc(pl.nombre || 'Sin nombre') + '</b><small>' + esc((pl.piedra || 'Piedra por definir') + ' · ' + pl.piezas.length + ' pieza' + (pl.piezas.length === 1 ? '' : 's')) + '</small><small><b>' + esc(resumenPlan(c)) + '</b></small></span><em>›</em></a>'; }).join('') + '</div>'
+          : '<section class="caja">' + X.vacioTxt('Todavía no hay planeaciones.') + '</section>');
     }
+    // ---- ver (lo principal: las imágenes de cada placa) ----
+    async function verPlan(id) {
+      const pl = planes().find(x => x.id === id); if (!pl) { location.hash = '#piedras/planes'; return; }
+      const c = calcPlan(pl), col = limpiaP(pl.piedra);
+      X.main().innerHTML = '<a class="volver" href="#piedras/planes">‹ Planeación</a>' + X.tit(esc(pl.nombre || 'Planeación'), esc((col || 'Piedra por definir') + ' · ' + fC(N.ymd(new Date(pl.editado || pl.creado || Date.now())))), '')
+        + '<section class="caja pz-aviso ' + (c && !c.error ? 'ok' : 'mal') + '"><b>' + (c && !c.error ? 'Necesitas: ' + esc(resumenPlan(c)) : esc(resumenPlan(c))) + '</b>' + (c && c.sobra && c.sobra.length ? '<p>Sobra para vender después: ' + esc(c.sobra.join(' · ')) + ' cm</p>' : '') + '</section>'
+        + '<section class="caja"><div id="pl-imgs"><p class="nota">Dibujando las placas…</p></div></section>'
+        + '<section class="caja"><h2>Piezas</h2><ul class="corta">' + pl.piezas.map(z => '<li><b>' + esc((z.n || 'Pieza') + (String(z.n || '').includes(medZ(z)) ? '' : ' · ' + medZ(z))) + (num(z.cant) > 1 ? ' × ' + num(z.cant) : '') + '</b>' + (z.pedido ? '<a class="lnk" href="#p=' + esc(z.pedido) + '">ver pedido</a>' : '') + '</li>').join('') + '</ul>' + (pl.nota ? '<p class="nota" style="white-space:pre-wrap">' + esc(pl.nota) + '</p>' : '') + '</section>'
+        + '<div class="pl-acc"><button class="b verde grande" id="pv-wa">📤 Mandar</button><a class="b grande" href="#piedras/plan=ed=' + esc(pl.id) + '">✏️ Cambiar</a><button class="b rojo-b grande" id="pv-b">🗑 Borrar</button></div>';
+      const cvs = [];
+      $('#pv-b').onclick = async () => { if (!await X.clave('Borrar planeación', [['Planeación', pl.nombre || '']])) return; await X.guardarYa(() => A.nodoBorra('dinero/planes/' + id), 'Planeación borrada', 'Borró planeación: ' + (pl.nombre || '')); location.hash = '#piedras/planes'; };
+      $('#pv-wa').onclick = () => { if (!cvs.length) return X.aviso('Espera a que se dibujen las placas.'); cvs.forEach((cv, i) => cv.toBlob(bl => X.bajar(bl, (pl.nombre || 'Planeación') + (cvs.length > 1 ? ' placa ' + (i + 1) : '') + '.png'), 'image/png')); };
+      if (!c || c.error) { $('#pl-imgs').innerHTML = '<p class="nota">Toca ✏️ Cambiar para agregar piezas.</p>'; return; }
+      for (let i = 0; i < c.esp.length; i++) { const e = c.esp[i]; cvs.push(await lienzoPlaca({ piedra: col, w: e.esp.w, h: e.esp.h, r: e, titulo: tituloEsp(e, i, c.esp.length, col), sub: subPlan(e), nombre: p => limpiaN(p.nombre) || 'Pieza' })); }
+      if ($('#pl-imgs')) $('#pl-imgs').innerHTML = cvs.map(cv => '<img class="vp-img" src="' + cv.toDataURL('image/jpeg', 0.9) + '" alt="">').join('');
+    }
+    // ---- hacer / cambiar: 1 piedra · 2 piezas ----
     const BORR = {};
     function editorPlan(id) {
       const pl0 = id ? planes().find(x => x.id === id) : null; if (id && !pl0) { location.hash = '#piedras/planes'; return; }
-      const llave = id || 'nuevo';
-      const pl = BORR[llave] || (BORR[llave] = pl0 ? JSON.parse(JSON.stringify(pl0)) : { nombre: '', piedra: '', fuente: 'nueva', piezas: [], nota: '', estado: 'idea' });
-      let q = { forma: 'red', d: '', w: '', h: '', cant: '1' }, nomL = '';
+      const llave = id || 'nuevo', pl = BORR[llave] || (BORR[llave] = pl0 ? JSON.parse(JSON.stringify(pl0)) : { nombre: '', piedra: '', piezas: [], nota: '' });
+      let q = { forma: 'red', d: '', w: '', h: '', cant: '1' }, nomL = '', otraAbierta_ = false;
       const pintar = () => {
-        const col = limpiaP(pl.piedra), stock = col ? disponibles().filter(s => mismoColor(s.piedra, col)) : [], e = espPlan(pl), r = corrPlan(pl), pend = pendientesPz();
-        if (pl.fuente !== 'nueva' && !stock.some(s => s.id === pl.fuente)) pl.fuente = 'nueva';
+        const col = limpiaP(pl.piedra), pend = pendientesPz(), c = calcPlan(pl);
         const enPlan = x => pl.piezas.some(z => z.pedido === x.p.id && (z.gi || 0) === x.g.gi);
-        X.main().innerHTML = '<a class="volver" href="#piedras/planes">‹ Planeación</a>' + X.tit(esc(pl.nombre || (id ? 'Planeación' : 'Nueva planeación')), id ? 'Guardada · ' + esc(fC(N.ymd(new Date(pl0.editado || pl0.creado || Date.now())))) : 'Todavía no se guarda', '')
-          + '<section class="caja"><label class="campo">Nombre (opcional)<input id="pl-nom" maxlength="80" placeholder="ej. Placa Bulgaria · Shamy + Shely" value="' + esc(pl.nombre) + '"></label>'
-            + '<div class="campo"><span class="num">1</span> Piedra' + chipsPiedra('piedra', pl.piedra, { conOtra: true }) + (otraAbierta(pl.piedra) ? '<input id="pl-p" maxlength="40" placeholder="Nombre de la piedra" value="' + esc(limpiaP(pl.piedra)) + '">' : '') + '</div>'
-            + '<div class="campo"><span class="num">2</span> ¿En qué placa?' + chipsH('fuente', [['nueva', 'Placa nueva', PLACA().w + ' × ' + PLACA().h + ' (comprar)']].concat(stock.map(s => [s.id, 'Tu ' + (s.tipo === 'placa' ? 'placa' : 'pedazo'), r1(num(s.w)) + ' × ' + r1(num(s.h))])), pl.fuente) + (col && !stock.length ? '<p class="nota">No tienes ' + esc(col) + ' en stock: se planea en una placa nueva.</p>' : '') + '</div></section>'
-          + '<section class="caja"><h2><span class="num">3</span> Pedidos que esperan piedra</h2>' + (pend.length ? '<ul class="hacer-l">' + pend.map((x, i) => { const ya = enPlan(x), otro = col && x.g.color && !mismoColor(x.g.color, col);
-              return '<li class="' + (ya ? 'corta' : '') + '"><i>' + (ya ? '✓' : '＋') + '</i><span><b>' + esc(X.M().nomPedido(x.p).replace(/ #\d+$/, '')) + ' · ' + esc(x.g.t.replace(/^Mesa (de )?/i, '')) + '</b><small>' + esc(x.g.color || 'sin piedra') + (otro ? ' · ⚠ el pedido dice otra piedra' : '') + '</small></span><button class="b chico ' + (ya ? '' : 'verde') + '" data-plp="' + i + '">' + (ya ? 'Quitar' : 'Agregar') + '</button></li>'; }).join('') + '</ul>' : X.vacioTxt('Ningún pedido espera piedra ahorita.')) + '</section>'
-          + '<section class="caja"><h2><span class="num">4</span> Otra pieza (mesa nueva, cliente que estás cotizando)</h2><label class="campo">¿Para quién?<input id="pl-nl" maxlength="40" placeholder="ej. Cliente nuevo, Mesa para ofrecer" value="' + esc(nomL) + '"></label>' + pideH(q, 'pl-pide') + '<button type="button" class="b grande" id="pl-add">＋ Agregar pieza</button></section>'
-          + '<section class="caja"><div class="caja-t"><h2>Así queda</h2><span class="sub">' + (r ? 'usa ' + r.pct + '%' : '') + '</span></div>'
-            + (pl.piezas.length ? '<ul class="corta">' + pl.piezas.map((z, i) => '<li><b>' + esc((z.n || 'Pieza') + ' · ' + medZ(z)) + (num(z.cant) > 1 ? ' × ' + num(z.cant) : '') + '</b><button type="button" class="x" data-plx="' + i + '" aria-label="Quitar">✕</button></li>').join('') + '</ul>' : '<p class="nota">Agrega pedidos o piezas y aquí se dibujan.</p>')
-            + (r ? '<div class="dib">' + dibujo({ piedra: col, w: e.w, h: e.h }, r) + '</div>' + (r.faltan.length ? '<p class="aviso r">✕ No caben: ' + esc(r.faltan.map(x => x.et).join(', ')) + '. Quita algo o usa otra placa.</p>' : '<p class="ok-g">✓ Cabe todo · se usa ' + r.pct + '%' + (r.sobrantes.length ? ' · sobra ' + r.sobrantes.map(s => Math.floor(s.w) + '×' + Math.floor(s.h)).join(' y ') : '') + '</p>') + '<button class="b grande" id="pl-img">🖼 Imagen para WhatsApp</button><div id="pl-vp"></div>' : '') + '</section>'
-          + '<section class="caja"><label class="campo">Notas y seguimiento<textarea id="pl-nota" maxlength="600" placeholder="ej. Ofrecerle a David la Bulgaria; llamar el lunes; si no, usar Negra">' + esc(pl.nota) + '</textarea></label><div class="campo">Estado' + chipsH('estado', ESTADOS_PL, pl.estado || 'idea') + '</div></section>'
-          + '<div class="botones col"><button class="b negro grande" id="pl-ok">' + (id ? 'Guardar cambios' : 'Guardar planeación') + '</button>' + (id ? '<button class="b grande" id="pl-dup">⧉ Duplicar (probar otra piedra)</button><button class="b rojo" id="pl-b">Borrar planeación</button>' : '') + '</div>';
-        const leer = () => { pl.nombre = $('#pl-nom').value.trim(); if ($('#pl-p')) pl.piedra = $('#pl-p').value.trim() || OTRA; pl.nota = $('#pl-nota').value; nomL = $('#pl-nl').value.trim(); leerPide($('#pl-pide'), q); };
+        X.main().innerHTML = '<a class="volver" href="' + (id ? '#piedras/plan=' + esc(id) : '#piedras/planes') + '">‹ ' + (id ? 'Volver' : 'Planeación') + '</a>' + X.tit(id ? 'Cambiar planeación' : 'Nueva planeación', '2 pasos: la piedra y las piezas', '')
+          + '<section class="caja"><h2><span class="num">1</span> ¿Qué piedra?</h2>' + chipsPiedra('piedra', pl.piedra, { conOtra: true }) + (otraAbierta(pl.piedra) ? '<input id="pl-p" maxlength="40" placeholder="Nombre de la piedra" value="' + esc(limpiaP(pl.piedra)) + '">' : '') + '<p class="nota">¿No sabe todavía el cliente? Déjala sin elegir y la cambias después.</p></section>'
+          + '<section class="caja"><h2><span class="num">2</span> ¿Qué piezas?</h2>'
+            + (pend.length ? '<p class="nota">Pedidos que esperan piedra (toca para meterlos):</p><div class="chips" id="pl-pend">' + pend.map((x, i) => '<button type="button" data-plp="' + i + '"' + (enPlan(x) ? ' class="on"' : '') + '>' + (enPlan(x) ? '✓ ' : '＋ ') + esc(X.M().nomPedido(x.p).replace(/ #\d+$/, '') + ' ' + x.g.t.replace(/^Mesa (de )?/i, '')) + '</button>').join('') + '</div>' : '')
+            + (pl.piezas.length ? '<ul class="corta">' + pl.piezas.map((z, i) => '<li><b>' + esc((z.n || 'Pieza') + (String(z.n || '').includes(medZ(z)) ? '' : ' · ' + medZ(z))) + (num(z.cant) > 1 ? ' × ' + num(z.cant) : '') + '</b><button type="button" class="x" data-plx="' + i + '" aria-label="Quitar">✕</button></li>').join('') + '</ul>' : '')
+            + '<details class="plegable"' + (pl.piezas.length ? '' : ' open') + '><summary><span>＋ Agregar otra pieza</span><small>mesa nueva, cubierta, cliente</small></summary><div class="pl-c"><label class="campo">¿Para quién o qué es?<input id="pl-nl" maxlength="40" placeholder="ej. Cliente nuevo, Cubierta A" value="' + esc(nomL) + '"></label>' + pideH(q, 'pl-pide') + '<button type="button" class="b negro grande" id="pl-add">Agregar</button></div></details></section>'
+          + (c ? '<section class="caja ' + (c.error ? 'mal' : 'ok') + ' pz-aviso"><b>' + (c.error ? esc(resumenPlan(c)) : 'Necesitas: ' + esc(resumenPlan(c))) + '</b>' + (c.esp ? c.esp.map((e, i) => '<p class="nota">' + esc(tituloEsp(e, i, c.esp.length, col)) + '</p><div class="dib chico">' + dibujo({ piedra: col, w: e.esp.w, h: e.esp.h }, e) + '</div>').join('') : '') + '</section>' : '')
+          + '<details class="plegable"><summary><span>Nombre y notas (opcional)</span></summary><div class="pl-c"><label class="campo">Nombre<input id="pl-nom" maxlength="80" placeholder="ej. Clienta nueva · cubierta + 2 mesas" value="' + esc(pl.nombre) + '"></label><label class="campo">Notas<textarea id="pl-nota" maxlength="800" placeholder="ej. qué piedra ofrecerle, cuándo llamarle">' + esc(pl.nota) + '</textarea></label></div></details>'
+          + '<button class="b negro grande" id="pl-ok">Guardar</button>';
+        const leer = () => { if ($('#pl-p')) pl.piedra = $('#pl-p').value.trim() || OTRA; pl.nombre = $('#pl-nom').value.trim(); pl.nota = $('#pl-nota').value; nomL = $('#pl-nl').value.trim(); leerPide($('#pl-pide'), q); };
         $$('[data-q]').forEach(g => g.onclick = ev => { const b = ev.target.closest('[data-v]'); if (!b) return; leer(); if (g.dataset.q === 'forma') q.forma = b.dataset.v; else pl[g.dataset.q] = b.dataset.v; pintar(); });
-        $$('[data-plp]').forEach(b => b.onclick = () => { leer(); const x = pend[+b.dataset.plp], i = pl.piezas.findIndex(z => z.pedido === x.p.id && (z.gi || 0) === x.g.gi);
-          if (i >= 0) pl.piezas = pl.piezas.filter(z => !(z.pedido === x.p.id && (z.gi || 0) === x.g.gi)); else x.g.reqs.forEach(rq => pl.piezas.push({ n: X.M().nomPedido(x.p).replace(/ #\d+$/, ''), pedido: x.p.id, gi: x.g.gi, forma: rq.forma, d: num(rq.d) || null, w: num(rq.w) || null, h: num(rq.h) || null, cant: num(rq.cant) || 1 }));
-          if (!limpiaP(pl.piedra) && x.g.color) pl.piedra = (catDe(x.g.color) || [])[1] || (/negr/.test(sinAc(x.g.color)) ? 'Negra' : x.g.color); pintar(); });
-        $('#pl-add').onclick = () => { leer(); const rq = reqDe(q); if (!rq.length) return X.aviso('Escribe la medida.', true); pl.piezas.push({ n: nomL || 'Mesa nueva', forma: rq[0].forma, d: num(rq[0].d) || null, w: num(rq[0].w) || null, h: num(rq[0].h) || null, cant: rq[0].cant }); q = { forma: q.forma, d: '', w: '', h: '', cant: '1' }; pintar(); };
+        $$('[data-plp]').forEach(b => b.onclick = () => { leer(); const x = pend[+b.dataset.plp];
+          if (enPlan(x)) pl.piezas = pl.piezas.filter(z => !(z.pedido === x.p.id && (z.gi || 0) === x.g.gi));
+          else x.g.reqs.forEach(rq => pl.piezas.push({ n: X.M().nomPedido(x.p).replace(/ #\d+$/, ''), pedido: x.p.id, gi: x.g.gi, forma: rq.forma, d: num(rq.d) || null, w: num(rq.w) || null, h: num(rq.h) || null, cant: num(rq.cant) || 1 }));
+          if (!limpiaP(pl.piedra) && x.g.color) pl.piedra = (catDe(x.g.color) || [])[1] || x.g.color; pintar(); });
+        $('#pl-add').onclick = () => { leer(); const rq = reqDe(q); if (!rq.length) return X.aviso('Escribe la medida.', true); pl.piezas.push({ n: nomL || 'Pieza', forma: rq[0].forma, d: num(rq[0].d) || null, w: num(rq[0].w) || null, h: num(rq[0].h) || null, cant: rq[0].cant }); q = { forma: q.forma, d: '', w: '', h: '', cant: '1' }; pintar(); };
         $$('[data-plx]').forEach(b => b.onclick = () => { leer(); pl.piezas.splice(+b.dataset.plx, 1); pintar(); });
         $$('#pl-nom, #pl-nota, #pl-nl').forEach(i => i.addEventListener('input', leer));
-        if ($('#pl-img')) $('#pl-img').onclick = async () => { leer(); const cv = await lienzoPlaca({ piedra: limpiaP(pl.piedra), w: e.w, h: e.h, r, titulo: (pl.nombre || ((pl.fuente !== 'nueva' ? 'Tu ' : 'Placa ') + (limpiaP(pl.piedra) || 'piedra'))) + ' · ' + e.w + ' × ' + e.h + ' cm', sub: subPlan(r), nombre: p => limpiaN(p.nombre) || 'Pieza' });
-          $('#pl-vp').innerHTML = '<img class="vp-img" src="' + cv.toDataURL('image/jpeg', 0.9) + '" alt=""><button class="b verde grande" id="pl-share">📤 Mandar imagen (WhatsApp)</button>'; $('#pl-share').onclick = () => cv.toBlob(bl => X.bajar(bl, (pl.nombre || 'Planeación') + '.png'), 'image/png'); };
         $('#pl-ok').onclick = async () => {
-          leer(); const pi = limpiaP(pl.piedra); if (!pi) return X.aviso('Elige la piedra.', true); if (!pl.piezas.length) return X.aviso('Agrega al menos una pieza.', true);
-          const nombre = (pl.nombre || ('Placa ' + pi + ' · ' + [...new Set(pl.piezas.map(z => z.n))].join(' + '))).slice(0, 80), r2 = corrPlan(pl);
-          const x = { nombre, piedra: pi.slice(0, 40), fuente: pl.fuente || 'nueva', piezas: pl.piezas.map(z => ({ n: String(z.n || 'Pieza').slice(0, 40), pedido: z.pedido || null, gi: z.pedido ? (z.gi || 0) : null, forma: z.forma === 'red' ? 'red' : 'rect', d: num(z.d) || null, w: num(z.w) || null, h: num(z.h) || null, cant: Math.max(1, num(z.cant) || 1) })), nota: (pl.nota || '').slice(0, 600) || null, estado: pl.estado || 'idea', pct: r2 ? r2.pct : null };
+          leer(); if (!pl.piezas.length) return X.aviso('Agrega al menos una pieza.', true);
+          const pi = limpiaP(pl.piedra) || 'Por definir', nombre = (pl.nombre || ([...new Set(pl.piezas.map(z => z.n))].join(' + ') + ' · ' + pi)).slice(0, 80);
+          const x = { nombre, piedra: pi.slice(0, 40), piezas: pl.piezas.map(z => ({ n: String(z.n || 'Pieza').slice(0, 40), pedido: z.pedido || null, gi: z.pedido ? (z.gi || 0) : null, forma: z.forma === 'red' ? 'red' : 'rect', d: num(z.d) || null, w: num(z.w) || null, h: num(z.h) || null, cant: Math.max(1, num(z.cant) || 1) })), nota: (pl.nota || '').slice(0, 800) || null, fuente: null, estado: null, pct: null };
           let nuevo = id;
-          await X.guardarYa(async () => { if (id) await A.nodoCambia('dinero/planes/' + id, x); else nuevo = await A.nodoAgrega('dinero/planes', x); }, 'Planeación guardada', (id ? 'Editó' : 'Guardó') + ' planeación: ' + nombre);
-          delete BORR[llave]; if (!id && nuevo) location.hash = '#piedras/plan=' + nuevo;
+          await X.guardarYa(async () => { if (id) await A.nodoCambia('dinero/planes/' + id, x); else nuevo = await A.nodoAgrega('dinero/planes', x); }, 'Planeación guardada', (id ? 'Cambió' : 'Guardó') + ' planeación: ' + nombre);
+          delete BORR[llave]; if (nuevo) location.hash = '#piedras/plan=' + nuevo;
         };
-        if ($('#pl-dup')) $('#pl-dup').onclick = () => { leer(); BORR.nuevo = Object.assign(JSON.parse(JSON.stringify(pl)), { nombre: '' }); location.hash = '#piedras/plan=nuevo'; X.aviso('Copia lista: cámbiale la piedra o la placa y guárdala'); };
-        if ($('#pl-b')) $('#pl-b').onclick = async () => { if (!await X.clave('Borrar planeación', [['Planeación', pl0.nombre || '']])) return; await X.guardarYa(() => A.nodoBorra('dinero/planes/' + id), 'Planeación borrada', 'Borró planeación: ' + (pl0.nombre || '')); delete BORR[llave]; location.hash = '#piedras/planes'; };
       };
       pintar();
     }
@@ -1536,7 +1553,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       if (h === 'piedras/historial') return historial();
       if (h === 'piedras/precios') return precios();
       if (h === 'piedras/planes') return listaPlanes();
-      if (/^piedras\/plan=/.test(h)) { const k = h.slice(13); return editorPlan(k === 'nuevo' ? null : k); }
+      if (/^piedras\/plan=/.test(h)) { const k = h.slice(13); return k === 'nuevo' ? editorPlan(null) : /^ed=/.test(k) ? editorPlan(k.slice(3)) : verPlan(k); }
       if (h === 'piedras/cliente') return cliente();
       if (/^piedras\/cliente=/.test(h)) return cliente(h.slice(16));
       if (/^piedras\/s=/.test(h)) { const s = pieza(h.slice(10)); return s ? detalle(s) : inicio(); }

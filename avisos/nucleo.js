@@ -246,7 +246,7 @@
     ag.forEach(a => {
       const m = /\$([\d,]+)/.exec(a.texto), monto = m ? num(m[1]) : 0;
       let sc = base[a.tipo] || 50; if (a.dias < 0) sc += Math.min(-a.dias * 3, 20); else sc -= a.dias * 6; if (a.tipo === 'cobro') sc += Math.min(monto / 2000, 12); const cuando = /^Cuando /.test(a.texto); if (cuando) sc = 40;
-      pasos.push({ k: 'ag:' + a.tipo + ':' + (a.pedido || a.deuda || a.id || a.texto), area: areaDe[a.tipo] || '', titulo: a.texto, porque: cuando ? 'Cuando pase eso; todavía no' : a.dias < 0 ? 'Atrasado ' + -a.dias + ' día' + (a.dias === -1 ? '' : 's') : a.dias === 0 ? 'Es para hoy' : 'En ' + a.dias + ' día' + (a.dias === 1 ? '' : 's'), href: a.pedido ? '#p=' + a.pedido : a.deuda ? '#d=' + a.deuda : '', manual: a.tipo === 'manual' ? a.id : '', sc });
+      pasos.push({ k: 'ag:' + a.tipo + ':' + (a.pedido || a.deuda || a.id || a.texto), area: areaDe[a.tipo] || '', titulo: a.texto, porque: cuando ? 'Cuando pase eso; todavía no' : a.tipo === 'cobro' && a.pedido && M.ped(a.pedido) && (M.ped(a.pedido).pasos || {}).entregado ? 'Ya se le entregó y no ha liquidado' : a.tipo === 'cobro' && /anticipo/i.test(a.texto) ? 'Falta para completar el 50% de anticipo' : a.dias < 0 ? 'Atrasado ' + -a.dias + ' día' + (a.dias === -1 ? '' : 's') : a.dias === 0 ? 'Es para hoy' : 'En ' + a.dias + ' día' + (a.dias === 1 ? '' : 's'), href: a.pedido ? '#p=' + a.pedido : a.deuda ? '#d=' + a.deuda : '', manual: a.tipo === 'manual' ? a.id : '', sc });
     });
     // banco: ¿se cuadró hoy?
     const cu = M.bitacora.find(x => x.accion === 'Cuadre de banco' && x.sistema != null), cuHoy = cu && ymd(new Date(cu.creado)) === hoy;

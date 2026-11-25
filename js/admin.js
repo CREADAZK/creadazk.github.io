@@ -246,7 +246,7 @@
     ag.forEach(a => {
       const m = /\$([\d,]+)/.exec(a.texto), monto = m ? num(m[1]) : 0;
       let sc = base[a.tipo] || 50; if (a.dias < 0) sc += Math.min(-a.dias * 3, 20); else sc -= a.dias * 6; if (a.tipo === 'cobro') sc += Math.min(monto / 2000, 12); const cuando = /^Cuando /.test(a.texto); if (cuando) sc = 40;
-      pasos.push({ k: 'ag:' + a.tipo + ':' + (a.pedido || a.deuda || a.id || a.texto), area: areaDe[a.tipo] || '', titulo: a.texto, porque: cuando ? 'Cuando pase eso; todavía no' : a.dias < 0 ? 'Atrasado ' + -a.dias + ' día' + (a.dias === -1 ? '' : 's') : a.dias === 0 ? 'Es para hoy' : 'En ' + a.dias + ' día' + (a.dias === 1 ? '' : 's'), href: a.pedido ? '#p=' + a.pedido : a.deuda ? '#d=' + a.deuda : '', manual: a.tipo === 'manual' ? a.id : '', sc });
+      pasos.push({ k: 'ag:' + a.tipo + ':' + (a.pedido || a.deuda || a.id || a.texto), area: areaDe[a.tipo] || '', titulo: a.texto, porque: cuando ? 'Cuando pase eso; todavía no' : a.tipo === 'cobro' && a.pedido && M.ped(a.pedido) && (M.ped(a.pedido).pasos || {}).entregado ? 'Ya se le entregó y no ha liquidado' : a.tipo === 'cobro' && /anticipo/i.test(a.texto) ? 'Falta para completar el 50% de anticipo' : a.dias < 0 ? 'Atrasado ' + -a.dias + ' día' + (a.dias === -1 ? '' : 's') : a.dias === 0 ? 'Es para hoy' : 'En ' + a.dias + ' día' + (a.dias === 1 ? '' : 's'), href: a.pedido ? '#p=' + a.pedido : a.deuda ? '#d=' + a.deuda : '', manual: a.tipo === 'manual' ? a.id : '', sc });
     });
     // banco: ¿se cuadró hoy?
     const cu = M.bitacora.find(x => x.accion === 'Cuadre de banco' && x.sistema != null), cuHoy = cu && ymd(new Date(cu.creado)) === hoy;
@@ -394,8 +394,8 @@
           : '<div class="preg"><b>¿Qué prioridad tenemos hoy?</b><div class="chips" id="focos">' + N.AREAS.map(([k, t]) => '<button data-foco="' + k + '">' + t + '</button>').join('') + '</div></div>')
         + (sig ? '<div class="sig n-' + sig.nivel + '"><small>Siguiente paso</small><b>' + esc(sig.titulo) + '</b><p>' + esc(sig.porque) + '</p><button class="b verde" data-paso="0">' + (sig.accion === 'cuadre' ? 'Cuadrar ahora' : sig.manual ? 'Ver' : 'Hacerlo ahora') + ' →</button></div>'
           : '<div class="sig ok"><small>Siguiente paso</small><b>Nada urgente. Buen momento para vender.</b><p>Contesta solicitudes y manda fotos de mesas entregadas.</p></div>')
-        + (P.length > 1 ? '<ol class="pasos">' + P.slice(1, 6).map((p, i) => paso(p, i + 1)).join('') + '</ol>' : '')
-        + (P.length > 6 ? plegable('Ver los otros ' + (P.length - 6), '', '<ol class="pasos">' + P.slice(6).map((p, i) => paso(p, i + 6)).join('') + '</ol>') : '')
+        + (P.length > 1 ? '<ol class="cola">' + P.slice(1, 6).map((p, i) => paso(p, i + 1)).join('') + '</ol>' : '')
+        + (P.length > 6 ? plegable('Ver los otros ' + (P.length - 6), '', '<ol class="cola">' + P.slice(6).map((p, i) => paso(p, i + 6)).join('') + '</ol>') : '')
         + '<div class="socio-b"><button class="b chico" id="ag-n">＋ Tarea</button><a class="lnk" href="#v/agenda">Agenda completa ›</a></div>'
       + '</section>'
       + avisoPush()
@@ -559,7 +559,7 @@
       + (s.fallas.length ? '<p class="aviso r">⚠ Reposición por falla: ' + esc(s.fallas[s.fallas.length - 1].motivo || '') + ' (' + fC(s.fallas[s.fallas.length - 1].fecha) + ') · pérdida ' + pesos(s.perdida) + '</p>' : '')
       + '<section class="kpis cuatro">' + kpi('Precio', s.precio ? pesos(s.precio) : 'Pendiente', s.precio ? '' : 'a') + kpi('Pagó', pesos(s.ent), 'v') + kpi('Debe', s.porCobrar != null ? pesos(Math.max(s.porCobrar, 0)) : '—', s.porCobrar > 0 ? 'r' : '') + kpi('Ganancia', s.ganancia != null ? pesos(s.ganancia) : '—', s.ganancia != null ? cls(s.ganancia) : '', s.margen != null ? pct(s.margen) : '') + '</section>'
       + '<section class="caja seg ' + (p.cerrado ? 'ok' : '') + '"><div class="caja-t"><h2>' + (p.cerrado ? 'Finalizado ✓' : esc(s.estado)) + '</h2><span class="sub">' + s.hechos + ' de 7</span></div>'
-        + '<ol class="pasos">' + s.pasos.map((x, i) => '<li class="' + (x.done ? 'si' : '') + (s.actual === x ? ' ya' : '') + '"><i>' + (x.done ? '✓' : i + 1) + '</i><span><b>' + esc(x.n) + '</b><small>' + (x.done ? (x.fecha ? fC(x.fecha) : 'hecho') : 'pendiente') + '</small></span>'
+        + '<ol class="cola">' + s.pasos.map((x, i) => '<li class="' + (x.done ? 'si' : '') + (s.actual === x ? ' ya' : '') + '"><i>' + (x.done ? '✓' : i + 1) + '</i><span><b>' + esc(x.n) + '</b><small>' + (x.done ? (x.fecha ? fC(x.fecha) : 'hecho') : 'pendiente') + '</small></span>'
           + (p.cerrado || (x.done && !(p.pasos || {})[x.k]) ? '' : x.auto ? (x.k === 'pedido' ? '' : '<button class="b chico" data-cob="1">Cobrar</button>') : '<button class="b chico" data-paso="' + x.k + '">' + ((p.pasos || {})[x.k] ? 'Quitar' : x.done ? 'Fecha' : 'Marcar') + '</button>') + '</li>').join('') + '</ol>'
         + (p.cerrado ? '<button class="b" id="reabrir">Reabrir pedido</button>' : fin ? '<button class="b verde grande" id="finalizar">Finalizar pedido ✓</button>' : '') + '</section>'
       + (s.pend.length ? plegable('Datos pendientes', s.pend.length + '', '<p class="a">' + s.pend.map(esc).join(' · ') + '</p><button class="b chico" data-edit2="1">Completar</button>', false, 'pend') : '')

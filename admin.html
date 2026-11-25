@@ -350,4 +350,27 @@ ol.cot-items li{background:var(--suave);border-radius:16px;padding:12px}
 
 /* alertas de piedra y compras sugeridas */
 .alertas-pz ul.hist a{text-decoration:none}.compra{background:var(--suave);border-radius:16px;padding:14px;margin-top:12px}.compra b{display:block;font-size:16px}.compra p{margin:6px 0;color:var(--gris);font-size:14.5px}
-</style></head><body><nav id="menu" aria-label="Menú"></nav><main id="app"></main><div id="aviso" hidden role="status"></div><script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/dkas-api.js?v=ed222d2727"></script><script src="js/admin.js?v=79487cb410"></script></body></html>
+
+/* ===== Piedras simple ===== */
+.pz-acc{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pz-acc .b{min-height:60px;border-radius:18px;font-size:16.5px;white-space:normal}
+.pz-lista{display:flex;flex-direction:column}
+.pz-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:.5px solid var(--linea);text-decoration:none;color:inherit}
+.pz-lista:first-of-type .pz-row:first-child,.pz-lista .pz-row:first-child{border-top:0}.caja .pz-lista+.pz-lista{border-top:.5px solid var(--linea)}
+.pz-row span{flex:1;min-width:0;display:flex;flex-direction:column}.pz-row b{font-size:16.5px}.pz-row small{color:var(--gris);font-size:14px}.pz-row em{font-style:normal;color:var(--gris2);font-size:22px}
+.pz-row.usada{opacity:.55}
+.pz-mini{flex:none;width:52px;height:52px;border-radius:12px;background:var(--relleno) center/cover no-repeat;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.hacer-l{list-style:none;margin:6px 0 0;padding:0}
+.hacer-l li{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:.5px solid var(--linea)}.hacer-l li:first-child{border-top:0}
+.hacer-l i{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;background:var(--relleno)}
+.hacer-l .compra i{background:#fff5e3}.hacer-l .corta i{background:var(--vs);color:var(--v)}.hacer-l .mala i{background:var(--rs);color:var(--r)}
+.hacer-l span{flex:1;min-width:0;display:flex;flex-direction:column}.hacer-l b{font-size:15.5px}.hacer-l b a{color:inherit;text-decoration:none}.hacer-l small{color:var(--gris);font-size:13.5px}
+.hacer-l .b{flex:none;white-space:nowrap}
+.campo .num{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--tinta);color:#fff;font-size:13px;margin-right:6px}
+.pz-fija{display:flex;align-items:center;gap:12px;background:var(--suave);border-radius:16px;padding:14px;margin-top:8px}.pz-fija>b{font-size:18px}.pz-fija>span{flex:1;color:var(--gris);font-size:14px}
+.cuantas{display:flex;align-items:center;gap:10px}.cuantas button{width:40px;height:40px;border-radius:50%;background:var(--card);font-size:22px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.12)}.cuantas b{min-width:22px;text-align:center;font-size:19px}
+.ct-res{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;align-items:baseline;background:var(--suave);border-radius:16px;padding:14px}.ct-res span{color:var(--gris);font-size:13px}.ct-res b{font-size:17px}.ct-res small{grid-column:2;color:var(--gris);font-size:13.5px;margin-bottom:6px}
+
+/* medidas que más se venden */
+.chips.comunes button{flex-direction:column;align-items:flex-start;line-height:1.15}.chips.comunes small{font-size:11.5px}
+#ag-prev .ok-g,#ag-prev .aviso{margin:8px 0 0}
+</style></head><body><nav id="menu" aria-label="Menú"></nav><main id="app"></main><div id="aviso" hidden role="status"></div><script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/dkas-api.js?v=ed222d2727"></script><script src="js/admin.js?v=f6ae29c854"></script></body></html>

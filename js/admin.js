@@ -444,17 +444,24 @@
     if (e === 'no') return aviso('Este navegador no permite avisos', true);
     // el iPhone solo muestra la pregunta si se pide en el mismo toque, antes de cualquier espera
     const pidiendo = Notification.permission === 'granted' ? Promise.resolve('granted') : Notification.requestPermission();
+    let paso = 'pedir permiso';
     try {
       const perm = await pidiendo;
       if (perm !== 'granted') { if (perm === 'denied') hoja('Avisos bloqueados', '<p class="nota">El iPhone guardó que no quieres avisos del panel. Para activarlos: <b>Ajustes del iPhone → Notificaciones → DKAS → Permitir notificaciones</b>. Luego vuelve aquí y toca Activar otra vez.</p>', () => {}); else aviso('No salió la pregunta. Toca Activar otra vez.', true); return; }
-      const reg = await navigator.serviceWorker.register('panel-sw.js'); await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription(); if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID) });
+      paso = 'registrar el servicio'; const reg = await navigator.serviceWorker.register('panel-sw.js');
+      paso = 'esperar el servicio'; await Promise.race([navigator.serviceWorker.ready, new Promise((_, no) => setTimeout(() => no(new Error('tardó demasiado')), 12000))]);
+      paso = 'suscribir'; let sub = await reg.pushManager.getSubscription(); if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID) });
+      paso = 'guardar en el sistema';
       const id = ab64(new TextEncoder().encode(sub.endpoint).slice(-24)).replace(/[^A-Za-z0-9_-]/g, '').slice(-30) || String(Date.now());
       await A.nodoPon('dinero/push/subs/' + id, { endpoint: sub.endpoint, p256dh: ab64(sub.getKey('p256dh')), auth: ab64(sub.getKey('auth')), quien: me.nombre || '', equipo: esIOS() ? 'iPhone' : 'Computadora', creado: Date.now() });
       try { localStorage.setItem('dkas-push', '1'); localStorage.setItem('dkas-push-id', id); } catch (x) {}
       reg.showNotification('DKAS · Avisos activados', { body: 'Listo. Tu socio te va a avisar qué sigue.', icon: 'img/panel-icono.png', data: { url: 'taller.html#inicio' } });
       aviso('Avisos activados en este teléfono'); ruta();
-    } catch (x) { aviso('No se pudieron activar: ' + x.message, true); }
+    } catch (x) {
+      const det = 'Paso: ' + paso + ' · ' + (x.name || '') + ': ' + (x.message || x) + ' · ' + (navigator.userAgent.match(/OS [d_]+/) || [''])[0] + (instalada() ? ' · app instalada' : ' · navegador');
+      bitacora('Avisos: no se activaron', det);
+      hoja('No se activaron los avisos', '<p class="nota">Ya quedó anotado el detalle para revisarlo:</p><p class="aviso">' + esc(det) + '</p>', () => {});
+    }
   }
   async function probarPush() {
     try { const reg = await navigator.serviceWorker.ready; const S = M.socio(focoHoy(), new Date().getHours()), p = S.pasos[0]; reg.showNotification(p ? 'Siguiente paso' : 'DKAS', { body: p ? p.titulo : 'Todo en orden', icon: 'img/panel-icono.png', data: { url: 'taller.html' + (p && p.href ? p.href : '#inicio') } }); } catch (e) { aviso('No se pudo: ' + e.message, true); }

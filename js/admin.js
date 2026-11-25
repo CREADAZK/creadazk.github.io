@@ -688,7 +688,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     const nid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const TS = { '.sv': 'timestamp' };
     const sinAc = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
-    const mismoColor = (a, b) => { a = sinAc(a); b = sinAc(b); return !!a && !!b && (a === b || a.includes(b) || b.includes(a)); };
+    const mismoColor = (a, b) => { const ca = catDe(a), cb = catDe(b); if (ca && cb) return ca === cb; a = sinAc(a); b = sinAc(b); return !!a && !!b && (a === b || a.includes(b) || b.includes(a)); };
     const r1 = n => Math.round(n * 10) / 10;
     const cm = v => { let n = num(v); if (n > 0 && n < 4) n = Math.round(n * 100); return n; };
     // medidas que más se venden (las del catálogo de precios), por uso y forma
@@ -735,8 +735,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     const CAT = [['statuario', 'Statuario', '#ecebe8', '#111'], ['mont-blanc', 'Mont Blanc', '#cfc8bb', '#111'], ['pure-white', 'Pure White', '#f3f2ee', '#111'], ['taj-mahal-light', 'Taj Mahal Light', '#e8dcc6', '#111'],
       ['classic-bulgar', 'Classic Bulgar', '#e6e1dc', '#111'], ['peacock', 'Peacock', '#dfe0e2', '#111'], ['cardenaskin', 'Cardenaskin', '#eee5d6', '#111'], ['travertine', 'Travertine', '#d8c7a8', '#111'],
       ['limestone-cream', 'Limestone Cream', '#ddd2bd', '#111'], ['saloran-grey', 'Saloran Grey', '#8f8a84', '#fff'], ['bulgaria-dark-grey', 'Bulgaria Dark Grey', '#3d3d3f', '#fff']];
-    const catDe = n => { n = sinAc(n); if (!n) return null; return CAT.find(c => sinAc(c[1]) === n) || CAT.find(c => n.includes(sinAc(c[1])) || sinAc(c[1]).includes(n)) || null; };
-    const PROPIAS = ['Negra'];
+    // "negra", "dark negra", "dark grey", "oscura" = nuestra piedra negra: Bulgaria Dark Grey (no existe otra negra)
+    const catDe = n => { n = sinAc(n); if (!n) return null; if (/negr|dark|oscur/.test(n)) return CAT.find(c => c[0] === 'bulgaria-dark-grey'); return CAT.find(c => sinAc(c[1]) === n) || CAT.find(c => n.includes(sinAc(c[1])) || sinAc(c[1]).includes(n)) || null; };
+    const PROPIAS = []; // ya no hay "Negra" aparte: es la Bulgaria Dark Grey
     const extrasStock = () => [...new Set(todas().map(x => x.piedra).filter(p => p && !catDe(p) && !PROPIAS.some(q => mismoColor(q, p))))];
     const colores = () => CAT.map(c => c[1]).concat(extrasStock());
     const OTRA = '__otra', limpiaP = v => v === OTRA ? '' : String(v || '').trim();

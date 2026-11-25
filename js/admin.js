@@ -98,7 +98,7 @@
     M.nomPed = id => nomP(M.ped(id));
     // fondos: cada pedido, cada préstamo y la caja general
     M.fondoDe = m => m.fondo || null;
-    M.nomFondo = f => !f ? 'sin decir' : f === 'caja' ? 'Caja general' : f.slice(0, 2) === 'p:' ? 'Dinero de ' + M.nomPed(f.slice(2)) : f.slice(0, 3) === 'pd:' ? 'Lo pagó directo ' + ((M.deu(f.slice(3)) || {}).nombre || '') : f.slice(0, 2) === 'd:' ? 'Préstamo de ' + ((M.deu(f.slice(2)) || {}).nombre || '') : f;
+    M.nomFondo = f => !f ? 'sin decir' : f === 'caja' ? 'Caja general' : f.slice(0, 2) === 'p:' ? 'Dinero de ' + M.nomPed(f.slice(2)) : f.slice(0, 3) === 'pd:' ? 'A crédito: se le debe a ' + ((M.deu(f.slice(3)) || {}).nombre || '') : f.slice(0, 2) === 'd:' ? 'Préstamo de ' + ((M.deu(f.slice(2)) || {}).nombre || '') : f;
     M.saldoFondo = f => {
       const entra = f === 'caja' ? M.movs.filter(m => esIn(m) && !m.pedido && !m.deuda) : f.slice(0, 2) === 'p:' ? M.movs.filter(m => esIn(m) && m.pedido === f.slice(2)) : f.slice(0, 2) === 'd:' ? M.movs.filter(m => esIn(m) && m.deuda === f.slice(2)) : [];
       const sale = M.movs.filter(m => !esIn(m) && m.fondo === f);
@@ -349,14 +349,46 @@
     main.innerHTML = tit(saludo, fC(hoy()), '<button class="b chico" id="x-todo">Exportar</button>')
       + '<section class="kpis">' + kpi('Dinero hoy', pesos(T.caja), T.caja < 0 ? 'r' : '', Object.entries(T.porQuien).filter(([, v]) => v).map(([q, v]) => esc(q) + ' ' + pesos(v)).join(' · '), '#dinero', 'hero')
         + kpi('Nos deben', pesos(T.porCobrar), 'v', '', '#pedidos') + kpi('Debemos', T.sinDeudas ? 'Sin anotar' : pesos(T.debemos), T.sinDeudas ? 'a' : 'r', '', '#pedidos/deudas')
-        + kpi('Falta gastar', pesos(T.porGastar), '', '', '#pedidos') + kpi('Posición real', pesos(T.posicion), cls(T.posicion), '', '#dinero') + '</section>'
+        + kpi('Falta gastar', pesos(T.porGastar), '', '', '#pedidos') + kpi('Posición real', pesos(T.posicion), cls(T.posicion), '', '#dinero') + '</section>' + lineaCuadre(T)
       + '<section class="caja"><div class="caja-t"><h2>Hoy</h2><button class="b chico" id="ag-n">＋ Tarea</button></div>'
         + (ya.length ? '<ul class="agenda">' + ya.map(itemAgenda).join('') + '</ul>' : vacioTxt('Nada pendiente para hoy.'))
         + (semana.length ? plegable('Esta semana', semana.length + '', '<ul class="agenda">' + semana.map(itemAgenda).join('') + '</ul>') : '') + '<a class="lnk mas-ag" href="#v/agenda">Agenda completa (citas y visitas) ›</a></section>'
       + (nc.length ? plegable('⚠ No cuadra', nc.length + '', '<ul class="nocuadra">' + nc.map(itemNoCuadra).join('') + '</ul>', false, 'mal') : '');
     $('#x-todo').onclick = () => hoja('Exportar todo', '<p class="nota">Todo lo del sistema en un archivo, para los socios.</p><button class="b negro grande" id="x-pdf">PDF</button><button class="b grande" id="x-xls">Excel</button>', h => { $('#x-pdf', h).onclick = () => { cerrarHoja(); pdfGeneral(); }; $('#x-xls', h).onclick = () => { cerrarHoja(); xlsGeneral(); }; });
-    $('#ag-n').onclick = () => tarea();
+    $('#ag-n').onclick = () => tarea(); $('#cuadre').onclick = () => cuadrarBanco();
     enlazarAgenda(); enlazarNC();
+  }
+
+  // ---------- cuadrar el banco: lo que dice Tkash vs lo que dice el sistema ----------
+  function ultimoCuadre() { return Object.values(D.bitacora || {}).filter(x => x.accion === 'Cuadre de banco' && x.sistema != null).sort((a, b) => (b.creado || 0) - (a.creado || 0))[0]; }
+  function lineaCuadre(T) {
+    const banco = T.porMetodo.Banco, u = ultimoCuadre(), hoyU = u && N.ymd(new Date(u.creado)) === hoy();
+    const ok = u && hoyU && u.banco === u.sistema && u.sistema === banco;
+    const txt = !u ? 'Nunca se ha cuadrado. Toca para comparar con tu banco.'
+      : ok ? 'Cuadró al peso hoy ' + new Date(u.creado).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) + ' ✓'
+      : u.banco !== u.sistema ? 'El último cuadre NO cuadró por ' + pesos(Math.abs(u.banco - u.sistema)) + '. Toca para revisar.'
+      : u.sistema !== banco ? 'Hubo movimientos después del último cuadre. Toca para cuadrar otra vez.'
+      : 'Último cuadre ' + fC(N.ymd(new Date(u.creado))) + '. Toca para cuadrar hoy.';
+    return '<button class="cuadre ' + (ok ? 'ok' : u && u.banco !== u.sistema ? 'mal' : 'pend') + '" id="cuadre"><i>' + (ok ? '✓' : '⇄') + '</i><span><b>Banco (Tkash) según el sistema</b><small>' + esc(txt) + '</small></span><em>' + pesos(banco) + '</em></button>';
+  }
+  function cuadrarBanco() {
+    const sis = M.totales().porMetodo.Banco;
+    hoja('Cuadrar con el banco', '<p class="nota">Abre Tkash y escribe el saldo exacto que te sale ahorita. El sistema te dice si falta registrar algo.</p>'
+      + '<dl class="conf"><dt>El sistema dice</dt><dd>' + pesos(sis) + '</dd></dl>'
+      + '<label class="campo monto">¿Cuánto dice tu banco?<input id="cb-b" inputmode="decimal" placeholder="$0"></label><div id="cb-r"></div>', h => {
+      const inp = $('#cb-b', h), res = $('#cb-r', h);
+      const pintar = () => {
+        const v = N.num(inp.value); if (!inp.value.trim()) { res.innerHTML = ''; return; }
+        const dif = Math.round((v - sis) * 100) / 100;
+        res.innerHTML = dif === 0 ? '<p class="ok-g">✓ Cuadra al peso. Todo lo del banco está registrado.</p><button class="b negro grande" id="cb-g">Guardar cuadre</button>'
+          : '<p class="aviso mal-g">' + (dif < 0 ? 'En el banco hay <b>' + pesos(-dif) + ' MENOS</b>. Falta registrar una <b>salida</b> (un pago, un gasto o una comisión).' : 'En el banco hay <b>' + pesos(dif) + ' MÁS</b>. Falta registrar una <b>entrada</b> (un pago de cliente, un préstamo…).') + '</p>'
+            + '<p class="nota">Revisa en Tkash los movimientos desde el último cuadre y registra el que falta. Ojo: si le pagaste a alguien a quien le debíamos, elige <b>"Pagar una deuda"</b> para que la deuda baje. Anotar que debemos algo NO saca dinero del banco; pagarlo sí.</p>'
+            + '<button class="b negro grande" id="cb-reg">Registrar ' + (dif < 0 ? 'salida' : 'entrada') + ' de ' + pesos(Math.abs(dif)) + '</button><button class="b grande" id="cb-g">Guardar cuadre así (queda marcado que no cuadró)</button>';
+        const g = $('#cb-g', h); if (g) g.onclick = () => guardarYa(() => A.nodoAgrega('dinero/bitacora', { accion: 'Cuadre de banco', detalle: 'Banco ' + pesos(v) + ' · sistema ' + pesos(sis) + (dif ? ' · NO cuadra por ' + pesos(Math.abs(dif)) : ' · cuadra'), banco: v, sistema: sis }).then(cerrarHoja), dif ? 'Cuadre guardado: no cuadra por ' + pesos(Math.abs(dif)) : 'Cuadre guardado: cuadra al peso');
+        const r = $('#cb-reg', h); if (r) r.onclick = () => registrar(null, { tipo: dif < 0 ? 'out' : 'in', monto: Math.abs(dif), metodo: 'Transferencia' });
+      };
+      inp.oninput = pintar; setTimeout(() => inp.focus(), 40);
+    });
   }
   function itemAgenda(a) {
     const ic = { cobro: '$', compra: '◆', taller: '▲', entrega: '➜', deuda: '!', manual: '•', dato: '?', cierre: '✓' }[a.tipo] || '•';
@@ -597,7 +629,8 @@
   }
   function filaMov(m) {
     const de = m.pedido ? M.nomPed(m.pedido) : m.deuda ? ((M.deu(m.deuda) || {}).nombre || '') : 'General', i = N.esIn(m);
-    return '<button class="mov ' + (i ? 'in' : 'out') + '" data-mov="' + esc(m.id) + '"><i>' + (i ? '+' : '−') + '</i><span><b>' + (m.revisar ? pill('aclarar', 'a') + ' ' : '') + esc(m.cat || '') + ' · ' + esc(de) + '</b><small>' + [m.quien, m.metodo || 'sin decir cómo', !i ? 'de: ' + M.nomFondo(m.fondo) : '', m.nota].filter(Boolean).map(esc).join(' · ') + '</small></span><em>' + (i ? '+' : '−') + pesos(m.monto).replace('−', '') + '<small>' + fC(m.fecha) + '</small></em></button>';
+    const cred = !i && (m.fondo || '').slice(0, 3) === 'pd:';
+    return '<button class="mov ' + (i ? 'in' : 'out') + '" data-mov="' + esc(m.id) + '"><i>' + (i ? '+' : '−') + '</i><span><b>' + (m.revisar ? pill('aclarar', 'a') + ' ' : '') + (cred ? pill('se debe · no salió dinero', 'a') + ' ' : '') + esc(m.cat || '') + ' · ' + esc(de) + '</b><small>' + (cred ? [M.nomFondo(m.fondo), m.nota] : [m.quien, m.metodo || 'sin decir cómo', !i ? 'de: ' + M.nomFondo(m.fondo) : '', m.nota]).filter(Boolean).map(esc).join(' · ') + '</small></span><em>' + (i ? '+' : '−') + pesos(m.monto).replace('−', '') + '<small>' + fC(m.fecha) + '</small></em></button>';
   }
   function enlazarMovs() { $$('[data-mov]').forEach(b => b.onclick = () => registrar(M.movs.find(m => m.id === b.dataset.mov))); }
 
@@ -686,7 +719,7 @@
     pre = pre || {};
     const d = ed ? { tipo: ed.tipo, monto: String(ed.monto), cat: ed.cat || '', fecha: ed.fecha, quien: ed.quien || '', metodo: ed.metodo || '', nota: ed.nota || '', pedido: ed.pedido || '', deuda: ed.deuda || '', fondo: ed.fondo || '',
       origen: ed.tipo === 'in' ? (ed.pedido ? 'pedido' : ed.deuda ? 'prestamo' : ed.revisar ? '' : 'otro') : '', para: ed.tipo === 'out' ? (ed.pedido ? 'pedido' : ed.deuda ? 'deuda' : ed.revisar ? '' : 'general') : '', nuevoPrest: '' }
-      : { tipo: pre.tipo || '', monto: '', cat: '', fecha: hoy(), quien: (() => { try { return localStorage.getItem('dkas-quien') || ''; } catch (e) { return ''; } })(), metodo: '', nota: '', pedido: pre.pedido || '', deuda: pre.deuda || '', fondo: '', origen: pre.origen || (pre.pedido && pre.tipo === 'in' ? 'pedido' : ''), para: pre.para || (pre.pedido ? 'pedido' : ''), nuevoPrest: '' };
+      : { tipo: pre.tipo || '', monto: pre.monto ? String(pre.monto) : '', cat: '', fecha: hoy(), quien: (() => { try { return localStorage.getItem('dkas-quien') || ''; } catch (e) { return ''; } })(), metodo: pre.metodo || '', nota: pre.nota || '', pedido: pre.pedido || '', deuda: pre.deuda || '', fondo: '', origen: pre.origen || (pre.pedido && pre.tipo === 'in' ? 'pedido' : ''), para: pre.para || (pre.pedido ? 'pedido' : ''), nuevoPrest: '' };
     if (pre.pedido && !pre.tipo) d.tipo = '';
     const gente = [...new Set(['Zury', 'David'].concat(M.movs.filter(m => (m.fondo || '').slice(0, 3) !== 'pd:').map(m => m.quien).filter(Boolean)))];
     const activos = M.pedidos.filter(p => !p.cerrado || p.id === d.pedido);
@@ -715,7 +748,7 @@
               + (d.para === 'pedido' ? '<div class="campo">¿De qué pedido?' + chips('pedido', activos.map(p => [p.id, M.nomPedido(p), piezaTxt(p).slice(0, 34)]), d.pedido) + '</div>' : '')
               + (d.para === 'deuda' ? '<div class="campo">¿A quién le pagamos?' + chips('deuda', M.deudas.map(x => [x.id, x.nombre, 'le debemos ' + pesos(M.statsDeuda(x).falta)]), d.deuda) + (M.deudas.length ? '' : '<p class="nota">No hay deudas anotadas. Anótala primero en Pedidos → A quién le debemos.</p>') + '</div>' : ''))
           + '<div class="campo">Concepto' + chips('cat', conceptos.map(x => [x, x]), d.cat) + '</div>'
-          + (d.tipo === 'out' ? '<div class="campo">¿De qué dinero sale?' + chips('fondo', fondos.map(x => [x.f, x.nombre, 'hay ' + pesos(x.saldo)]).concat([['caja', 'Caja general', 'hay ' + pesos(M.saldoFondo('caja'))], ['pd:', 'Lo pagó alguien directo (préstamo)', 'se suma a lo que le debemos']]).filter((x, i, a) => a.findIndex(y => y[0] === x[0]) === i), d.fondo.slice(0, 3) === 'pd:' ? 'pd:' : d.fondo)
+          + (d.tipo === 'out' ? '<div class="campo">¿De qué dinero sale?' + chips('fondo', fondos.map(x => [x.f, x.nombre, 'hay ' + pesos(x.saldo)]).concat([['caja', 'Caja general', 'hay ' + pesos(M.saldoFondo('caja'))], ['pd:', 'A crédito / lo pagó alguien por nosotros', 'NO sale del banco: queda como deuda']]).filter((x, i, a) => a.findIndex(y => y[0] === x[0]) === i), d.fondo.slice(0, 3) === 'pd:' ? 'pd:' : d.fondo)
               + (d.fondo.slice(0, 3) === 'pd:' ? chips('pdq', M.deudas.map(x => ['pd:' + x.id, x.nombre]).concat([['pd:__nuevo', '＋ Alguien nuevo']]), d.fondo === 'pd:' && d.nuevoPrest ? 'pd:__nuevo' : d.fondo) + (d.fondo === 'pd:' || d.fondo === 'pd:__nuevo' ? '<input id="r-np" placeholder="¿Quién lo pagó? (se le crea su panel de deuda)" value="' + esc(d.nuevoPrest) + '">' : '') : '')
               + (sobregiro ? '<p class="aviso r">' + esc(fSel.nombre) + ' solo tiene ' + pesos(fSel.saldo) + '. Quedaría en ' + pesos(fSel.saldo - montoN) + ': se estaría usando dinero de otro.</p>' : '')
               + (d.para === 'pedido' && d.pedido && d.fondo && d.fondo !== 'p:' + d.pedido && d.fondo.slice(0, 2) === 'p:' ? '<p class="aviso">Quedará anotado: <b>' + esc(M.nomFondo(d.fondo)) + ' se usó para pagar el pedido de ' + esc(M.nomPed(d.pedido)) + '</b>.</p>' : '') + '</div>' : '')
@@ -745,7 +778,7 @@
         let deudaId = d.deuda && d.deuda !== '__nuevo' ? d.deuda : '', fondo = d.fondo;
         const nuevo = d.nuevoPrest.trim(), quien = d.tipo === 'in' ? (d.origen === 'pedido' ? M.nomPed(d.pedido) : d.origen === 'prestamo' ? (deudaId ? M.deu(deudaId).nombre : nuevo + ' (nuevo)') : 'Otro ingreso') : (d.para === 'pedido' ? 'Pedido de ' + M.nomPed(d.pedido) : d.para === 'deuda' ? 'Pago a ' + M.deu(d.deuda).nombre : 'Gasto general');
         const lin = [['Cantidad', pesos(monto)], [d.tipo === 'in' ? 'De' : 'Para', quien], ['Concepto', d.cat]];
-        if (d.tipo === 'out') lin.push(['Sale de', fondo === 'pd:' ? 'Lo pagó ' + nuevo + ' directo (nuevo)' : M.nomFondo(fondo)]);
+        if (d.tipo === 'out') lin.push(['Sale de', fondo === 'pd:' ? 'A crédito: se le deberá a ' + nuevo + ' (nuevo)' : M.nomFondo(fondo)]);
         lin.push([d.tipo === 'in' ? 'Lo recibió' : 'Lo pagó', d.quien], ['Cómo', d.metodo], ['Fecha', fC(d.fecha)]);
         if (!await clave((ed ? 'Corregir: ' : '') + (d.tipo === 'in' ? 'Entró dinero' : 'Salió dinero'), lin)) return;
         cerrarHoja();

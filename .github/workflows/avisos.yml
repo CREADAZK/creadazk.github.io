@@ -1,0 +1,31 @@
+name: avisos del socio
+on:
+  schedule:
+    - cron: '*/30 14-23 * * *'
+    - cron: '*/30 0-4 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency: avisos
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: avisos
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm i --no-save --silent web-push@3.6.7
+        working-directory: avisos
+      - run: node enviar.cjs
+        working-directory: avisos
+        env:
+          FB_API_KEY: ${{ secrets.FB_API_KEY }}
+          FB_DB: ${{ secrets.FB_DB }}
+          BOT_EMAIL: ${{ secrets.BOT_EMAIL }}
+          BOT_PASS: ${{ secrets.BOT_PASS }}
+          VAPID_PUBLIC: ${{ secrets.VAPID_PUBLIC }}
+          VAPID_PRIVATE: ${{ secrets.VAPID_PRIVATE }}

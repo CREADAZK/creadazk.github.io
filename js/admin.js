@@ -1011,11 +1011,43 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     // ================= COTIZAR: calculadora automática conectada al stock =================
     const USOS = [['comedor', 'Comedor'], ['centro', 'Centro'], ['lateral', 'Lateral'], ['periquera', 'Periquera'], ['consola', 'Consola'], ['escritorio', 'Escritorio']];
     const FORMAS = [['rect', 'Rectangular'], ['red', 'Redonda'], ['oval', 'Ovalada'], ['org', 'Orgánica']];
-    const nomUso = u => (USOS.find(x => x[0] === u) || [, 'Mesa'])[1];
+    // ===== CUBIERTAS / BARRAS: un largo cualquiera se parte en piezas que quepan en la placa (318 útiles) =====
+    const LMAX = () => PLACA().w - 2 * CFG.refilado;
+    // largo de cubierta: hasta 20 se toma como metros (5 → 500 cm, 7.69 → 769 cm)
+    const cmL = v => { let n = num(v); if (n > 0 && n <= 20) n = Math.round(n * 100); return n; };
+    function partesCub(largo, modo) {
+      const L = num(largo), M = LMAX(); if (!(L > 0)) return []; const n = Math.ceil(L / M - 1e-9); if (n <= 1) return [Math.round(L * 10) / 10];
+      if (modo === 'iguales' || L - M * (n - 1) < 40) { const p = Math.floor(L / n * 10) / 10, a = new Array(n).fill(p); a[n - 1] = Math.round((L - p * (n - 1)) * 10) / 10; return a; }
+      const a = new Array(n - 1).fill(M); a.push(Math.round((L - M * (n - 1)) * 10) / 10); return a;
+    }
+    const partesTxt = (L, modo) => { const p = partesCub(L, modo); if (!p.length) return ''; let x = 0; const u = p.slice(0, -1).map(l => (x += l, Math.round(x) / 100 + ' m'));
+      return p.length === 1 ? 'Sale de una sola pieza.' : 'Se hace en ' + p.length + ' piezas: ' + p.join(' + ') + ' cm · uniones a ' + u.join(' y ') + '.'; };
+    // costo de una cubierta (sin saber el stock): parte de la placa por área + cortes + canto del frente + extra por pieza + pegado de uniones
+    function calcCubM(it) {
+      const L = num(it.w), F = num(it.h) || 60, p = partesCub(L, it.partes), m2 = L * F / 1e4, placaM2 = LMAX() * (PLACA().h - 2 * CFG.refilado) / 1e4;
+      const piedra = P.C.placa.precio * m2 / placaM2 * 1.1, cortes = P.C.corteRecto * (L + F * p.length) / 100, canto = P.C.canto * L / 100, extra = P.C.extra * p.length, uniones = 300 * Math.max(0, p.length - 1);
+      const costo = piedra + cortes + canto + extra + uniones, minivan = Math.max(...p, 0) <= 190;
+      return { precio: P.up100(costo * P.C.margen), costo, piedra, chico: false, minivan, entrega: minivan ? P.C.minivanComedor : P.C.flete, partes: p, alto: null };
+    }
+    const USOS_CLI = [['comedor', 'Comedor'], ['centro', 'Centro'], ['lateral', 'Lateral'], ['periquera', 'Periquera'], ['consola', 'Consola'], ['escritorio', 'Escritorio'], ['cubierta', 'Cubierta / barra']];
+    const cubCampos = q => '<div class="campo">Medidas de la cubierta<div class="tres-i"><input data-k="w" inputmode="decimal" placeholder="Largo (ej. 5 o 500)" value="' + esc(q.w) + '"><input data-k="h" inputmode="decimal" placeholder="Fondo (60)" value="' + esc(q.h) + '"><input data-k="cant" inputmode="numeric" placeholder="Cuántas" value="' + esc(q.cant) + '"></div><small class="nota">Largo en metros o cm. ' + esc(partesTxt(cmL(q.w), q.partes)) + '</small></div><div class="campo">¿Cómo se parte?' + chipsH('partes', [['max', 'Menos uniones'], ['iguales', 'Piezas iguales']], q.partes || 'max') + '</div>';
+    const descCub = (L, F, piedra, modo) => { const p = partesCub(L, modo); return 'Cubierta de piedra sinterizada 12 mm' + (piedra ? ' ' + piedra : '') + ', ' + (Math.round(L) / 100) + ' m × ' + F + ' cm' + (p.length > 1 ? ', en ' + p.length + ' piezas' : '') + ', con canto pulido al frente.'; };
+    // con lo que sobra de las placas nuevas: ¿qué mesas del catálogo caben? (de la más grande a la más chica)
+    function sugerir(c) {
+      if (!c || !c.esp) return []; const sob = [].concat(...c.esp.filter(e => !e.stock).map(e => e.sobrantes)); if (!sob.length) return [];
+      const vistos = new Set(), out = [];
+      (P.CATALOGO || []).filter(x => x.forma === 'red' || x.forma === 'rect').forEach(x => { const k = x.forma + x.w + 'x' + x.h; if (vistos.has(k)) return; vistos.add(k);
+        const n = sob.reduce((a, s) => a + N.cuantasCaben(s.w, s.h, x.w, x.h, CFG.kerf), 0); if (n > 0) out.push({ x, n }); });
+      return out.sort((a, b) => b.x.w * b.x.h - a.x.w * a.x.h).slice(0, 6).map(({ x, n }) => ({ forma: x.forma, w: x.w, h: x.h, n, t: (USOS_CLI.find(u => u[0] === x.uso) || [, 'Mesa'])[1] + ' ' + (x.forma === 'red' ? 'Ø' + x.w : x.w + '×' + x.h) + (x.pers ? ' (' + x.pers + ' pers.)' : '') }));
+    }
+    const sugHTML = (L, attr) => L.length ? '<div class="sug-l"><b>💡 Con lo que sobra te alcanza también para:</b><div class="chips">' + L.map((s, i) => '<button type="button" ' + attr + '="' + i + '">＋ ' + esc(s.t) + '<small>caben ' + s.n + '</small></button>').join('') + '</div></div>' : '';
+    const nomUso = u => (USOS_CLI.find(x => x[0] === u) || [, 'Mesa'])[1];
     const nomForma = f => (FORMAS.find(x => x[0] === f) || [, ''])[1].toLowerCase();
     let qc = (() => { try { return JSON.parse(localStorage.getItem('dkas-pz-coti')) || null; } catch (e) { return null; } })() || { uso: 'centro', forma: 'red', w: '80', h: '', alto: '', cant: '1', piedra: '' };
     // calcula una mesa: precio normal y, si hay piedra en stock de ese color donde quepa, el costo con esa piedra
     function calcula(q) {
+      if (q.uso === 'cubierta') { const L = cmL(q.w), F = num(q.h) || 60, cant = Math.max(1, Math.floor(num(q.cant) || 1)); if (!(L > 0)) return { error: 'Escribe el largo.' }; if (F > PLACA().h - 2 * CFG.refilado) return { error: 'El fondo máximo es ' + (PLACA().h - 2 * CFG.refilado) + ' cm.' };
+        const m = calcCubM({ w: L, h: F, partes: q.partes }); return { m, cant, precio: m.precio * cant, total: m.precio * cant + m.entrega, entrega: m.entrega, alto: '', stock: [], conStock: null, costoTotal: m.costo * cant, costoStock: (m.costo - m.piedra) * cant, req: m.partes.map(l => ({ forma: 'rect', w: l, h: F, cant })) }; }
       const forma = q.forma, w = cm(q.w), h = forma === 'red' ? w : cm(q.h), cant = Math.max(1, Math.floor(num(q.cant) || 1));
       const r = P.cotizar({ uso: q.uso, forma, w, h, cant }); if (r.error) return r;
       const req = [{ forma: forma === 'red' ? 'red' : 'rect', d: w, w, h, cant }]; // ovalada/orgánica: su rectángulo
@@ -1063,7 +1095,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       $('#qc-cli').onclick = () => { const b = borrador(); b.items.push(itemDe(qc, r)); guardarBorrador(b); location.hash = '#piedras/cliente'; X.aviso('Agregada a la cotización'); };
       $('#qc-ped').onclick = () => aPedido([itemDe(qc, r)], {}, r.total);
     }
-    const itemDe = (q, r) => ({ uso: q.uso, forma: q.forma, w: num(q.w), h: q.forma === 'red' ? num(q.w) : num(q.h), alto: r.alto, piedra: limpiaP(q.piedra), base: '', cant: r.cant, precio: r.m.precio, auto: r.m.precio, desc: descDe(q.uso, q.forma, num(q.w), q.forma === 'red' ? num(q.w) : num(q.h), r.alto, limpiaP(q.piedra), '') });
+    const itemDe = (q, r) => q.uso === 'cubierta' ? { uso: 'cubierta', forma: 'rect', w: cmL(q.w), h: num(q.h) || 60, partes: q.partes || 'max', alto: null, piedra: limpiaP(q.piedra), base: '', cant: r.cant, precio: r.m.precio, auto: r.m.precio, desc: descCub(cmL(q.w), num(q.h) || 60, limpiaP(q.piedra), q.partes) } : ({ uso: q.uso, forma: q.forma, w: num(q.w), h: q.forma === 'red' ? num(q.w) : num(q.h), alto: r.alto, piedra: limpiaP(q.piedra), base: '', cant: r.cant, precio: r.m.precio, auto: r.m.precio, desc: descDe(q.uso, q.forma, num(q.w), q.forma === 'red' ? num(q.w) : num(q.h), r.alto, limpiaP(q.piedra), '') });
     const descDe = (uso, forma, w, h, alto, piedra, base) => 'Mesa ' + ({ comedor: 'de comedor', centro: 'de centro', lateral: 'lateral', periquera: 'periquera', consola: 'consola', escritorio: 'escritorio' }[uso] || '') + ' ' + nomForma(forma) + ' ' + (forma === 'red' ? 'Ø ' + w + ' cm' : w + ' × ' + h + ' cm') + (alto ? ', ' + alto + ' cm de alto' : '') + '. Cubierta de piedra sinterizada 12 mm' + (piedra ? ' ' + piedra.trim() : '') + (base ? '. Base: ' + base : '') + '.';
 
     // ================= COTIZACIÓN AL CLIENTE (PDF) =================
@@ -1076,7 +1108,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       return X.plegable('Cotizaciones guardadas', l.length + '', '<div class="lista">' + l.slice(0, 40).map(c => '<a class="fila-a" href="#piedras/cliente=' + esc(c.id) + '" data-cot="' + esc(c.id) + '"><span class="fila-c"><b>' + esc(c.cliente || 'Sin nombre') + ' <span class="folio">C-' + esc(c.folio) + '</span></b><small>' + esc(fC(c.fecha)) + ' · ' + (c.items || []).length + ' mesa(s)</small></span><span class="fila-d"><b>' + pesos(c.total) + '</b></span></a>').join('') + '</div>', false);
     }
     function entregaAuto(b) {
-      const ms = b.items.map(it => { try { return P.calcular({ uso: it.uso, forma: it.forma, w: num(it.w), h: num(it.h) }); } catch (e) { return null; } }).filter(Boolean);
+      const ms = b.items.map(it => { if (it.uso === 'cubierta') return calcCubM(it); try { return P.calcular({ uso: it.uso, forma: it.forma, w: num(it.w), h: num(it.h) }); } catch (e) { return null; } }).filter(Boolean);
       return ms.some(m => !m.chico) ? (ms.some(m => !m.minivan) ? P.C.flete : P.C.minivanComedor) : 0;
     }
     const totales = b => { const sub = b.items.reduce((a, it) => a + num(it.precio) * Math.max(1, num(it.cant) || 1), 0), ent = b.entregaAuto ? entregaAuto(b) : num(b.entrega), des = num(b.descuento), tot = Math.max(0, sub - des + ent); return { sub, ent, des, tot, ant: Math.round(tot / 2) }; };
@@ -1143,7 +1175,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       G.forEach(g => {
         if (!g.color) { g.sin = true; return; }
         g.nombre = (catDe(g.color) || [])[1] || (/negr/.test(sinAc(g.color)) ? 'Negra' : g.color);
-        const ped = g.idx.map(i => { const it = its[i], red = it.forma === 'red'; return { pieza: { nombre: cli || 'Mesa nueva', forma: red ? 'red' : 'rect', d: num(it.w), w: num(it.w), h: red ? num(it.w) : num(it.h) }, cant: Math.max(1, num(it.cant) || 1) }; });
+        const ped = [].concat(...g.idx.map(i => { const it = its[i], red = it.forma === 'red', cant = Math.max(1, num(it.cant) || 1); if (it.uso === 'cubierta') return partesCub(num(it.w), it.partes).map(l => ({ pieza: { nombre: (cli || 'Cubierta') + ' · cubierta', forma: 'rect', w: l, h: num(it.h) || 60 }, cant }));
+          return [{ pieza: { nombre: cli || 'Mesa nueva', forma: red ? 'red' : 'rect', d: num(it.w), w: num(it.w), h: red ? num(it.w) : num(it.h) }, cant }]; }));
         const st = disponibles().filter(s => mismoColor(s.piedra, g.color)), inv = { placas: st.filter(s => s.tipo === 'placa').map(s => ({ id: s.id, w: num(s.w), h: num(s.h), cant: 1 })), retazos: st.filter(s => s.tipo !== 'placa').map(s => ({ id: s.id, w: num(s.w), h: num(s.h) })) };
         let r; try { r = K.meCabe(ped, inv, CFG, PLACA()); } catch (e) { r = { estado: 'error', msg: e.message }; }
         if (r.estado === 'error') { g.error = r.msg; return; }
@@ -1164,7 +1197,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
         g.idx.forEach(i => { pzU[i] = g.costo * huellaIt(its[i]) / aQ; });
       });
       let total = 0;
-      its.forEach((it, i) => { let m; try { m = P.calcular({ uso: it.uso || 'centro', forma: it.forma || 'rect', w: num(it.w), h: it.forma === 'red' ? num(it.w) : num(it.h) }); } catch (e) { m = null; }
+      its.forEach((it, i) => { let m; try { m = it.uso === 'cubierta' ? calcCubM(it) : P.calcular({ uso: it.uso || 'centro', forma: it.forma || 'rect', w: num(it.w), h: it.forma === 'red' ? num(it.w) : num(it.h) }); } catch (e) { m = null; }
         if (!m || !(num(it.w) > 0)) return; const ns = m.costo - m.piedra, pz = pzU[i] == null ? m.piedra : pzU[i];
         it.normal = m.precio; it.auto = P.up100((ns + pz) * P.C.margen); if (!it.manual) it.precio = it.auto; total += it.auto * Math.max(1, num(it.cant) || 1); });
       return { G, total };
@@ -1186,8 +1219,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
         if (g.sin) return '<li class="mala"><i>!</i><span><b>Mesas ' + cual + ': elige la piedra</b><small>Sin color no puedo revisar tu stock. Toca la mesa → piedra.</small></span></li>';
         if (g.error) return '<li class="mala"><i>!</i><span><b>' + esc(g.nombre) + '</b><small>' + esc(g.error) + '</small></span>' + verB + '</li>';
         const verB = g.planes && g.planes.length ? '<button class="b chico" data-cplaca="' + AN.G.indexOf(g) + '">🖼 Ver placa</button>' : '';
-        if (g.stock) return '<li class="corta"><i>✓</i><span><b>' + esc(g.nombre) + ' · ' + n + (n === 1 ? ' mesa' : ' mesas') + ': sale de tu stock</b><small>De ' + esc(g.de.map(nomPieza).join(' + ')) + '. La piedra ya está pagada: el precio baja.</small></span></li>';
-        return '<li class="compra"><i>🛒</i><span><b>' + esc(g.nombre) + ' · ' + n + (n === 1 ? ' mesa' : ' mesas') + ': comprar ' + g.placas + ' placa' + (g.placas > 1 ? 's' : '') + '</b><small>' + (n > 1 ? 'Todas salen de la misma placa' + (g.placas > 1 ? 's' : '') + '. ' : '') + 'Se usa ' + g.usa + '%' + (g.sobra ? '; sobra ' + Math.floor(Math.max(g.sobra.w, g.sobra.h)) + '×' + Math.floor(Math.min(g.sobra.w, g.sobra.h)) + ' que se queda en tu stock' : '') + '. A esta cotización le toca ≈ ' + pesos(g.costo) + ' de piedra.'
+        if (g.stock) return '<li class="corta"><i>✓</i><span><b>' + esc(g.nombre) + ' · ' + n + (n === 1 ? ' pieza' : ' piezas') + ': sale de tu stock</b><small>De ' + esc(g.de.map(nomPieza).join(' + ')) + '. La piedra ya está pagada: el precio baja.</small></span></li>';
+        return '<li class="compra"><i>🛒</i><span><b>' + esc(g.nombre) + ' · ' + n + (n === 1 ? ' pieza' : ' piezas') + ': comprar ' + g.placas + ' placa' + (g.placas > 1 ? 's' : '') + '</b><small>' + (n > 1 ? (g.placas > 1 ? 'Todas salen de las mismas ' + g.placas + ' placas. ' : 'Todas salen de la misma placa. ') : '') + 'Se usa ' + g.usa + '%' + (g.sobra ? '; sobra ' + Math.floor(Math.max(g.sobra.w, g.sobra.h)) + '×' + Math.floor(Math.min(g.sobra.w, g.sobra.h)) + ' que se queda en tu stock' : '') + '. A esta cotización le toca ≈ ' + pesos(g.costo) + ' de piedra.'
           + (g.deStock && g.deStock.length ? ' Parte sale de tu ' + esc(g.deStock.map(nomPieza).join(', ')) + '.' : '') + (g.junta ? '<br>💡 Júntala con ' + esc(g.junta.join(' + ')) + ': esperan esa misma piedra, la placa se reparte y baja el precio.' : '') + '</small></span>' + verB + '</li>';
       }).join('');
       return '<section class="caja hacer' + (AN.G.some(g => g.sin || g.error) ? ' mal' : nuevosColores ? ' pend' : ' ok') + '"><div class="caja-t"><h2>Piedra de esta cotización</h2></div><ul class="hacer-l">' + filas + '</ul>'
@@ -1221,7 +1254,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
           + '<div class="botones col"><button class="b verde grande" id="cc-pdf"' + (b.items.length && b.cliente ? '' : ' disabled') + '>📄 PDF para el cliente</button><button class="b negro grande" id="cc-g"' + (b.items.length && b.cliente ? '' : ' disabled') + '>' + (id ? 'Guardar cambios' : 'Guardar cotización') + '</button>' + (b.tel ? '<button class="b grande" id="cc-wa">Mandar mensaje por WhatsApp</button>' : '') + (b.items.length ? '<button class="b grande" id="cc-ped">Pasar a pedido</button>' : '') + (id ? '' : '<button class="b" id="cc-nueva">Empezar una nueva</button>') + (id ? '<button class="b rojo" id="cc-b">Borrar cotización</button>' : '') + '</div>'
           + (!b.cliente || !b.items.length ? '<p class="nota">Para sacar el PDF: pon el nombre del cliente y al menos una mesa.</p>' : '');
         const leer = () => { b.cliente = $('#cc-n').value.trim(); b.tel = $('#cc-t').value.trim(); b.descuento = $('#cc-d').value.replace(/[^\d.]/g, ''); b.tiempo = $('#cc-ti').value; b.vigencia = Math.max(1, Math.floor(num($('#cc-v').value) || 15)); b.notas = $('#cc-no').value; $$('[data-i]').forEach(x => { const it = b.items[+x.dataset.i]; if (!it) return; const v = x.dataset.f === 'desc' ? x.value : x.value.replace(/[^\d.]/g, ''); if (x.dataset.f === 'precio' && num(v) !== num(it.precio)) it.manual = true; it[x.dataset.f] = v; }); const e = $('#cc-e').value.replace(/[^\d.]/g, ''); if (!b.entregaAuto || num(e) !== entregaVista) { b.entregaAuto = false; b.entrega = e; } guardar(); };
-        const vivo = () => { leer(); const T2 = totales(b), pg = $('.precio-g'); if (pg) { pg.querySelector('b').textContent = pesos(T2.tot); pg.querySelectorAll('p')[0].textContent = 'Mesas ' + pesos(T2.sub) + (T2.des ? ' − descuento ' + pesos(T2.des) : '') + (T2.ent ? ' + entrega ' + pesos(T2.ent) : ' · entrega incluida'); pg.querySelectorAll('p')[1].innerHTML = 'Anticipo 50%: <b>' + pesos(T2.ant) + '</b> · saldo contra entrega ' + pesos(T2.tot - T2.ant); } $$('[data-sub]').forEach(x => { const it = b.items[+x.dataset.sub]; if (it) x.textContent = subTxt(it); }); if ($('#cc-suma')) $('#cc-suma').textContent = piezasTxt(b); const ok = b.items.length && b.cliente; ['#cc-pdf', '#cc-g'].forEach(s => { if ($(s)) $(s).disabled = !ok; }); };
+        const vivo = () => { leer(); const T2 = totales(b), pg = $('.precio-g'); if (pg) { pg.querySelector('b').textContent = pesos(T2.tot); pg.querySelectorAll('p')[0].textContent = 'Piezas ' + pesos(T2.sub) + (T2.des ? ' − descuento ' + pesos(T2.des) : '') + (T2.ent ? ' + entrega ' + pesos(T2.ent) : ' · entrega incluida'); pg.querySelectorAll('p')[1].innerHTML = 'Anticipo 50%: <b>' + pesos(T2.ant) + '</b> · saldo contra entrega ' + pesos(T2.tot - T2.ant); } $$('[data-sub]').forEach(x => { const it = b.items[+x.dataset.sub]; if (it) x.textContent = subTxt(it); }); if ($('#cc-suma')) $('#cc-suma').textContent = piezasTxt(b); const ok = b.items.length && b.cliente; ['#cc-pdf', '#cc-g'].forEach(s => { if ($(s)) $(s).disabled = !ok; }); };
         $$('#app input, #app textarea').forEach(i => i.addEventListener('input', vivo));
         $$('#cc-cl [data-v]').forEach(x => x.onclick = () => { leer(); const c = X.M().cli(x.dataset.v); b.cliente = c.nombre; b.tel = c.telefono || b.tel; b.clienteId = c.id; guardar(); pintar(); });
         $$('[data-del]').forEach(x => x.onclick = () => { leer(); b.items.splice(+x.dataset.del, 1); guardar(); pintar(); });
@@ -1253,20 +1286,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     }
     // una mesa para la cotización del cliente (con el calculador)
     const subTxt = it => { const n = Math.max(1, num(it.cant) || 1); return n + ' × ' + pesos(num(it.precio)) + ' = ' + pesos(n * num(it.precio)); };
-    const piezasTxt = b => { const n = b.items.reduce((a, it) => a + Math.max(1, num(it.cant) || 1), 0); return n + (n === 1 ? ' mesa' : ' mesas') + ' · ' + pesos(b.items.reduce((a, it) => a + Math.max(1, num(it.cant) || 1) * num(it.precio), 0)); };
+    const piezasTxt = b => { const n = b.items.reduce((a, it) => a + Math.max(1, num(it.cant) || 1), 0); return n + (n === 1 ? ' pieza' : ' piezas') + ' · ' + pesos(b.items.reduce((a, it) => a + Math.max(1, num(it.cant) || 1) * num(it.precio), 0)); };
     function mesaNueva(listo, cuenta) {
       const q = Object.assign({}, qc, { base: '' });
-      X.hoja('Agregar mesa', '<div id="mn"></div>', h => {
+      X.hoja('Agregar mesa o cubierta', '<div id="mn"></div>', h => {
         const pintar = () => {
           const ok = num(q.w) && (q.forma === 'red' || num(q.h)), r = ok ? calcula(q) : null;
           const c0 = cuenta ? cuenta() : null;
-          $('#mn', h).innerHTML = (c0 && c0.n ? '<p class="ok-g">Ya van ' + esc(c0.t) + '</p>' : '') + '<div class="campo">¿Qué mesa?' + chipsH('uso', USOS, q.uso) + '</div><div class="campo">Forma' + chipsH('forma', FORMAS, q.forma) + '</div>'
-            + '<div class="campo">Medidas (cm)<div class="tres-i"><input data-k="w" inputmode="decimal" placeholder="' + (q.forma === 'red' ? 'Diámetro' : 'Largo') + '" value="' + esc(q.w) + '">' + (q.forma === 'red' ? '' : '<input data-k="h" inputmode="decimal" placeholder="Ancho" value="' + esc(q.h) + '">') + '<input data-k="alto" inputmode="decimal" placeholder="Alto (' + (P.ALTO[q.uso] || 75) + ')" value="' + esc(q.alto) + '"><input data-k="cant" inputmode="numeric" placeholder="Cuántas" value="' + esc(q.cant) + '"></div></div>' + (comunes(q.uso, q.forma).length ? '<div class="campo">Medidas que más se venden (toca una)' + comunesH(comunes(q.uso, q.forma), 'data-mmed') + '</div>' : '')
+          $('#mn', h).innerHTML = (c0 && c0.n ? '<p class="ok-g">Ya van ' + esc(c0.t) + '</p>' : '') + '<div class="campo">¿Qué mesa?' + chipsH('uso', USOS_CLI, q.uso) + '</div>' + (q.uso === 'cubierta' ? cubCampos(q) : '<div class="campo">Forma' + chipsH('forma', FORMAS, q.forma) + '</div>'
+            + '<div class="campo">Medidas (cm)<div class="tres-i"><input data-k="w" inputmode="decimal" placeholder="' + (q.forma === 'red' ? 'Diámetro' : 'Largo') + '" value="' + esc(q.w) + '">' + (q.forma === 'red' ? '' : '<input data-k="h" inputmode="decimal" placeholder="Ancho" value="' + esc(q.h) + '">') + '<input data-k="alto" inputmode="decimal" placeholder="Alto (' + (P.ALTO[q.uso] || 75) + ')" value="' + esc(q.alto) + '"><input data-k="cant" inputmode="numeric" placeholder="Cuántas" value="' + esc(q.cant) + '"></div></div>' + (comunes(q.uso, q.forma).length ? '<div class="campo">Medidas que más se venden (toca una)' + comunesH(comunes(q.uso, q.forma), 'data-mmed') + '</div>' : ''))
             + '<div class="campo">¿De qué piedra? <small class="nota">(para revisar tu stock)</small>' + chipsPiedra('piedra', q.piedra, { conOtra: true }) + (otraAbierta(q.piedra) ? '<input data-k="piedra" maxlength="40" placeholder="Nombre de la piedra" value="' + esc(limpiaP(q.piedra)) + '">' : '') + '</div>'
             + '<label class="campo">Base (opcional)<input data-k="base" maxlength="60" placeholder="ej. estructura oro mate" value="' + esc(q.base) + '"></label>'
             + (r ? (r.error ? '<p class="aviso r">' + esc(r.error) + '</p>' : '<div class="vivo"><div>Precio c/u<b>' + pesos(r.m.precio) + '</b></div><div>Costo<b>' + pesos(r.conStock ? r.m.costo - r.m.piedra : r.m.costo) + '</b></div><div>' + (r.conStock ? 'Piedra<b class="v">en stock ✓</b>' : 'Piedra<b>hay que comprar</b>') + '</div></div>') : '')
             + (limpiaP(q.piedra) ? '' : '<p class="aviso">Elige de qué piedra es para poder agregarla.</p>') + '<button class="b verde grande" id="mn-otra"' + (r && !r.error && limpiaP(q.piedra) ? '' : ' disabled') + '>＋ Agregar y meter otra</button><button class="b negro grande" id="mn-ok"' + (r && !r.error && limpiaP(q.piedra) ? '' : ' disabled') + '>Agregar y terminar</button>';
-          $$('[data-q]', h).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leerMN(); q[g.dataset.q] = b.dataset.v; pintar(); });
+          $$('[data-q]', h).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leerMN(); q[g.dataset.q] = b.dataset.v; if (g.dataset.q === 'uso' && b.dataset.v === 'cubierta') { q.forma = 'rect'; if (!num(q.h)) q.h = '60'; q.partes = q.partes || 'max'; } pintar(); });
           $$('[data-k]', h).forEach(i => i.onchange = () => { leerMN(); pintar(); });
           $$('[data-mmed]', h).forEach(b => b.onclick = () => { leerMN(); const [a, c] = b.dataset.mmed.split(','); q.w = a; q.h = q.forma === 'red' ? '' : c; pintar(); });
           $$('[data-k]', h).forEach(i => i.oninput = () => { leerMN(); const ok2 = num(q.w) && (q.forma === 'red' || num(q.h)) && limpiaP(q.piedra); $('#mn-ok', h).disabled = !ok2; $('#mn-otra', h).disabled = !ok2; });
@@ -1348,6 +1381,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       if ((p.piezas || []).length) return p.piezas.map(x => num(x.w) && num(x.h) ? { forma: 'rect', w: num(x.w), h: num(x.h), cant: 1, nombre: x.n || '' } : { forma: 'red', d: num(x.d), cant: 1, nombre: x.n || '' }).filter(x => num(x.d) || num(x.w));
       const L = num(p.largo), W = num(p.ancho), n = Math.max(1, num(p.cantidad) || 1);
       if (!L) return []; if (p.forma === 'Redonda') return [{ forma: 'red', d: L, cant: n }];
+      if (W && Math.max(L, W) > LMAX()) return partesCub(Math.max(L, W)).map(l => ({ forma: 'rect', w: l, h: Math.min(L, W), cant: n }));
       return W ? [{ forma: 'rect', w: L, h: W, cant: n }] : [];
     }
     const colorPedido = p => ((p.color === 'Otra' || p.color === 'Otro') ? p.colorOtra : p.color) || '';
@@ -1466,8 +1500,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     // ================= PLANEACIÓN (simple): piedra + piezas → el sistema calcula las placas solo =================
     // dinero/planes/<id> { nombre, piedra, piezas:[{ n, pedido, gi, forma, d, w, h, cant }], nota, por, creado, editado }
     const planes = () => Object.entries(X.D().planes || {}).map(([id, x]) => Object.assign({ id }, x, { piezas: arr(x.piezas) })).sort((a, b) => (b.editado || b.creado || 0) - (a.editado || a.creado || 0));
-    const reqsPlan = pl => pl.piezas.filter(z => num(z.d) || num(z.w)).map(z => ({ nombre: z.n || 'Pieza', forma: z.forma === 'red' ? 'red' : 'rect', d: num(z.d), w: num(z.w), h: num(z.h), cant: Math.max(1, num(z.cant) || 1) }));
-    const medZ = z => z.forma === 'red' ? 'Ø' + num(z.d) : num(z.w) + '×' + num(z.h);
+    const reqsPlan = pl => [].concat(...pl.piezas.filter(z => num(z.d) || num(z.w)).map(z => { const cant = Math.max(1, num(z.cant) || 1); if (z.tipo === 'cub') { const p = partesCub(num(z.w), z.partes); return p.map((l, i) => ({ nombre: (z.n || 'Cubierta') + (p.length > 1 ? ' ' + (i + 1) + '/' + p.length : ''), forma: 'rect', w: l, h: num(z.h) || 60, cant })); }
+      return [{ nombre: z.n || 'Pieza', forma: z.forma === 'red' ? 'red' : 'rect', d: num(z.d), w: num(z.w), h: num(z.h), cant }]; }));
+    const medZ = z => z.tipo === 'cub' ? 'cubierta ' + (Math.round(num(z.w)) / 100) + ' m × ' + num(z.h) + (partesCub(num(z.w), z.partes).length > 1 ? ' (' + partesCub(num(z.w), z.partes).join(' + ') + ')' : '') : z.forma === 'red' ? 'Ø' + num(z.d) : num(z.w) + '×' + num(z.h);
     // acomodo automático: primero lo que tengas de esa piedra en stock, luego placas nuevas
     function calcPlan(pl) {
       const rq = reqsPlan(pl); if (!rq.length) return null;
@@ -1499,8 +1534,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
         + '<section class="caja pz-aviso ' + (c && !c.error ? 'ok' : 'mal') + '"><b>' + (c && !c.error ? 'Necesitas: ' + esc(resumenPlan(c)) : esc(resumenPlan(c))) + '</b>' + (c && c.sobra && c.sobra.length ? '<p>Sobra para vender después: ' + esc(c.sobra.join(' · ')) + ' cm</p>' : '') + '</section>'
         + '<section class="caja"><div id="pl-imgs"><p class="nota">Dibujando las placas…</p></div></section>'
         + '<section class="caja"><h2>Piezas</h2><ul class="corta">' + pl.piezas.map(z => '<li><b>' + esc((z.n || 'Pieza') + (String(z.n || '').includes(medZ(z)) ? '' : ' · ' + medZ(z))) + (num(z.cant) > 1 ? ' × ' + num(z.cant) : '') + '</b>' + (z.pedido ? '<a class="lnk" href="#p=' + esc(z.pedido) + '">ver pedido</a>' : '') + '</li>').join('') + '</ul>' + (pl.nota ? '<p class="nota" style="white-space:pre-wrap">' + esc(pl.nota) + '</p>' : '') + '</section>'
-        + '<div class="pl-acc"><button class="b verde grande" id="pv-wa">📤 Mandar</button><a class="b grande" href="#piedras/plan=ed=' + esc(pl.id) + '">✏️ Cambiar</a><button class="b rojo-b grande" id="pv-b">🗑 Borrar</button></div>';
+        + (c && !c.error && sugerir(c).length ? '<section class="caja">' + sugHTML(sugerir(c), 'data-vsug') + '</section>' : '')
+        + '<div class="pl-acc"><button class="b negro grande" id="pv-cot">💲 Cotizar</button><button class="b verde grande" id="pv-wa">📤 Mandar</button><a class="b grande" href="#piedras/plan=ed=' + esc(pl.id) + '">✏️ Cambiar</a><button class="b rojo-b grande" id="pv-b">🗑 Borrar</button></div>';
       const cvs = [];
+      $$('[data-vsug]').forEach(b => b.onclick = async () => { const s = sugerir(c)[+b.dataset.vsug], red = s.forma === 'red'; await X.guardarYa(() => A.nodoCambia('dinero/planes/' + id, { piezas: pl.piezas.concat([{ n: 'Para ofrecer', forma: s.forma, d: red ? s.w : null, w: red ? null : s.w, h: red ? null : s.h, cant: 1 }]) }), 'Agregada: ' + s.t, 'Planeación ' + (pl.nombre || '') + ': agregó ' + s.t); });
+      // de la planeación a la cotización del cliente (sin capturar otra vez): solo las piezas que no son de un pedido
+      $('#pv-cot').onclick = () => {
+        const z0 = pl.piezas.filter(z => !z.pedido); if (!z0.length) return X.aviso('Esta planeación solo tiene piezas de pedidos que ya existen.', true);
+        const pi = limpiaP(pl.piedra) === 'Por definir' ? '' : limpiaP(pl.piedra);
+        const usoDe = z => { const m = z.forma === 'red' ? num(z.d) : Math.max(num(z.w), num(z.h)); return m >= 100 ? 'comedor' : m >= 65 ? 'centro' : 'lateral'; };
+        const b = vacia(); b.cliente = String(pl.nombre || '').split(' · ')[0].replace(/^Para ofrecer$/, ''); b.items = z0.map(z => { if (z.tipo === 'cub') return { uso: 'cubierta', forma: 'rect', w: num(z.w), h: num(z.h) || 60, partes: z.partes || 'max', alto: null, piedra: pi, base: '', cant: Math.max(1, num(z.cant) || 1), precio: 0, auto: 0, desc: descCub(num(z.w), num(z.h) || 60, pi, z.partes) };
+          const u = usoDe(z), red = z.forma === 'red', w = red ? num(z.d) : num(z.w), hh = red ? num(z.d) : num(z.h); return { uso: u, forma: red ? 'red' : 'rect', w, h: hh, alto: P.ALTO[u] || null, piedra: pi, base: '', cant: Math.max(1, num(z.cant) || 1), precio: 0, auto: 0, desc: descDe(u, red ? 'red' : 'rect', w, hh, P.ALTO[u], pi, '') }; });
+        guardarBorrador(b); location.hash = '#piedras/cliente'; X.aviso('Cotización armada desde la planeación: revisa y manda el PDF');
+      };
       $('#pv-b').onclick = async () => { if (!await X.clave('Borrar planeación', [['Planeación', pl.nombre || '']])) return; await X.guardarYa(() => A.nodoBorra('dinero/planes/' + id), 'Planeación borrada', 'Borró planeación: ' + (pl.nombre || '')); location.hash = '#piedras/planes'; };
       $('#pv-wa').onclick = () => { if (!cvs.length) return X.aviso('Espera a que se dibujen las placas.'); cvs.forEach((cv, i) => cv.toBlob(bl => X.bajar(bl, (pl.nombre || 'Planeación') + (cvs.length > 1 ? ' placa ' + (i + 1) : '') + '.png'), 'image/png')); };
       if (!c || c.error) { $('#pl-imgs').innerHTML = '<p class="nota">Toca ✏️ Cambiar para agregar piezas.</p>'; return; }
@@ -1509,35 +1555,45 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     }
     // ---- hacer / cambiar: 1 piedra · 2 piezas ----
     const BORR = {};
+    const piezaNuevaH = q => chipsH('tipo', [['red', 'Mesa redonda'], ['rect', 'Mesa cuadrada / rect.'], ['cub', 'Cubierta / barra']], q.tipo, 'grandes')
+      + '<div class="pide" id="pl-pide"><div class="tres-i">' + (q.tipo === 'cub' ? '<input data-c="w" inputmode="decimal" placeholder="Largo (ej. 5 o 500)" value="' + esc(q.w) + '"><input data-c="h" inputmode="decimal" placeholder="Fondo (60)" value="' + esc(q.h) + '">'
+        : q.tipo === 'red' ? '<input data-c="d" inputmode="decimal" placeholder="Diámetro (cm)" value="' + esc(q.d) + '">' : '<input data-c="w" inputmode="decimal" placeholder="Largo" value="' + esc(q.w) + '"><input data-c="h" inputmode="decimal" placeholder="Ancho" value="' + esc(q.h) + '">')
+      + '<input data-c="cant" inputmode="numeric" placeholder="Cuántas" value="' + esc(q.cant) + '"></div>'
+      + (q.tipo === 'cub' ? '<p class="nota">Largo en metros o cm. ' + esc(partesTxt(cmL(q.w), q.partes)) + '</p>' + chipsH('partes', [['max', 'Menos uniones'], ['iguales', 'Piezas iguales']], q.partes || 'max') : '') + '</div>';
     function editorPlan(id) {
       const pl0 = id ? planes().find(x => x.id === id) : null; if (id && !pl0) { location.hash = '#piedras/planes'; return; }
       const llave = id || 'nuevo', pl = BORR[llave] || (BORR[llave] = pl0 ? JSON.parse(JSON.stringify(pl0)) : { nombre: '', piedra: '', piezas: [], nota: '' });
-      let q = { forma: 'red', d: '', w: '', h: '', cant: '1' }, nomL = '', otraAbierta_ = false;
+      let q = { tipo: 'red', forma: 'red', d: '', w: '', h: '', cant: '1', partes: 'max' }, nomL = '';
       const pintar = () => {
-        const col = limpiaP(pl.piedra), pend = pendientesPz(), c = calcPlan(pl);
+        const col = limpiaP(pl.piedra), pend = pendientesPz(), c = calcPlan(pl), SUG = c && !c.error ? sugerir(c) : [];
         const enPlan = x => pl.piezas.some(z => z.pedido === x.p.id && (z.gi || 0) === x.g.gi);
         X.main().innerHTML = '<a class="volver" href="' + (id ? '#piedras/plan=' + esc(id) : '#piedras/planes') + '">‹ ' + (id ? 'Volver' : 'Planeación') + '</a>' + X.tit(id ? 'Cambiar planeación' : 'Nueva planeación', '2 pasos: la piedra y las piezas', '')
           + '<section class="caja"><h2><span class="num">1</span> ¿Qué piedra?</h2>' + chipsPiedra('piedra', pl.piedra, { conOtra: true }) + (otraAbierta(pl.piedra) ? '<input id="pl-p" maxlength="40" placeholder="Nombre de la piedra" value="' + esc(limpiaP(pl.piedra)) + '">' : '') + '<p class="nota">¿No sabe todavía el cliente? Déjala sin elegir y la cambias después.</p></section>'
           + '<section class="caja"><h2><span class="num">2</span> ¿Qué piezas?</h2>'
             + (pend.length ? '<p class="nota">Pedidos que esperan piedra (toca para meterlos):</p><div class="chips" id="pl-pend">' + pend.map((x, i) => '<button type="button" data-plp="' + i + '"' + (enPlan(x) ? ' class="on"' : '') + '>' + (enPlan(x) ? '✓ ' : '＋ ') + esc(X.M().nomPedido(x.p).replace(/ #\d+$/, '') + ' ' + x.g.t.replace(/^Mesa (de )?/i, '')) + '</button>').join('') + '</div>' : '')
             + (pl.piezas.length ? '<ul class="corta">' + pl.piezas.map((z, i) => '<li><b>' + esc((z.n || 'Pieza') + (String(z.n || '').includes(medZ(z)) ? '' : ' · ' + medZ(z))) + (num(z.cant) > 1 ? ' × ' + num(z.cant) : '') + '</b><button type="button" class="x" data-plx="' + i + '" aria-label="Quitar">✕</button></li>').join('') + '</ul>' : '')
-            + '<details class="plegable"' + (pl.piezas.length ? '' : ' open') + '><summary><span>＋ Agregar otra pieza</span><small>mesa nueva, cubierta, cliente</small></summary><div class="pl-c"><label class="campo">¿Para quién o qué es?<input id="pl-nl" maxlength="40" placeholder="ej. Cliente nuevo, Cubierta A" value="' + esc(nomL) + '"></label>' + pideH(q, 'pl-pide') + '<button type="button" class="b negro grande" id="pl-add">Agregar</button></div></details></section>'
-          + (c ? '<section class="caja ' + (c.error ? 'mal' : 'ok') + ' pz-aviso"><b>' + (c.error ? esc(resumenPlan(c)) : 'Necesitas: ' + esc(resumenPlan(c))) + '</b>' + (c.esp ? c.esp.map((e, i) => '<p class="nota">' + esc(tituloEsp(e, i, c.esp.length, col)) + '</p><div class="dib chico">' + dibujo({ piedra: col, w: e.esp.w, h: e.esp.h }, e) + '</div>').join('') : '') + '</section>' : '')
+            + '<details class="plegable" open><summary><span>＋ Agregar pieza</span><small>mesa o cubierta</small></summary><div class="pl-c"><label class="campo">¿Para quién o qué es?<input id="pl-nl" maxlength="40" placeholder="ej. Cliente nuevo, Cubierta cocina" value="' + esc(nomL) + '"></label>' + piezaNuevaH(q) + '<button type="button" class="b negro grande" id="pl-add">Agregar</button></div></details></section>'
+          + (c ? '<section class="caja ' + (c.error ? 'mal' : 'ok') + ' pz-aviso"><b>' + (c.error ? esc(resumenPlan(c)) : 'Necesitas: ' + esc(resumenPlan(c))) + '</b>' + (c.esp ? c.esp.map((e, i) => '<p class="nota">' + esc(tituloEsp(e, i, c.esp.length, col)) + '</p><div class="dib chico">' + dibujo({ piedra: col, w: e.esp.w, h: e.esp.h }, e) + '</div>').join('') : '') + sugHTML(SUG, 'data-sug') + '</section>' : '')
           + '<details class="plegable"><summary><span>Nombre y notas (opcional)</span></summary><div class="pl-c"><label class="campo">Nombre<input id="pl-nom" maxlength="80" placeholder="ej. Clienta nueva · cubierta + 2 mesas" value="' + esc(pl.nombre) + '"></label><label class="campo">Notas<textarea id="pl-nota" maxlength="800" placeholder="ej. qué piedra ofrecerle, cuándo llamarle">' + esc(pl.nota) + '</textarea></label></div></details>'
           + '<button class="b negro grande" id="pl-ok">Guardar</button>';
         const leer = () => { if ($('#pl-p')) pl.piedra = $('#pl-p').value.trim() || OTRA; pl.nombre = $('#pl-nom').value.trim(); pl.nota = $('#pl-nota').value; nomL = $('#pl-nl').value.trim(); leerPide($('#pl-pide'), q); };
-        $$('[data-q]').forEach(g => g.onclick = ev => { const b = ev.target.closest('[data-v]'); if (!b) return; leer(); if (g.dataset.q === 'forma') q.forma = b.dataset.v; else pl[g.dataset.q] = b.dataset.v; pintar(); });
+        $$('[data-q]').forEach(g => g.onclick = ev => { const b = ev.target.closest('[data-v]'); if (!b) return; leer(); if (['tipo', 'partes'].includes(g.dataset.q)) { q[g.dataset.q] = b.dataset.v; if (g.dataset.q === 'tipo') { if (b.dataset.v !== 'cub') q.forma = b.dataset.v; else if (!num(q.h)) q.h = '60'; } } else pl[g.dataset.q] = b.dataset.v; pintar(); });
         $$('[data-plp]').forEach(b => b.onclick = () => { leer(); const x = pend[+b.dataset.plp];
           if (enPlan(x)) pl.piezas = pl.piezas.filter(z => !(z.pedido === x.p.id && (z.gi || 0) === x.g.gi));
           else x.g.reqs.forEach(rq => pl.piezas.push({ n: X.M().nomPedido(x.p).replace(/ #\d+$/, ''), pedido: x.p.id, gi: x.g.gi, forma: rq.forma, d: num(rq.d) || null, w: num(rq.w) || null, h: num(rq.h) || null, cant: num(rq.cant) || 1 }));
           if (!limpiaP(pl.piedra) && x.g.color) pl.piedra = (catDe(x.g.color) || [])[1] || x.g.color; pintar(); });
-        $('#pl-add').onclick = () => { leer(); const rq = reqDe(q); if (!rq.length) return X.aviso('Escribe la medida.', true); pl.piezas.push({ n: nomL || 'Pieza', forma: rq[0].forma, d: num(rq[0].d) || null, w: num(rq[0].w) || null, h: num(rq[0].h) || null, cant: rq[0].cant }); q = { forma: q.forma, d: '', w: '', h: '', cant: '1' }; pintar(); };
+        $('#pl-add').onclick = () => { leer();
+          if (q.tipo === 'cub') { const L = cmL(q.w), F = num(q.h) || 60, cant = Math.max(1, Math.floor(num(q.cant) || 1)); if (!(L > 0)) return X.aviso('Escribe el largo de la cubierta.', true); if (F > PLACA().h - 2 * CFG.refilado) return X.aviso('El fondo máximo es ' + (PLACA().h - 2 * CFG.refilado) + ' cm.', true);
+            pl.piezas.push({ n: nomL || 'Cubierta', tipo: 'cub', forma: 'rect', w: L, h: F, partes: q.partes || 'max', cant }); q = Object.assign({}, q, { w: '', cant: '1' }); X.aviso('Cubierta agregada: ' + partesTxt(L, q.partes)); pintar(); return; }
+          const rq = reqDe(q); if (!rq.length) return X.aviso('Escribe la medida.', true); pl.piezas.push({ n: nomL || 'Pieza', forma: rq[0].forma, d: num(rq[0].d) || null, w: num(rq[0].w) || null, h: num(rq[0].h) || null, cant: rq[0].cant }); q = { forma: q.forma, d: '', w: '', h: '', cant: '1' }; pintar(); };
         $$('[data-plx]').forEach(b => b.onclick = () => { leer(); pl.piezas.splice(+b.dataset.plx, 1); pintar(); });
+        $$('[data-sug]').forEach(b => b.onclick = () => { leer(); const s = SUG[+b.dataset.sug], red = s.forma === 'red'; pl.piezas.push({ n: 'Para ofrecer', forma: s.forma, d: red ? s.w : null, w: red ? null : s.w, h: red ? null : s.h, cant: 1 }); X.aviso('Agregada: ' + s.t); pintar(); });
+        $$('#pl-pide input').forEach(i => i.addEventListener('change', () => { leer(); pintar(); }));
         $$('#pl-nom, #pl-nota, #pl-nl').forEach(i => i.addEventListener('input', leer));
         $('#pl-ok').onclick = async () => {
           leer(); if (!pl.piezas.length) return X.aviso('Agrega al menos una pieza.', true);
           const pi = limpiaP(pl.piedra) || 'Por definir', nombre = (pl.nombre || ([...new Set(pl.piezas.map(z => z.n))].join(' + ') + ' · ' + pi)).slice(0, 80);
-          const x = { nombre, piedra: pi.slice(0, 40), piezas: pl.piezas.map(z => ({ n: String(z.n || 'Pieza').slice(0, 40), pedido: z.pedido || null, gi: z.pedido ? (z.gi || 0) : null, forma: z.forma === 'red' ? 'red' : 'rect', d: num(z.d) || null, w: num(z.w) || null, h: num(z.h) || null, cant: Math.max(1, num(z.cant) || 1) })), nota: (pl.nota || '').slice(0, 800) || null, fuente: null, estado: null, pct: null };
+          const x = { nombre, piedra: pi.slice(0, 40), piezas: pl.piezas.map(z => ({ n: String(z.n || 'Pieza').slice(0, 40), pedido: z.pedido || null, gi: z.pedido ? (z.gi || 0) : null, forma: z.forma === 'red' ? 'red' : 'rect', d: num(z.d) || null, w: num(z.w) || null, h: num(z.h) || null, cant: Math.max(1, num(z.cant) || 1), tipo: z.tipo === 'cub' ? 'cub' : null, partes: z.tipo === 'cub' ? (z.partes || 'max') : null })), nota: (pl.nota || '').slice(0, 800) || null, fuente: null, estado: null, pct: null };
           let nuevo = id;
           await X.guardarYa(async () => { if (id) await A.nodoCambia('dinero/planes/' + id, x); else nuevo = await A.nodoAgrega('dinero/planes', x); }, 'Planeación guardada', (id ? 'Cambió' : 'Guardó') + ' planeación: ' + nombre);
           delete BORR[llave]; if (nuevo) location.hash = '#piedras/plan=' + nuevo;

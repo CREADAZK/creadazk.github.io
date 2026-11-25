@@ -442,9 +442,12 @@
     if (e === 'instalar') return hoja('Activar avisos en el iPhone', '<ol class="pasos-ins"><li>Abre <b>dkas.mx/taller.html</b> en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> (el cuadrito con la flecha ↑).</li><li>Elige <b>"Agregar a inicio"</b> y luego <b>Agregar</b>.</li><li>Abre el panel desde el ícono nuevo <b>DKAS</b> de tu pantalla.</li><li>Vuelve a tocar <b>Activar avisos</b> y acepta.</li></ol><p class="nota">Apple solo deja mandar avisos a las apps que están en la pantalla de inicio.</p>', () => {});
     if (e === 'bloqueado') return hoja('Avisos bloqueados', '<p class="nota">El iPhone tiene bloqueados los avisos del panel. Ve a <b>Ajustes → Notificaciones → DKAS</b> y activa "Permitir notificaciones". Luego vuelve aquí.</p>', () => {});
     if (e === 'no') return aviso('Este navegador no permite avisos', true);
+    // el iPhone solo muestra la pregunta si se pide en el mismo toque, antes de cualquier espera
+    const pidiendo = Notification.permission === 'granted' ? Promise.resolve('granted') : Notification.requestPermission();
     try {
+      const perm = await pidiendo;
+      if (perm !== 'granted') { if (perm === 'denied') hoja('Avisos bloqueados', '<p class="nota">El iPhone guardó que no quieres avisos del panel. Para activarlos: <b>Ajustes del iPhone → Notificaciones → DKAS → Permitir notificaciones</b>. Luego vuelve aquí y toca Activar otra vez.</p>', () => {}); else aviso('No salió la pregunta. Toca Activar otra vez.', true); return; }
       const reg = await navigator.serviceWorker.register('panel-sw.js'); await navigator.serviceWorker.ready;
-      const perm = await Notification.requestPermission(); if (perm !== 'granted') { aviso('No se activaron los avisos', true); return ruta(); }
       let sub = await reg.pushManager.getSubscription(); if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID) });
       const id = ab64(new TextEncoder().encode(sub.endpoint).slice(-24)).replace(/[^A-Za-z0-9_-]/g, '').slice(-30) || String(Date.now());
       await A.nodoPon('dinero/push/subs/' + id, { endpoint: sub.endpoint, p256dh: ab64(sub.getKey('p256dh')), auth: ab64(sub.getKey('auth')), quien: me.nombre || '', equipo: esIOS() ? 'iPhone' : 'Computadora', creado: Date.now() });

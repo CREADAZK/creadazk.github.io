@@ -33,7 +33,7 @@
     FORMAS: ['Rectangular', 'Cuadrada', 'Redonda', 'Ovalada', 'Irregular'],
     TIPOS: ['Comedor', 'Exterior', 'Centro', 'Lateral', 'Escritorio', 'Periquera', 'Otra'],
     MATERIALES: ['Piedra sinterizada', 'Mármol', 'Granito', 'Cuarzo', 'Otro'],
-    PIEDRAS: ['Taj Mahal', 'Mont Blanc', 'Statuario', 'Peacock', 'Cardenaskin', 'Classic Bulgar', 'Bulgaria Dark Grey', 'Saloran Grey', 'Travertine', 'Pure White', 'Limestone', 'Otra'],
+    PIEDRAS: ['Statuario', 'Mont Blanc', 'Pure White', 'Taj Mahal Light', 'Classic Bulgar', 'Peacock', 'Cardenaskin', 'Travertine', 'Limestone Cream', 'Saloran Grey', 'Bulgaria Dark Grey', 'Otra'], // las 11 del catálogo DKAS
     ACABADOS: ['Mate', 'Brillante', 'Texturizado'], CANTOS: ['Recto', 'Biselado', 'Ala de avión', 'Otro'], SINO: ['Sí', 'No'],
     BASES: ['Patas rectas', 'En U', 'En X', 'Patas inclinadas', 'Pedestal central', 'Doble pedestal', 'Geométrica', 'Circular', 'Tipo araña', 'Otra'],
     METODOS: ['Efectivo', 'Transferencia', 'Tarjeta'],
@@ -724,7 +724,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     const arr = v => Array.isArray(v) ? v.filter(x => x != null) : v && typeof v === 'object' ? Object.values(v) : [];
     const hist = () => Object.entries(X.D().piedraHist || {}).map(([id, x]) => Object.assign({ id }, x, { quedan: arr(x.quedan), cortadas: arr(x.cortadas) })).sort((a, b) => (b.creado || 0) - (a.creado || 0));
     const pieza = id => todas().find(s => s.id === id);
-    const colores = () => { const s = new Set(); todas().forEach(x => x.piedra && s.add(x.piedra)); ['Negra', 'Dark grey', 'Blanca veteada', 'Taj Mahal', 'Statuario', 'Calacatta'].forEach(c => s.add(c)); return [...s]; };
+    // las 11 piedras del catálogo DKAS (mismos nombres y fotos que dkas.mx: img/piedras/<id>.jpg) · placa 320 × 160
+    const CAT = [['statuario', 'Statuario', '#ecebe8', '#111'], ['mont-blanc', 'Mont Blanc', '#cfc8bb', '#111'], ['pure-white', 'Pure White', '#f3f2ee', '#111'], ['taj-mahal-light', 'Taj Mahal Light', '#e8dcc6', '#111'],
+      ['classic-bulgar', 'Classic Bulgar', '#e6e1dc', '#111'], ['peacock', 'Peacock', '#dfe0e2', '#111'], ['cardenaskin', 'Cardenaskin', '#eee5d6', '#111'], ['travertine', 'Travertine', '#d8c7a8', '#111'],
+      ['limestone-cream', 'Limestone Cream', '#ddd2bd', '#111'], ['saloran-grey', 'Saloran Grey', '#8f8a84', '#fff'], ['bulgaria-dark-grey', 'Bulgaria Dark Grey', '#3d3d3f', '#fff']];
+    const catDe = n => { n = sinAc(n); if (!n) return null; return CAT.find(c => sinAc(c[1]) === n) || CAT.find(c => n.includes(sinAc(c[1])) || sinAc(c[1]).includes(n)) || null; };
+    const PROPIAS = ['Negra'];
+    const extrasStock = () => [...new Set(todas().map(x => x.piedra).filter(p => p && !catDe(p) && !PROPIAS.some(q => mismoColor(q, p))))];
+    const colores = () => CAT.map(c => c[1]).concat(extrasStock());
+    const OTRA = '__otra', limpiaP = v => v === OTRA ? '' : String(v || '').trim();
+    // botones de piedra con su muestra; conOtra = botón "Otra…" (abre el campo para escribir)
+    const chipsPiedra = (k, val, op) => { op = op || {}; const ex = extrasStock();
+      return '<div class="chips pied" data-q="' + k + '">' + (op.cualquiera ? '<button type="button" data-v=""' + (!val ? ' class="on"' : '') + '>Cualquiera</button>' : '')
+        + CAT.map(([id, n]) => '<button type="button" data-v="' + esc(n) + '"' + (catDe(val) && catDe(val)[1] === n ? ' class="on"' : '') + '><img src="img/piedras/' + id + '.jpg" alt="" loading="lazy">' + esc(n) + '</button>').join('')
+        + PROPIAS.map(n => '<button type="button" data-v="' + esc(n) + '"' + (mismoColor(val, n) && !catDe(val) ? ' class="on"' : '') + '><i class="sw" style="background:' + tono(n)[0] + '"></i>' + esc(n) + '</button>').join('')
+        + ex.map(n => '<button type="button" data-v="' + esc(n) + '"' + (val === n ? ' class="on"' : '') + '><i class="sw" style="background:' + tono(n)[0] + '"></i>' + esc(n) + ' <small>(otra)</small></button>').join('')
+        + (op.conOtra ? '<button type="button" data-v="' + OTRA + '"' + (val === OTRA ? ' class="on"' : '') + '>Otra…</button>' : '') + '</div>'; };
+    const otraAbierta = v => v === OTRA || (!!v && !catDe(v) && !PROPIAS.includes(v) && !extrasStock().includes(v));
     const espacio = s => ({ tipo: s.tipo === 'placa' ? 'placa' : 'retazo', id: s.id, w: num(s.w), h: num(s.h) });
     const tipoTxt = s => s.tipo === 'placa' ? 'Placa completa' : 'Pedazo';
     const nomPieza = s => (s.piedra || 'Piedra') + ' · ' + r1(num(s.w)) + '×' + r1(num(s.h));
@@ -743,10 +759,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     const alcanza = s => (X.piezas() || []).map(p => ({ et: K.etiqueta(p), n: cuantas(s, { forma: p.forma === 'red' ? 'red' : 'rect', d: p.d, w: p.w, h: p.h }) })).filter(x => x.n > 0);
 
     // ---------- dibujo de una piedra con sus piezas (SVG) ----------
-    const tono = c => { c = sinAc(c); return /negr|black|nero|dark negra/.test(c) ? ['#2a2a2c', '#f2f2f2'] : /grey|gris|gray/.test(c) ? ['#6e6f73', '#fff'] : /blanc|white|statuar|calacat|carrara|taj/.test(c) ? ['#ecebe7', '#111'] : ['#b9b2a6', '#111']; };
+    const tono = c => { const k = catDe(c); if (k) return [k[2], k[3], k[0]]; c = sinAc(c); return /negr|black|nero|dark negra/.test(c) ? ['#2a2a2c', '#f2f2f2'] : /grey|gris|gray/.test(c) ? ['#6e6f73', '#fff'] : /blanc|white|statuar|calacat|carrara|taj/.test(c) ? ['#ecebe7', '#111'] : ['#b9b2a6', '#111']; };
     function dibujo(s, r, op) {
-      op = op || {}; const W = num(s.w), H = num(s.h), [bg, fg] = tono(s.piedra), fs = Math.max(5, Math.min(W, H) / 9);
-      let h = '<svg class="pz-svg" viewBox="-2 -2 ' + (W + 4) + ' ' + (H + 4) + '" role="img" aria-label="' + esc(nomPieza(s)) + '"><rect x="0" y="0" width="' + W + '" height="' + H + '" rx="1.5" fill="' + bg + '" stroke="#111" stroke-width="0.6"/>';
+      op = op || {}; const W = num(s.w), H = num(s.h), [bg, fg, cid] = tono(s.piedra), fs = Math.max(5, Math.min(W, H) / 9), pid = 'pt' + Math.random().toString(36).slice(2, 8);
+      // piedra del catálogo: se pinta con su foto (textura real); si no, con su tono
+      let h = '<svg class="pz-svg' + (fg === '#fff' ? ' oscura' : '') + '" viewBox="-2 -2 ' + (W + 4) + ' ' + (H + 4) + '" role="img" aria-label="' + esc(nomPieza(s)) + '">' + (cid ? '<defs><pattern id="' + pid + '" patternUnits="userSpaceOnUse" width="' + W + '" height="' + H + '"><rect width="' + W + '" height="' + H + '" fill="' + bg + '"/><image href="img/piedras/' + cid + '.jpg" width="' + W + '" height="' + H + '" preserveAspectRatio="xMidYMid slice"/></pattern></defs>' : '')
+        + '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="1.5" fill="' + (cid ? 'url(#' + pid + ')' : bg) + '" stroke="#111" stroke-width="0.6"/>';
       if (r) {
         (r.libres || []).forEach(l => { const sob = l.w >= CFG.minSob && l.h >= CFG.minSob; h += '<rect x="' + l.x + '" y="' + l.y + '" width="' + l.w + '" height="' + l.h + '" fill="' + (sob ? 'rgba(52,199,89,.28)' : 'rgba(255,255,255,.12)') + '" stroke="' + (sob ? '#34c759' : 'none') + '" stroke-width="0.8" stroke-dasharray="3 2"/>' + (sob && l.w >= 24 && l.h >= 12 ? '<text x="' + (l.x + l.w / 2) + '" y="' + (l.y + l.h / 2) + '" font-size="' + Math.min(fs, l.h / 2.6, l.w / 6) + '" fill="' + fg + '" text-anchor="middle" dominant-baseline="middle">queda ' + r1(l.w) + '×' + r1(l.h) + '</text>' : ''); });
         r.puestas.forEach(p => {
@@ -791,17 +809,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       const m2 = disp.reduce((a, s) => a + num(s.w) * num(s.h), 0) / 1e4, valor = placas.reduce((a, s) => a + (num(s.costo) || P.C.placa.precio), 0);
       const por = {}; disp.forEach(s => { (por[s.piedra || 'Sin nombre'] = por[s.piedra || 'Sin nombre'] || []).push(s); });
       X.main().innerHTML = X.tit('Piedras', 'Placas y pedazos que tenemos', '<div class="tit-b"><button class="b negro" id="pz-add">＋ Agregar piedra</button></div>') + tabs('')
+        + alertasHTML()
         + '<section class="caja busca"><h2>¿Tengo piedra para…?</h2><div id="pz-q"></div><div id="pz-r"></div></section>'
         + '<section class="kpis cuatro">' + X.kpi('Placas completas', String(placas.length), '', placas.length ? 'valen ' + pesos(valor) : 'ninguna') + X.kpi('Pedazos', String(ped.length), '', 'sobrantes y retazos') + X.kpi('Piedra guardada', m2.toFixed(2) + ' m²', '', disp.length + ' en total') + X.kpi('Ya usadas', String(usadas().length), '', 'en el historial', '#piedras/historial') + '</section>'
         + (Object.keys(por).length ? Object.entries(por).sort((a, b) => b[1].length - a[1].length).map(([c, l]) => '<section class="caja"><div class="caja-t"><h2>' + esc(c) + '</h2><span class="sub">' + l.length + '</span></div><div class="pzs">' + l.sort((a, b) => (b.tipo === 'placa') - (a.tipo === 'placa') || num(b.w) * num(b.h) - num(a.w) * num(a.h)).map(s => tarjeta(s)).join('') + '</div></section>').join('')
           : '<section class="caja">' + X.vacioTxt('Todavía no hay piedras. Toca “＋ Agregar piedra” y registra tu primera placa con su foto.') + '</section>')
         + (usadas().length ? X.plegable('Ya usadas', usadas().length + '', '<div class="pzs">' + usadas().sort((a, b) => (b.usadoFecha || '').localeCompare(a.usadoFecha || '')).map(s => tarjeta(s)).join('') + '</div>') : '');
-      $('#pz-add').onclick = () => agregar();
+      $('#pz-add').onclick = () => agregar(); enlazarAlertas();
       pintarBusca(); pintarFotos(X.main());
     }
     function pintarBusca() {
       const box = $('#pz-q'); if (!box) return;
-      box.innerHTML = pideH(qB, 'pz-pide') + '<div class="campo">Color' + chipsH('color', [['', 'Cualquiera']].concat(colores().map(c => [c, c])), qB.color) + '</div>';
+      box.innerHTML = pideH(qB, 'pz-pide') + '<div class="campo">Piedra' + chipsPiedra('color', qB.color, { cualquiera: true }) + '</div>';
       const out = () => {
         try { localStorage.setItem('dkas-pz-busca', JSON.stringify(qB)); } catch (e) {}
         const reqs = reqDe(qB), r = $('#pz-r'); if (!r) return;
@@ -825,19 +844,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       X.hoja(s0.id ? 'Editar piedra' : 'Agregar piedra', '<div id="ag"></div>', h => {
         const pintar = () => {
           $('#ag', h).innerHTML = (s0.id ? '' : '<div class="campo">¿Qué es?' + chipsH('tipo', [['placa', 'Placa completa', '320 × 160 nueva'], ['sobrante', 'Pedazo', 'sobrante o retazo']], d.tipo, 'grandes') + '</div>')
-            + '<div class="campo">Piedra / color' + chipsH('piedra', colores().map(c => [c, c]), d.piedra) + '<input id="ag-p" maxlength="40" placeholder="O escribe el nombre, ej. Negra, Dark grey" value="' + esc(d.piedra) + '"></div>'
+            + '<div class="campo">¿Qué piedra es?' + chipsPiedra('piedra', d.piedra, { conOtra: true }) + (otraAbierta(d.piedra) ? '<input id="ag-p" maxlength="40" placeholder="Nombre de la piedra" value="' + esc(limpiaP(d.piedra)) + '">' : '') + '</div>'
             + '<div class="campo">Medida (cm)<div class="tres-i"><input id="ag-w" inputmode="decimal" placeholder="Largo" value="' + esc(d.w) + '"><input id="ag-h" inputmode="decimal" placeholder="Ancho" value="' + esc(d.h) + '">' + (s0.id ? '' : '<input id="ag-n" inputmode="numeric" placeholder="Cuántas" value="' + esc(d.cant) + '">') + '</div>'
               + (d.tipo === 'placa' ? '<small class="nota">Placa normal: 320 × 160. Si compraste varias iguales, pon cuántas.</small>' : '<small class="nota">Mide el pedazo rectangular que sí se puede usar.</small>') + '</div>'
             + '<div class="dos-i"><label class="campo">' + (d.tipo === 'placa' ? 'Lo que costó (cada una)' : 'Valor (opcional)') + '<input id="ag-c" inputmode="decimal" placeholder="$0" value="' + esc(d.costo) + '"></label><label class="campo">Proveedor (opcional)<input id="ag-pr" maxlength="40" placeholder="ej. Jaime, Quarmol" value="' + esc(d.proveedor) + '"></label></div>'
             + '<div class="dos-i"><label class="campo">Fecha<input id="ag-f" type="date" value="' + esc(d.fecha) + '"></label><label class="campo">Nota (opcional)<input id="ag-no" maxlength="80" value="' + esc(d.nota) + '"></label></div>'
             + '<div class="campo">Foto' + (d.foto ? '<img class="ag-foto" src="' + d.foto + '" alt="">' : s0.foto ? '<p class="nota">Ya tiene foto. Elige otra solo si la quieres cambiar.</p>' : '') + '<label class="b grande foto-b">📷 ' + (d.foto || s0.foto ? 'Cambiar foto' : 'Tomar o elegir foto') + '<input id="ag-foto" type="file" accept="image/*" hidden></label></div>'
             + '<button class="b negro grande" id="ag-ok">' + (s0.id ? 'Guardar cambios' : 'Guardar en mis piedras') + '</button>' + (s0.id ? '<button class="b rojo" id="ag-b">Borrar esta piedra</button>' : '');
-          const leer = () => { d.piedra = $('#ag-p', h).value.trim(); d.w = $('#ag-w', h).value; d.h = $('#ag-h', h).value; if ($('#ag-n', h)) d.cant = $('#ag-n', h).value; d.costo = $('#ag-c', h).value; d.proveedor = $('#ag-pr', h).value.trim(); d.fecha = $('#ag-f', h).value || hoy(); d.nota = $('#ag-no', h).value.trim(); };
+          const leer = () => { if ($('#ag-p', h)) d.piedra = $('#ag-p', h).value.trim() || OTRA; d.w = $('#ag-w', h).value; d.h = $('#ag-h', h).value; if ($('#ag-n', h)) d.cant = $('#ag-n', h).value; d.costo = $('#ag-c', h).value; d.proveedor = $('#ag-pr', h).value.trim(); d.fecha = $('#ag-f', h).value || hoy(); d.nota = $('#ag-no', h).value.trim(); };
           $$('[data-q]', h).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leer(); d[g.dataset.q] = b.dataset.v; if (g.dataset.q === 'tipo') { if (d.tipo === 'placa') { d.w = PLACA().w; d.h = PLACA().h; d.costo = P.C.placa.precio; } else { d.w = ''; d.h = ''; d.costo = ''; } } pintar(); });
           $('#ag-foto', h).onchange = async e => { const f = e.target.files && e.target.files[0]; if (!f) return; leer(); try { X.aviso('Preparando foto…'); d.foto = await achicar(f); pintar(); } catch (er) { X.aviso(er.message, true); } };
           $('#ag-ok', h).onclick = async () => {
             leer(); const w = num(d.w), hh = num(d.h), n = s0.id ? 1 : Math.max(1, Math.min(20, Math.floor(num(d.cant) || 1)));
-            if (!d.piedra) return X.aviso('Escribe qué piedra es (color o nombre).', true);
+            if (!limpiaP(d.piedra)) return X.aviso('Elige qué piedra es.', true); d.piedra = limpiaP(d.piedra);
             if (!(w >= 5 && hh >= 5)) return X.aviso('Escribe la medida (largo y ancho en cm).', true);
             if (w > 400 || hh > 400) return X.aviso('Esa medida es muy grande. Revisa: va en centímetros.', true);
             const W_ = Math.max(w, hh), H_ = Math.min(w, hh);
@@ -918,7 +937,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
               const u = {}, me = X.me().nombre || '', ids = [], f = hoy(), pre_ = 'dinero/sobrantes/' + s.id + '/';
               sob.forEach(x => { const id = nid('pz'); ids.push(id); u['dinero/sobrantes/' + id] = { piedra: s.piedra || 'Sin nombre', w: Math.max(x.w, x.h), h: Math.min(x.w, x.h), tipo: 'sobrante', origen: s.id, fecha: f, estado: 'disponible', nota: 'Quedó al cortar ' + cort + (pn ? ' (' + pn + ')' : '') + ' de ' + nomPieza(s), por: me, creado: TS }; });
               u[pre_ + 'estado'] = 'usado'; u[pre_ + 'usadoEn'] = (cort + (pn ? ' · ' + pn : '')).slice(0, 120); u[pre_ + 'usadoFecha'] = f; u[pre_ + 'editado'] = TS;
-              u['dinero/piedraHist/' + nid('h')] = { accion: 'Corte', fecha: f, pieza: s.id, piedra: s.piedra || '', pedido: pedido || null, cortadas: reqs.map(x => (num(x.cant) > 1 ? num(x.cant) + '× ' : '') + (x.nombre ? x.nombre + ' ' : '') + medTxt(x)), quedan: ids.length ? ids : null,
+              u['dinero/piedraHist/' + nid('h')] = { accion: 'Corte', fecha: f, pieza: s.id, piedra: s.piedra || '', pedido: pedido || null, grupos: pedido && pedido === pre.pedido && pre.grupos ? pre.grupos : null, cortadas: reqs.map(x => (num(x.cant) > 1 ? num(x.cant) + '× ' : '') + (x.nombre ? x.nombre + ' ' : '') + medTxt(x)), quedan: ids.length ? ids : null,
                 detalle: 'De ' + tipoTxt(s).toLowerCase() + ' ' + nomPieza(s) + ' se cortó ' + cort + (pn ? ' para ' + pn : '') + '. Quedó: ' + (sob.length ? sob.map(x => x.w + '×' + x.h).join(', ') : 'nada que sirva'), por: me, creado: TS };
               await A.nodoVarios(u);
             }, 'Cortado: quedan ' + sob.length + ' pedazo(s) en tus piedras', 'Cortó ' + cort + ' de ' + nomPieza(s) + (pn ? ' · ' + pn : ''));
@@ -978,7 +997,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       const forma = q.forma, w = num(q.w), h = forma === 'red' ? w : num(q.h), cant = Math.max(1, Math.floor(num(q.cant) || 1));
       const r = P.cotizar({ uso: q.uso, forma, w, h, cant }); if (r.error) return r;
       const req = [{ forma: forma === 'red' ? 'red' : 'rect', d: w, w, h, cant }]; // ovalada/orgánica: su rectángulo
-      const st = buscar(req, q.piedra), m = r.m, conStock = st.length && st[0].color ? st[0] : null;
+      const st = buscar(req, limpiaP(q.piedra)), m = r.m, conStock = st.length && st[0].color ? st[0] : null;
       r.stock = st; r.conStock = conStock; r.costoTotal = m.costo * cant; r.costoStock = (m.costo - m.piedra) * cant;
       r.alto = num(q.alto) || m.alto; r.req = req;
       return r;
@@ -995,12 +1014,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       const box = $('#qc'); if (!box) return;
       box.innerHTML = '<div class="campo">¿Qué mesa?' + chipsH('uso', USOS, qc.uso) + '</div><div class="campo">Forma' + chipsH('forma', FORMAS, qc.forma) + '</div>'
         + '<div class="campo">Medidas (cm)<div class="tres-i"><input data-k="w" inputmode="decimal" placeholder="' + (qc.forma === 'red' ? 'Diámetro' : 'Largo') + '" value="' + esc(qc.w) + '">' + (qc.forma === 'red' ? '' : '<input data-k="h" inputmode="decimal" placeholder="Ancho" value="' + esc(qc.h) + '">') + '<input data-k="alto" inputmode="decimal" placeholder="Alto (' + (P.ALTO[qc.uso] || 75) + ')" value="' + esc(qc.alto) + '"><input data-k="cant" inputmode="numeric" placeholder="Cuántas" value="' + esc(qc.cant) + '"></div></div>'
-        + '<div class="campo">Piedra' + chipsH('piedra', colores().map(c => [c, c]), qc.piedra) + '<input data-k="piedra" maxlength="40" placeholder="O escribe el color" value="' + esc(qc.piedra) + '"></div>';
+        + '<div class="campo">Piedra' + chipsPiedra('piedra', qc.piedra, { conOtra: true }) + (otraAbierta(qc.piedra) ? '<input data-k="piedra" maxlength="40" placeholder="Nombre de la piedra" value="' + esc(limpiaP(qc.piedra)) + '">' : '') + '</div>';
       $$('[data-q]', box).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leerQC(box); qc[g.dataset.q] = b.dataset.v; pintarQC(); });
       $$('[data-k]', box).forEach(i => i.oninput = () => { leerQC(box); resultadoQC(); });
       resultadoQC();
     }
-    const leerQC = box => { $$('[data-k]', box).forEach(i => { qc[i.dataset.k] = i.dataset.k === 'piedra' ? i.value : i.value.replace(/[^\d.,]/g, '').replace(',', '.'); }); };
+    const leerQC = box => { $$('[data-k]', box).forEach(i => { qc[i.dataset.k] = i.dataset.k === 'piedra' ? (i.value.trim() || OTRA) : i.value.replace(/[^\d.,]/g, '').replace(',', '.'); }); };
     function resultadoQC() {
       try { localStorage.setItem('dkas-pz-coti', JSON.stringify(qc)); } catch (e) {}
       const out = $('#qc-r'); if (!out) return;
@@ -1021,7 +1040,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       $('#qc-cli').onclick = () => { const b = borrador(); b.items.push(itemDe(qc, r)); guardarBorrador(b); location.hash = '#piedras/cliente'; X.aviso('Agregada a la cotización'); };
       $('#qc-ped').onclick = () => aPedido([itemDe(qc, r)], {}, r.total);
     }
-    const itemDe = (q, r) => ({ uso: q.uso, forma: q.forma, w: num(q.w), h: q.forma === 'red' ? num(q.w) : num(q.h), alto: r.alto, piedra: (q.piedra || '').trim(), base: '', cant: r.cant, precio: r.m.precio, auto: r.m.precio, desc: descDe(q.uso, q.forma, num(q.w), q.forma === 'red' ? num(q.w) : num(q.h), r.alto, q.piedra, '') });
+    const itemDe = (q, r) => ({ uso: q.uso, forma: q.forma, w: num(q.w), h: q.forma === 'red' ? num(q.w) : num(q.h), alto: r.alto, piedra: limpiaP(q.piedra), base: '', cant: r.cant, precio: r.m.precio, auto: r.m.precio, desc: descDe(q.uso, q.forma, num(q.w), q.forma === 'red' ? num(q.w) : num(q.h), r.alto, limpiaP(q.piedra), '') });
     const descDe = (uso, forma, w, h, alto, piedra, base) => 'Mesa ' + ({ comedor: 'de comedor', centro: 'de centro', lateral: 'lateral', periquera: 'periquera', consola: 'consola', escritorio: 'escritorio' }[uso] || '') + ' ' + nomForma(forma) + ' ' + (forma === 'red' ? 'Ø ' + w + ' cm' : w + ' × ' + h + ' cm') + (alto ? ', ' + alto + ' cm de alto' : '') + '. Cubierta de piedra sinterizada 12 mm' + (piedra ? ' ' + piedra.trim() : '') + (base ? '. Base: ' + base : '') + '.';
 
     // ================= COTIZACIÓN AL CLIENTE (PDF) =================
@@ -1094,16 +1113,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
           const ok = num(q.w) && (q.forma === 'red' || num(q.h)), r = ok ? calcula(q) : null;
           $('#mn', h).innerHTML = '<div class="campo">¿Qué mesa?' + chipsH('uso', USOS, q.uso) + '</div><div class="campo">Forma' + chipsH('forma', FORMAS, q.forma) + '</div>'
             + '<div class="campo">Medidas (cm)<div class="tres-i"><input data-k="w" inputmode="decimal" placeholder="' + (q.forma === 'red' ? 'Diámetro' : 'Largo') + '" value="' + esc(q.w) + '">' + (q.forma === 'red' ? '' : '<input data-k="h" inputmode="decimal" placeholder="Ancho" value="' + esc(q.h) + '">') + '<input data-k="alto" inputmode="decimal" placeholder="Alto (' + (P.ALTO[q.uso] || 75) + ')" value="' + esc(q.alto) + '"><input data-k="cant" inputmode="numeric" placeholder="Cuántas" value="' + esc(q.cant) + '"></div></div>'
-            + '<div class="campo">Piedra' + chipsH('piedra', colores().map(c => [c, c]), q.piedra) + '<input data-k="piedra" maxlength="40" placeholder="O escribe el color" value="' + esc(q.piedra) + '"></div>'
+            + '<div class="campo">Piedra' + chipsPiedra('piedra', q.piedra, { conOtra: true }) + (otraAbierta(q.piedra) ? '<input data-k="piedra" maxlength="40" placeholder="Nombre de la piedra" value="' + esc(limpiaP(q.piedra)) + '">' : '') + '</div>'
             + '<label class="campo">Base (opcional)<input data-k="base" maxlength="60" placeholder="ej. estructura oro mate" value="' + esc(q.base) + '"></label>'
             + (r ? (r.error ? '<p class="aviso r">' + esc(r.error) + '</p>' : '<div class="vivo"><div>Precio c/u<b>' + pesos(r.m.precio) + '</b></div><div>Costo<b>' + pesos(r.conStock ? r.m.costo - r.m.piedra : r.m.costo) + '</b></div><div>' + (r.conStock ? 'Piedra<b class="v">en stock ✓</b>' : 'Piedra<b>hay que comprar</b>') + '</div></div>') : '')
             + '<button class="b negro grande" id="mn-ok"' + (r && !r.error ? '' : ' disabled') + '>Agregar a la cotización</button>';
           $$('[data-q]', h).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leerMN(); q[g.dataset.q] = b.dataset.v; pintar(); });
           $$('[data-k]', h).forEach(i => i.onchange = () => { leerMN(); pintar(); });
           $$('[data-k]', h).forEach(i => i.oninput = () => { leerMN(); const ok2 = num(q.w) && (q.forma === 'red' || num(q.h)); $('#mn-ok', h).disabled = !ok2; });
-          $('#mn-ok', h).onclick = () => { leerMN(); const r2 = calcula(q); if (r2.error) return X.aviso(r2.error, true); const it = itemDe(q, r2); it.base = q.base.trim(); it.desc = descDe(q.uso, q.forma, it.w, it.h, it.alto, q.piedra, it.base); X.cerrarHoja(); listo(it); };
+          $('#mn-ok', h).onclick = () => { leerMN(); const r2 = calcula(q); if (r2.error) return X.aviso(r2.error, true); const it = itemDe(q, r2); it.base = q.base.trim(); it.desc = descDe(q.uso, q.forma, it.w, it.h, it.alto, it.piedra, it.base); X.cerrarHoja(); listo(it); };
         };
-        const leerMN = () => { $$('[data-k]', h).forEach(i => { q[i.dataset.k] = ['piedra', 'base'].includes(i.dataset.k) ? i.value : i.value.replace(/[^\d.,]/g, '').replace(',', '.'); }); };
+        const leerMN = () => { $$('[data-k]', h).forEach(i => { q[i.dataset.k] = i.dataset.k === 'piedra' ? (i.value.trim() || OTRA) : i.dataset.k === 'base' ? i.value : i.value.replace(/[^\d.,]/g, '').replace(',', '.'); }); };
         pintar();
       });
     }
@@ -1179,20 +1198,80 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       return W ? [{ forma: 'rect', w: L, h: W, cant: n }] : [];
     }
     const colorPedido = p => ((p.color === 'Otra' || p.color === 'Otro') ? p.colorOtra : p.color) || '';
+    // grupos de piedra de un pedido: una mesa = un grupo; varias mesas (piezas) = un grupo por mesa, cada una con su piedra
+    function gruposPedido(p) {
+      const reqs = reqsPedido(p);
+      if ((p.piezas || []).length) return p.piezas.map((x, i) => ({ gi: i, t: (x.n || 'Mesa ' + (i + 1)) + ' ' + (num(x.w) ? num(x.w) + '×' + num(x.h) : 'Ø' + num(x.d)), color: x.piedra || colorPedido(p), reqs: [reqs[i]].filter(Boolean) })).filter(g => g.reqs.length);
+      return reqs.length ? [{ gi: 0, t: reqTxt(reqs), color: colorPedido(p), reqs }] : [];
+    }
+    // ¿este grupo todavía necesita piedra? (no se ha cortado, no se ha comprado, no lo marcaste "ya la tengo", pedido activo sin entregar)
+    function estadoGrupo(p, g) {
+      const ok = p.piedraOk || {}, multi = (p.piezas || []).length > 0, s = X.M().statsPedido(p);
+      if (ok[g.gi]) return { listo: 'Ya la tienes (marcado)' };
+      const c = hist().find(x => x.pedido === p.id && x.accion === 'Corte' && (!x.grupos || !multi || arr(x.grupos).includes(g.gi)));
+      if (c) return { listo: 'Cortada ' + fC(c.fecha) + ' de ' + (c.piedra || '') };
+      if (!multi && s.pasos[2] && s.pasos[2].done) return { listo: 'Placa comprada' };
+      return { falta: true };
+    }
+    const pedidoActivo = p => { if (p.cerrado) return false; const s = X.M().statsPedido(p); return !(s.pasos[5] && s.pasos[5].done); };
+    // ALERTAS: cruza cada pedido activo con el stock real; agrupa lo que hay que comprar por piedra y ve qué sale de una placa
+    function alertas() {
+      const L = [], faltan = [];
+      X.M().pedidos.filter(pedidoActivo).forEach(p => gruposPedido(p).forEach(g => {
+        const e = estadoGrupo(p, g); if (!e.falta) return;
+        const np = X.M().nomPedido(p), col = g.color ? ' ' + g.color.toLowerCase() : '';
+        const ap = p.stock && !(p.piezas || []).length ? pieza(p.stock) : null;
+        if (ap) {
+          if (ap.estado === 'usado') L.push({ n: 'r', p, g, t: np + ': la piedra que apartaste ya se usó', d: nomPieza(ap) + ' se usó en ' + (ap.usadoEn || 'otra cosa') + '. Busca otra o compra placa.' });
+          else if (corte(ap, g.reqs).faltan.length) L.push({ n: 'r', p, g, t: np + ': la piedra apartada NO alcanza', d: g.t + ' no cabe en ' + nomPieza(ap) + '. Revisa la medida o compra placa.' });
+          else return;
+        }
+        const l = buscar(g.reqs, g.color).filter(x => x.color);
+        if (l.length) { if (!ap) L.push({ n: 'a', p, g, s: l[0].s, t: np + ': sí hay piedra en stock', d: g.t + col + ' sale de ' + nomPieza(l[0].s) + '. Córtala para apartarla.' }); }
+        else { faltan.push({ p, g }); if (!ap) L.push({ n: 'r', p, g, t: np + ': no hay piedra que alcance', d: g.t + col + ' no cabe en ninguna piedra del stock. Hay que comprar placa.' }); }
+      }));
+      // compras: lo que falta, junto por piedra; cuántas placas de 320×160 y qué pedidos salen de cada una
+      const C_ = [];
+      faltan.forEach(f => { let c = C_.find(c => mismoColor(c.color, f.g.color)); if (!c) C_.push(c = { color: f.g.color, l: [] }); c.l.push(f); });
+      C_.forEach(c => {
+        let quedan; try { quedan = items([].concat(...c.l.map(f => f.g.reqs.map(r => Object.assign({}, r, { nombre: X.M().nomPedido(f.p) }))))); } catch (e) { quedan = []; }
+        c.placas = []; for (let i = 0; i < 8 && quedan.length; i++) { const r = K.cortarEn(quedan, { tipo: 'placa', w: PLACA().w, h: PLACA().h }, CFG); if (!r.puestas.length) break; c.placas.push(r); quedan = r.faltan; }
+        c.nombre = (catDe(c.color) || [])[1] || (/negr/.test(sinAc(c.color)) ? 'Negra' : c.color || 'Piedra');
+      });
+      return { L, compras: C_.filter(c => c.placas.length) };
+    }
+    // caja de alertas (Piedras arriba y Dashboard)
+    function alertasHTML(corta) {
+      const { L, compras } = alertas(); if (!L.length) return corta ? '' : '<section class="caja ok"><h2>✓ Piedra para todos los pedidos</h2><p class="nota">Cada pedido activo ya tiene su piedra (cortada, comprada o en stock).</p></section>';
+      const rojas = L.filter(x => x.n === 'r');
+      return '<section class="caja ' + (rojas.length ? 'mal' : 'pend') + ' alertas-pz"><div class="caja-t"><h2>⚠ Alertas de piedra</h2><span class="sub">' + L.length + '</span></div><ul class="hist">'
+        + L.map(x => '<li class="' + (x.n === 'r' ? 'h-borro' : 'h-entro') + '"><i>' + (x.n === 'r' ? '!' : '✓') + '</i><span><b><a href="#p=' + esc(x.p.id) + '">' + esc(x.t) + '</a></b><small>' + esc(x.d) + '</small></span></li>').join('') + '</ul>'
+        + compras.map((c, i) => '<div class="compra"><b>🛒 Comprar ' + c.placas.length + ' placa' + (c.placas.length > 1 ? 's' : '') + ' ' + esc(c.nombre) + ' (320 × 160)</b><p>De ' + (c.placas.length > 1 ? 'esas placas' : 'una sola placa') + ' salen: ' + esc(c.l.map(f => X.M().nomPedido(f.p) + ' · ' + f.g.t).join(' + ')) + '. Lo que sobra queda en tus piedras.</p>'
+          + (corta ? '' : '<div class="dib chico">' + dibujo({ piedra: c.nombre, w: PLACA().w, h: PLACA().h }, c.placas[0]) + '</div>') + '<button class="b chico negro" data-comprar="' + i + '">＋ Ya la compré: agregarla</button></div>').join('')
+        + (corta ? '<a class="lnk" href="#piedras">Ver en Piedras ›</a>' : '') + '</section>';
+    }
+    function enlazarAlertas() { const { compras } = alertas(); $$('[data-comprar]').forEach(b => b.onclick = () => { const c = compras[+b.dataset.comprar]; agregar(null, { tipo: 'placa', piedra: c.nombre }); }); }
     function seccionPedido(p) {
-      const H = hist().filter(x => x.pedido === p.id && x.accion === 'Corte'), reqs = reqsPedido(p);
-      if (H.length) return X.plegable('Piedra de este pedido', 'cortada ✓', '<ul class="hist">' + H.map(filaHist).join('') + '</ul>');
-      if (!reqs.length) return X.plegable('Piedra de este pedido', '', '<p class="nota">Pon las medidas del pedido y te digo si tienes piedra.</p>');
-      // por pieza (varias mesas con distintas piedras) o todo junto
-      const grupos = (p.piezas || []).length ? p.piezas.map((x, i) => ({ t: (x.n || 'Mesa ' + (i + 1)) + ' · ' + (num(x.w) ? num(x.w) + '×' + num(x.h) : 'Ø' + num(x.d)), color: x.piedra || colorPedido(p), reqs: [reqs[i]].filter(Boolean) })) : [{ t: reqTxt(reqs), color: colorPedido(p), reqs }];
-      const res = grupos.map(g => ({ g, l: buscar(g.reqs, g.color) })), hay = res.filter(x => x.l.some(y => y.color)).length;
-      const reservada = p.stock ? pieza(p.stock) : null;
-      return X.plegable('Piedra de este pedido', hay ? 'tienes para ' + hay + ' de ' + grupos.length : 'hay que comprar', (reservada && reservada.estado !== 'usado' ? '<p class="aviso">Apartaste ' + esc(nomPieza(reservada)) + ' para este pedido. <button class="b chico verde" data-pzcut="' + esc(reservada.id) + '" data-gi="-1">✂ Cortar ahora</button></p>' : '')
-        + res.map(({ g, l }, gi) => { const m = l.filter(y => y.color); return '<div class="pz-g"><b>' + esc(g.t) + (g.color ? ' · ' + esc(g.color) : '') + '</b>' + (m.length ? '<p class="ok-g">✓ Tienes: ' + esc(nomPieza(m[0].s)) + '</p><button class="b chico verde" data-pzcut="' + esc(m[0].s.id) + '" data-gi="' + gi + '">✂ Cortar de ' + esc(tipoTxt(m[0].s).toLowerCase()) + ' ' + esc(r1(num(m[0].s.w)) + '×' + r1(num(m[0].s.h))) + '</button>' : '<p class="a">No hay en stock' + (l.length ? ' de ese color (sí de otro: ' + esc(nomPieza(l[0].s)) + ')' : '') + ': hay que comprar placa.</p>') + '</div>'; }).join(''), !!hay);
+      const G = gruposPedido(p); if (!G.length) return X.plegable('Piedra de este pedido', '', '<p class="nota">Pon las medidas del pedido y te digo si tienes piedra.</p>');
+      const activo = pedidoActivo(p), ap = p.stock && !(p.piezas || []).length ? pieza(p.stock) : null;
+      const filas = G.map(g => {
+        const e = estadoGrupo(p, g), cab = '<b>' + esc(g.t) + (g.color ? ' · ' + esc(g.color) : '') + '</b>';
+        if (!e.falta) return { ok: 1, h: '<div class="pz-g">' + cab + '<p class="ok-g">✓ ' + esc(e.listo) + '</p>' + ((p.piedraOk || {})[g.gi] ? '<button class="lnk" data-pzok="' + g.gi + '">Quitar marca</button>' : '') + '</div>' };
+        const l = buscar(g.reqs, g.color), m = l.filter(y => y.color), apNo = ap && g.gi === 0 && (ap.estado === 'usado' || corte(ap, g.reqs).faltan.length);
+        return { ok: 0, h: '<div class="pz-g">' + cab + (apNo ? '<p class="aviso r">⚠ La piedra apartada (' + esc(nomPieza(ap)) + ') ' + (ap.estado === 'usado' ? 'ya se usó' : 'no alcanza') + '.</p>' : '')
+          + (m.length ? '<p class="ok-g">✓ Hay en stock: ' + esc(nomPieza(m[0].s)) + '</p><button class="b chico verde" data-pzcut="' + esc(m[0].s.id) + '" data-gi="' + g.gi + '">✂ Cortar de ' + esc(tipoTxt(m[0].s).toLowerCase()) + ' ' + esc(r1(num(m[0].s.w)) + '×' + r1(num(m[0].s.h))) + '</button>'
+            : '<p class="aviso r">⚠ No hay piedra que alcance' + (l.length ? ' de ese color (sí de otro: ' + esc(nomPieza(l[0].s)) + ')' : '') + ': hay que comprar placa. <a href="#piedras">Ver qué comprar ›</a></p>')
+          + (activo ? ' <button class="b chico" data-pzok="' + g.gi + '">Ya tengo esta piedra</button>' : '') + '</div>' };
+      });
+      const faltan = filas.filter(f => !f.ok).length;
+      return X.plegable('Piedra de este pedido', !activo ? '' : faltan ? '⚠ falta para ' + faltan + ' de ' + G.length : 'lista ✓', filas.map(f => f.h).join('') + (ap && ap.estado !== 'usado' && !corte(ap, G[0].reqs).faltan.length && estadoGrupo(p, G[0]).falta ? '<p class="aviso">Apartaste ' + esc(nomPieza(ap)) + '. <button class="b chico verde" data-pzcut="' + esc(ap.id) + '" data-gi="0">✂ Cortar ahora</button></p>' : ''), activo && faltan > 0, activo && faltan ? 'mal' : '');
     }
     function enlazarPedido(p) {
-      const reqs = reqsPedido(p), grupos = (p.piezas || []).length ? reqs.map(r => [r]) : [reqs];
-      $$('[data-pzcut]').forEach(b => b.onclick = () => { const gi = +b.dataset.gi; cortar(pieza(b.dataset.pzcut), { reqs: gi < 0 ? reqs : grupos[gi] || reqs, pedido: p.id }); });
+      const G = gruposPedido(p);
+      $$('[data-pzcut]').forEach(b => b.onclick = () => { const gi = +b.dataset.gi, g = G.find(x => x.gi === gi) || G[0]; cortar(pieza(b.dataset.pzcut), { reqs: g.reqs, pedido: p.id, grupos: [g.gi] }); });
+      $$('[data-pzok]').forEach(b => b.onclick = async () => { const gi = +b.dataset.pzok, g = G.find(x => x.gi === gi), quitar = !!(p.piedraOk || {})[gi];
+        if (!await X.clave(quitar ? 'Quitar "ya tengo la piedra"' : 'Ya tengo esta piedra', [['Pedido', X.M().nomPedido(p)], ['Mesa', g ? g.t : ''], ['Qué pasa', quitar ? 'vuelve a revisarse contra el stock' : 'ya no te avisa que falta piedra']])) return;
+        await X.guardarYa(() => A.nodoPon('dinero/pedidos/' + p.id + '/piedraOk/' + gi, quitar ? null : true), quitar ? 'Marca quitada' : 'Listo: esa piedra ya está', (quitar ? 'Quitó ' : 'Marcó ') + '"ya tengo la piedra" · ' + X.M().nomPedido(p) + ' · ' + (g ? g.t : '')); });
     }
     // en el alta del pedido (paso Cubierta): piedras del stock donde cabe esta mesa
     function stockAlta(w) {
@@ -1214,7 +1293,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       if (/^piedras\/s=/.test(h)) { const s = pieza(h.slice(10)); return s ? detalle(s) : inicio(); }
       inicio();
     }
-    return { ruta, aplicarPrecios, seccionPedido, enlazarPedido, stockAlta, agregar, cortar, pieza, buscar, reqsPedido, disponibles };
+    return { alertasHTML, enlazarAlertas, ruta, aplicarPrecios, seccionPedido, enlazarPedido, stockAlta, agregar, cortar, pieza, buscar, reqsPedido, disponibles };
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -1360,6 +1439,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       + (S.consejos.length ? plegable('💡 Consejos del socio', S.consejos.length + '', '<ul class="consejos">' + S.consejos.map(c => '<li><b>' + esc(c.t) + '</b><small>' + esc(c.d) + '</small></li>').join('') + '</ul>', true) : '')
       + (S.raros.length ? plegable('⚠ Cosas raras', S.raros.length + '', '<p class="nota">Datos que no concuerdan. Tócalos para revisarlos.</p><ul class="nocuadra">' + S.raros.map(itemNoCuadra).join('') + '</ul>', false, 'mal') : '')
       + (sem.length ? plegable('Esta semana', sem.length + '', '<ul class="agenda">' + sem.map(itemAgenda).join('') + '</ul>') : '');
+    { const al = PZ.alertasHTML(true), so = $('.socio'); if (al && so) { so.insertAdjacentHTML('afterend', al); PZ.enlazarAlertas(); } }
     $('#x-todo').onclick = () => hoja('Exportar todo', '<p class="nota">Todo lo del sistema en un archivo, para los socios.</p><button class="b negro grande" id="x-pdf">PDF</button><button class="b grande" id="x-xls">Excel</button>', h => { $('#x-pdf', h).onclick = () => { cerrarHoja(); pdfGeneral(); }; $('#x-xls', h).onclick = () => { cerrarHoja(); xlsGeneral(); }; });
     $('#ag-n').onclick = () => tarea(); $('#cuadre').onclick = () => cuadrarBanco();
     $$('[data-paso]').forEach(b => b.onclick = () => { const p = P[+b.dataset.paso]; if (!p) return; if (p.accion === 'cuadre') cuadrarBanco(); else if (p.href) location.hash = p.href; else if (p.manual) location.hash = '#v/agenda'; });

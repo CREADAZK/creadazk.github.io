@@ -33,7 +33,7 @@
     FORMAS: ['Rectangular', 'Cuadrada', 'Redonda', 'Ovalada', 'Irregular'],
     TIPOS: ['Comedor', 'Exterior', 'Centro', 'Lateral', 'Escritorio', 'Periquera', 'Otra'],
     MATERIALES: ['Piedra sinterizada', 'Mármol', 'Granito', 'Cuarzo', 'Otro'],
-    PIEDRAS: ['Taj Mahal', 'Mont Blanc', 'Statuario', 'Peacock', 'Cardenaskin', 'Classic Bulgar', 'Bulgaria Dark Grey', 'Saloran Grey', 'Travertine', 'Pure White', 'Limestone', 'Otra'],
+    PIEDRAS: ['Statuario', 'Mont Blanc', 'Pure White', 'Taj Mahal Light', 'Classic Bulgar', 'Peacock', 'Cardenaskin', 'Travertine', 'Limestone Cream', 'Saloran Grey', 'Bulgaria Dark Grey', 'Otra'], // las 11 del catálogo DKAS
     ACABADOS: ['Mate', 'Brillante', 'Texturizado'], CANTOS: ['Recto', 'Biselado', 'Ala de avión', 'Otro'], SINO: ['Sí', 'No'],
     BASES: ['Patas rectas', 'En U', 'En X', 'Patas inclinadas', 'Pedestal central', 'Doble pedestal', 'Geométrica', 'Circular', 'Tipo araña', 'Otra'],
     METODOS: ['Efectivo', 'Transferencia', 'Tarjeta'],

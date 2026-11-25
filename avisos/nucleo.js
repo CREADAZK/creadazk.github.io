@@ -51,11 +51,12 @@
     [3, 'material', 'Tipo de cubierta'], [3, 'marca', 'Marca / proveedor'], [3, 'color', 'Color de la piedra'], [3, 'acabado', 'Acabado'], [3, 'canto', 'Tipo de canto'], [3, 'espesor', 'Espesor'], [3, 'refuerzo', 'Refuerzo inferior'],
     [4, 'base', 'Diseño de la base'], [4, 'pintura', 'Color de pintura'], [4, 'pacabado', 'Acabado de pintura'], [4, 'ptipo', 'Tipo de pintura'], [4, 'niveladores', 'Niveladores'], [4, 'placasm', 'Placas de montaje'],
     [5, 'precio', 'Precio de venta'], [5, 'anticipo', 'Anticipo acordado'],
-    [6, 'c.placa', 'Costo de la placa'], [6, 'c.base', 'Costo de la base'], [6, 'c.mdf', 'Costo del MDF'], [6, 'c.flete', 'Costo de fletes'], [6, 'c.entrega', 'Costo de entrega'], [6, 'c.material', 'Costo de material']];
+    [6, 'c_placa', 'Costo de la placa'], [6, 'c_base', 'Costo de la base'], [6, 'c_mdf', 'Costo del MDF'], [6, 'c_flete', 'Costo de fletes'], [6, 'c_entrega', 'Costo de entrega'], [6, 'c_material', 'Costo de material']];
   function lleno(o, k) {
+    if ((k === 'medidas' || k === 'altura') && (o.piezas || []).length) return true;
     if (k === 'medidas') return num(o.largo) > 0 && (o.forma === 'Redonda' || num(o.ancho) > 0);
     if (k === 'precio' || k === 'altura' || k === 'espesor') return num(o[k]) > 0;
-    if (k.slice(0, 2) === 'c.') return !vacio((o.costos || {})[k.slice(2)]);
+    if (k.slice(0, 2) === 'c_' || k.slice(0, 2) === 'c.') return !vacio((o.costos || {})[k.slice(2)]);
     return !vacio(o[k]);
   }
   // pendientes de un pedido (incluye los datos de su cliente)

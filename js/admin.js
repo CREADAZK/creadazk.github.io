@@ -51,11 +51,12 @@
     [3, 'material', 'Tipo de cubierta'], [3, 'marca', 'Marca / proveedor'], [3, 'color', 'Color de la piedra'], [3, 'acabado', 'Acabado'], [3, 'canto', 'Tipo de canto'], [3, 'espesor', 'Espesor'], [3, 'refuerzo', 'Refuerzo inferior'],
     [4, 'base', 'Diseño de la base'], [4, 'pintura', 'Color de pintura'], [4, 'pacabado', 'Acabado de pintura'], [4, 'ptipo', 'Tipo de pintura'], [4, 'niveladores', 'Niveladores'], [4, 'placasm', 'Placas de montaje'],
     [5, 'precio', 'Precio de venta'], [5, 'anticipo', 'Anticipo acordado'],
-    [6, 'c.placa', 'Costo de la placa'], [6, 'c.base', 'Costo de la base'], [6, 'c.mdf', 'Costo del MDF'], [6, 'c.flete', 'Costo de fletes'], [6, 'c.entrega', 'Costo de entrega'], [6, 'c.material', 'Costo de material']];
+    [6, 'c_placa', 'Costo de la placa'], [6, 'c_base', 'Costo de la base'], [6, 'c_mdf', 'Costo del MDF'], [6, 'c_flete', 'Costo de fletes'], [6, 'c_entrega', 'Costo de entrega'], [6, 'c_material', 'Costo de material']];
   function lleno(o, k) {
+    if ((k === 'medidas' || k === 'altura') && (o.piezas || []).length) return true;
     if (k === 'medidas') return num(o.largo) > 0 && (o.forma === 'Redonda' || num(o.ancho) > 0);
     if (k === 'precio' || k === 'altura' || k === 'espesor') return num(o[k]) > 0;
-    if (k.slice(0, 2) === 'c.') return !vacio((o.costos || {})[k.slice(2)]);
+    if (k.slice(0, 2) === 'c_' || k.slice(0, 2) === 'c.') return !vacio((o.costos || {})[k.slice(2)]);
     return !vacio(o[k]);
   }
   // pendientes de un pedido (incluye los datos de su cliente)
@@ -373,7 +374,9 @@
   const pill = (t, c) => '<em class="pill ' + (c || '') + '">' + esc(t) + '</em>';
   const plegable = (t, resumen, html, abierto, cls2) => '<details class="plegable' + (cls2 ? ' ' + cls2 : '') + '"' + (abierto ? ' open' : '') + '><summary><span>' + t + '</span>' + (resumen ? '<small>' + resumen + '</small>' : '') + '</summary><div class="pl-c">' + html + '</div></details>';
   const vacioTxt = t => '<p class="vacio">' + t + '</p>';
+  const mesaTxt = x => [x.n || 'Mesa', 'Ø' + num(x.d) + (num(x.a) ? ' × ' + num(x.a) + ' alto' : '') + ' cm', x.piedra ? 'piedra ' + x.piedra : ''].filter(Boolean).join(' · ');
   const piezaTxt = p => {
+    if ((p.piezas || []).length) return p.piezas.length + ' mesas: ' + p.piezas.map(x => (x.n || 'mesa').toLowerCase() + ' Ø' + num(x.d) + '×' + num(x.a) + (x.piedra ? ' ' + x.piedra.toLowerCase() : '')).join(' · ') + (p.base ? ' · base ' + otra(p.base, p.baseOtra).toLowerCase() : '');
     const med = p.forma === 'Redonda' ? (num(p.largo) ? 'Ø' + num(p.largo) : '') : (num(p.largo) ? num(p.largo) + '×' + num(p.ancho) : '');
     return [num(p.cantidad) > 1 ? num(p.cantidad) + '×' : '', otra(p.tipo, p.tipoOtra) || '', p.forma ? p.forma.toLowerCase() : '', med ? med + ' cm' : '', otra(p.color, p.colorOtra) || '', p.base ? '· base ' + otra(p.base, p.baseOtra).toLowerCase() : ''].filter(Boolean).join(' ') || 'Falta decir qué mesa es';
   };
@@ -572,6 +575,7 @@
         + '<ol class="cola">' + s.pasos.map((x, i) => '<li class="' + (x.done ? 'si' : '') + (s.actual === x ? ' ya' : '') + '"><i>' + (x.done ? '✓' : i + 1) + '</i><span><b>' + esc(x.n) + '</b><small>' + (x.done ? (x.fecha ? fC(x.fecha) : 'hecho') : 'pendiente') + '</small></span>'
           + (p.cerrado || (x.done && !(p.pasos || {})[x.k]) ? '' : x.auto ? (x.k === 'pedido' ? '' : '<button class="b chico" data-cob="1">Cobrar</button>') : '<button class="b chico" data-paso="' + x.k + '">' + ((p.pasos || {})[x.k] ? 'Quitar' : x.done ? 'Fecha' : 'Marcar') + '</button>') + '</li>').join('') + '</ol>'
         + (p.cerrado ? '<button class="b" id="reabrir">Reabrir pedido</button>' : fin ? '<button class="b verde grande" id="finalizar">Finalizar pedido ✓</button>' : '') + '</section>'
+      + ((p.piezas || []).length ? '<section class="caja"><div class="caja-t"><h2>Las mesas de este pedido</h2><span class="sub">' + p.piezas.length + '</span></div><ol class="cola">' + p.piezas.map((x, i) => '<li><i>' + (i + 1) + '</i><span><b>' + esc(x.n || 'Mesa') + ' · Ø ' + num(x.d) + ' cm × ' + num(x.a) + ' cm de alto</b><small>Piedra: ' + esc(x.piedra || 'pendiente') + '</small></span></li>').join('') + '</ol></section>' : '')
       + (s.pend.length ? plegable('Datos pendientes', s.pend.length + '', '<p class="a">' + s.pend.map(esc).join(' · ') + '</p><button class="b chico" data-edit2="1">Completar</button>', false, 'pend') : '')
       + (nc.length ? plegable('⚠ No cuadra', nc.length + '', '<ul class="nocuadra">' + nc.map(itemNoCuadra).join('') + '</ul>', false, 'mal') : '')
       + plegable('Movimientos', s.ms.length + '', s.ms.length ? '<div class="lista">' + s.ms.slice().reverse().map(filaMov).join('') + '</div>' : vacioTxt('Sin movimientos.'))
@@ -623,7 +627,7 @@
     const P_ = v => vacio(v) ? 'pendiente' : String(v);
     const med = p.forma === 'Redonda' ? (num(p.largo) ? 'Ø ' + num(p.largo) + ' cm' : '') : (num(p.largo) ? num(p.largo) + ' × ' + num(p.ancho) + ' cm' : '');
     return [['1 · Datos del cliente', [['Nº de pedido', String(p.folio || '—')], ['Nombre', c.nombre || ''], ['Teléfono', P_(c.telefono)], ['Email', c.email || '—'], ['Dirección', P_(c.direccion)], ['Vendedor', P_(otra(p.vendedor, p.vendedorOtro))], ['Fecha del pedido', P_(p.fecha)], ['Fecha de entrega', P_(p.entrega)]]],
-      ['2 · Tipo, forma y medidas', [['Forma', P_(p.forma)], ['Uso', P_(otra(p.tipo, p.tipoOtra))], ['Medidas', P_(med)], ['Altura', num(p.altura) ? num(p.altura) + ' cm' : 'pendiente'], ['Cuántas', String(num(p.cantidad) || 1)]]],
+      ['2 · Tipo, forma y medidas', [['Forma', P_(p.forma)], ['Uso', P_(otra(p.tipo, p.tipoOtra))], ].concat((p.piezas || []).length ? p.piezas.map((x, i) => ['Mesa ' + (i + 1), mesaTxt(x)]) : [['Medidas', P_(med)], ['Altura', num(p.altura) ? num(p.altura) + ' cm' : 'pendiente']]).concat([ ['Cuántas', String((p.piezas || []).length || num(p.cantidad) || 1)]])],
       ['3 · Cubierta', [['Tipo', P_(otra(p.material, p.materialOtro))], ['Marca / proveedor', P_(p.marca)], ['Color', P_(otra(p.color, p.colorOtra))], ['Acabado', P_(p.acabado)], ['Canto', P_(otra(p.canto, p.cantoOtro))], ['Espesor', num(p.espesor) ? num(p.espesor) + ' mm' : 'pendiente'], ['Refuerzo inferior', P_(p.refuerzo)], ['Observaciones', p.obsCubierta || '—']]],
       ['4 · Base de herrería', [['Diseño', P_(otra(p.base, p.baseOtra))], ['Color de pintura', P_(p.pintura)], ['Acabado', P_(p.pacabado)], ['Tipo de pintura', P_(p.ptipo)], ['Niveladores', P_(p.niveladores)], ['Placas de montaje', P_(p.placasm)], ['Observaciones', p.obsBase || '—']]]];
   }
@@ -940,7 +944,7 @@
           + caja('anticipo', 'Anticipo acordado', inp('anticipo', 'inputmode="decimal" placeholder="$0"') + (num(w.precio) ? '<button type="button" class="sug" data-pon="anticipo" data-val="' + num(w.precio) / 2 + '">Usar el 50%: ' + pesos(num(w.precio) / 2) + '</button>' : '')) + caja('', 'Notas (opcional)', area('notas')); }
       const sg = N.costosSugeridos(w), f = sg.fraccion;
       return '<p class="nota">' + (num(w.largo) ? 'Con esas medidas usa ' + (f === 0.25 ? '¼ de placa' : f === 0.5 ? 'media placa' : f === 1 ? 'una placa' : f + ' placas') + ' de 320×160.' : 'Pon las medidas para calcular la placa.') + '</p><button type="button" class="b" id="calc">Calcular costos sugeridos</button>'
-        + '<div class="dos-i">' + N.COST.map(([k, n]) => caja(k === 'otros' ? '' : 'c.' + k, n + (k === 'otros' ? ' (opcional)' : ''), inp(k, 'inputmode="decimal" placeholder="' + (sg[k] ? pesos(sg[k]) : '$0') + '"', w.costos))).join('') + '</div>'
+        + '<div class="dos-i">' + N.COST.map(([k, n]) => caja(k === 'otros' ? '' : 'c_' + k, n + (k === 'otros' ? ' (opcional)' : ''), inp(k, 'inputmode="decimal" placeholder="' + (sg[k] ? pesos(sg[k]) : '$0') + '"', w.costos))).join('') + '</div>'
         + '<p class="nota">Sugeridos con los costos del negocio: placa $9,000 + $500 de corte, corte ala de avión $3,500, MDF y demás $1,500, base de comedor $6,000–7,000, flete $2,000 si no cabe en la minivan. Si un costo no aplica, pon 0.</p>';
     }
     const leer = h => {
@@ -948,12 +952,13 @@
       $$('[data-ck]', h).forEach(i => { const v = i.value.trim(); w.costos[i.dataset.ck] = v === '' ? '' : num(v); });
       if ($('#c-nom', h)) { cli.nombre = $('#c-nom', h).value.trim(); cli.telefono = $('#c-tel', h).value.trim(); cli.email = $('#c-em', h).value.trim(); cli.direccion = $('#c-dir', h).value.trim(); }
     };
-    const faltan = () => N.CAMPOS.filter(([pp, k]) => pp === paso && !N.lleno(paso === 0 ? cli : w, k) && !w.pend[k]).map(x => x[1]);
+    const faltan = () => paso === 6 ? [] : N.CAMPOS.filter(([pp, k]) => pp === paso && !N.lleno(paso === 0 ? cli : w, k) && !w.pend[k]).map(x => x[1]);
     hoja(p0.id ? 'Editar pedido' : 'Nuevo pedido', '<div id="al"></div>', h => {
       const pintar = () => {
         $('#al', h).innerHTML = '<div class="pasos-w">' + PASOS_ALTA.map((x, i) => '<span class="' + (i <= paso ? 'on' : '') + '"></span>').join('') + '</div><p class="eti">' + (paso + 1) + ' de ' + PASOS_ALTA.length + ' · ' + PASOS_ALTA[paso] + '</p>'
           + cuerpo() + '<p class="err" id="a-err" hidden></p>' + vivo()
           + '<div class="botones">' + (paso > 0 ? '<button class="b" id="atras">← Atrás</button>' : '') + (paso < PASOS_ALTA.length - 1 ? '<button class="b negro" id="sig">Siguiente →</button>' : '<button class="b negro" id="ok">' + (p0.id ? 'Guardar cambios' : 'Dar de alta') + '</button>') + '</div>'
+          + (p0.id && paso < PASOS_ALTA.length - 1 ? '<button class="b verde grande" id="ok">Guardar cambios ya</button>' : '')
           + (p0.id && paso === 0 ? '<button class="b rojo" id="borrar">Borrar este pedido</button>' : '');
         $$('#a-cli [data-v]', h).forEach(b => b.onclick = () => { leer(h); if (b.dataset.v === 'nuevo') { cli = {}; nuevoCli = true; } else { cli = Object.assign({}, M.cli(b.dataset.v)); nuevoCli = false; } pintar(); });
         $$('[data-g]', h).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leer(h); w[g.dataset.g] = b.dataset.v; delete w.pend[g.dataset.g]; pintar(); const o = /^Otr[ao]$/.test(b.dataset.v) && $('.otra', h); if (o) o.focus(); });
@@ -970,7 +975,7 @@
           if (!validar()) return;
           Object.keys(w.pend).forEach(k => { if (N.lleno(['telefono', 'direccion'].includes(k) ? cli : w, k)) delete w.pend[k]; });
           const pd = {}; ['solicitud', 'folio', 'fecha', 'entrega', 'vendedor', 'vendedorOtro', 'forma', 'tipo', 'tipoOtra', 'largo', 'ancho', 'cantidad', 'altura', 'material', 'materialOtro', 'marca', 'color', 'colorOtra', 'acabado', 'canto', 'cantoOtro', 'espesor', 'refuerzo', 'obsCubierta', 'base', 'baseOtra', 'pintura', 'pacabado', 'ptipo', 'niveladores', 'placasm', 'obsBase', 'precio', 'anticipo', 'notas'].forEach(k => { pd[k] = vacio(w[k]) ? null : w[k]; });
-          pd.costos = Object.fromEntries(N.COST.map(([k]) => [k, vacio(w.costos[k]) ? null : num(w.costos[k])])); pd.pend = Object.keys(w.pend).length ? w.pend : null;
+          pd.costos = Object.fromEntries(N.COST.map(([k]) => [k, vacio(w.costos[k]) ? null : num(w.costos[k])])); const pl = Object.fromEntries(Object.keys(w.pend).filter(k => w.pend[k]).map(k => [k.replace(/[.#$\[\]\/]/g, '_'), true])); pd.pend = Object.keys(pl).length ? pl : null;
           const pend = N.pendientes(Object.assign({}, pd, { costos: w.costos }), cli);
           if (!await clave(p0.id ? 'Guardar cambios del pedido' : 'Dar de alta el pedido', [['Nº de pedido', String(pd.folio)], ['Cliente', cli.nombre + (nuevoCli ? ' (nuevo)' : '')], ['Mesa', piezaTxt(pd)], ['Entrega', pd.entrega ? fC(pd.entrega) : 'pendiente'], ['Precio', pd.precio ? pesos(pd.precio) : 'pendiente'], ['Costo estimado', costoW() ? pesos(costoW()) : 'pendiente'], ['Datos pendientes', pend.length ? String(pend.length) : 'ninguno']])) return;
           cerrarHoja(); let id = p0.id;

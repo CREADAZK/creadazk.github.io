@@ -1,4 +1,4 @@
-<!doctype html><html lang="es-MX"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>DKAS · Admin</title><meta name="robots" content="noindex"><meta name="theme-color" content="#111111"><link rel="apple-touch-icon" href="img/panel-icono.png"><style>/* DKAS · Admin. Estilo iPhone: fondo gris agrupado, tarjetas blancas sin borde, títulos grandes, barra de pestañas translúcida,
+<!doctype html><html lang="es-MX"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>DKAS · Admin</title><meta name="robots" content="noindex"><meta name="theme-color" content="#111111"><link rel="apple-touch-icon" href="img/panel-icono.png"><link rel="manifest" href="panel-manifest.json"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="DKAS"><meta name="apple-mobile-web-app-status-bar-style" content="default"><style>/* DKAS · Admin. Estilo iPhone: fondo gris agrupado, tarjetas blancas sin borde, títulos grandes, barra de pestañas translúcida,
    hojas que suben desde abajo con su asa. Blanco y negro; verde = entra / bien, rojo = sale / mal, ámbar = pendiente.
    Celular: pestañas abajo. Computadora (≥900px): barra lateral. */
 :root{--bg:#f2f2f7;--card:#fff;--suave:#f2f2f7;--relleno:#e9e9ee;--linea:rgba(60,60,67,.14);--tinta:#0b0b0c;--gris:#6c6c70;--gris2:#a1a1a6;
@@ -278,4 +278,33 @@ iframe.viejo{width:100%;height:calc(100vh - 190px - env(safe-area-inset-bottom,0
 .cuadre.ok i{background:var(--vs);color:var(--v)}.cuadre.mal{border-color:var(--r)}.cuadre.mal i{background:var(--rs);color:var(--r)}.cuadre.mal small{color:var(--r)}
 .ok-g{background:var(--vs);color:var(--v);font-weight:700;padding:14px;border-radius:14px;margin:14px 0}
 .aviso.mal-g{background:var(--rs);color:var(--r)}
-</style></head><body><nav id="menu" aria-label="Menú"></nav><main id="app"></main><div id="aviso" hidden role="status"></div><script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/dkas-api.js?v=ed222d2727"></script><script src="js/admin.js?v=5bde0b203b"></script></body></html>
+/* el socio */
+.socio{background:var(--card);border-radius:22px;box-shadow:var(--sombra);padding:18px 16px 14px;margin-bottom:16px}
+.socio-t{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.socio-ic{width:40px;height:40px;border-radius:12px;background:var(--tinta);color:#fff;display:grid;place-items:center;font-size:18px;flex:none}
+.socio-t b{display:block;font-size:18px}.socio-t small{color:var(--gris);font-size:13.5px}
+.preg{background:var(--suave);border-radius:16px;padding:14px;margin-bottom:12px}.preg b{display:block;margin-bottom:10px;font-size:16px}
+.foco{margin:0 0 12px;font-size:15px;color:var(--gris)}.foco b{color:var(--tinta)}
+.sig{background:linear-gradient(140deg,#151517,#2a2a2e);color:#fff;border-radius:18px;padding:18px;margin-bottom:10px;position:relative;overflow:hidden}
+.sig small{text-transform:uppercase;letter-spacing:.08em;font-size:11.5px;font-weight:700;color:rgba(255,255,255,.6)}
+.sig b{display:block;font-size:21px;line-height:1.25;margin:6px 0 4px}.sig p{margin:0 0 14px;color:rgba(255,255,255,.75);font-size:14.5px}
+.sig.n-urgente{box-shadow:inset 4px 0 0 var(--r)}.sig.n-importante{box-shadow:inset 4px 0 0 #f5a524}.sig.ok{background:var(--vs);color:var(--v)}.sig.ok small,.sig.ok p{color:var(--v)}
+.sig .b.verde{min-height:44px}
+ol.pasos{list-style:none;margin:0;padding:0}
+ol.pasos li{display:flex;align-items:center;gap:8px;border-top:1px solid var(--linea)}
+.paso{flex:1;display:flex;align-items:center;gap:12px;padding:12px 2px;text-align:left;min-width:0}
+.paso i{flex:none;width:28px;height:28px;border-radius:50%;background:var(--relleno);display:grid;place-items:center;font-style:normal;font-weight:800;font-size:13px}
+.n-urgente .paso i{background:var(--rs);color:var(--r)}.n-importante .paso i{background:var(--as);color:var(--a)}
+.paso span{flex:1;min-width:0}.paso b{display:block;font-size:15px;line-height:1.3}.paso small{display:block;color:var(--gris);font-size:13px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.paso em{font-style:normal;color:var(--gris2);font-size:22px}
+ol.pasos .chk{flex:none;width:28px;height:28px;border-radius:50%;border:2px solid var(--gris2)}
+.socio-b{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.socio details{margin-top:4px}
+ul.consejos{list-style:none;margin:0;padding:0}ul.consejos li{padding:12px 0;border-top:1px solid var(--linea)}ul.consejos li:first-child{border-top:0}
+ul.consejos b{display:block;font-size:15px}ul.consejos small{display:block;color:var(--gris);font-size:13.5px;margin-top:3px;line-height:1.4}
+.push-card{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:18px;box-shadow:var(--sombra);padding:14px;margin-bottom:16px}
+.push-card i{font-style:normal;font-size:24px}.push-card span{flex:1;min-width:0}.push-card b{display:block;font-size:15px}.push-card small{color:var(--gris);font-size:13px}
+.push-card .x{width:30px;height:30px;color:var(--gris2)}
+.chips.grandes button{min-height:52px;font-size:16px}
+ol.pasos-ins{padding-left:22px;line-height:1.55;font-size:16px}ol.pasos-ins li{margin-bottom:8px}
+</style></head><body><nav id="menu" aria-label="Menú"></nav><main id="app"></main><div id="aviso" hidden role="status"></div><script>window.DAZK_FB={"apiKey":"AIzaSyBBJqI7K_xY9RDPFzAVedS_5EyplehRATg","db":"https://dazk-pedidos-default-rtdb.firebaseio.com"};window.DKAS_WA=[{"label":"55 3597 7670","num":"525535977670"},{"label":"55 5109 0027","num":"525551090027"}];</script><script src="js/dkas-api.js?v=ed222d2727"></script><script src="js/admin.js?v=7e49e65b3c"></script></body></html>

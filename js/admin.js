@@ -89,7 +89,7 @@
   // ---------- el modelo armado: todo conectado ----------
   function modelo(d, hoy) {
     const lista = o => Object.entries(o || {}).map(([id, x]) => Object.assign({ id }, x));
-    const M = { hoy, clientes: lista(d.clientes), pedidos: lista(d.pedidos), deudas: lista(d.deudas), movs: lista(d.movs), sobrantes: lista(d.sobrantes), agendaMan: lista(d.agenda) };
+    const M = { hoy, clientes: lista(d.clientes), pedidos: lista(d.pedidos), deudas: lista(d.deudas), movs: lista(d.movs), sobrantes: lista(d.sobrantes), agendaMan: lista(d.agenda), bitacora: lista(d.bitacora).sort((a, b) => (b.creado || 0) - (a.creado || 0)) };
     M.movs.sort((a, b) => (a.fecha || '').localeCompare(b.fecha || '') || (a.creado || 0) - (b.creado || 0));
     M.cli = id => M.clientes.find(c => c.id === id);
     M.ped = id => M.pedidos.find(p => p.id === id);
@@ -122,6 +122,7 @@
     M.totales = () => totales(M);
     M.agenda = () => agenda(M);
     M.noCuadra = () => noCuadra(M);
+    M.socio = (foco, ahora) => socio(M, foco, ahora);
     M.nomPedido = nomP;
     return M;
   }
@@ -236,7 +237,43 @@
     return l.sort((a, b) => a.g - b.g);
   }
 
-  const N = { PRECIOS, C, COST, CAMPOS, PLACA, REGLA, lleno, pendientes, fraccionPlaca, costosSugeridos, catCosto, sobrantesDe, cuantasCaben, modelo, num, vacio, pesos, pct, ymd, mas, entre, esIn };
+  // ---------- el socio: qué sigue (en orden), cosas raras y consejos ----------
+  const AREAS = [['cobrar', 'Cobrar'], ['entregar', 'Entregar'], ['producir', 'Producir'], ['vender', 'Vender'], ['cuentas', 'Ordenar cuentas']];
+  function socio(M, foco, ahora) {
+    const hoy = M.hoy, T = totales(M), raros = noCuadra(M), ag = agenda(M).filter(a => !a.hecho && a.dias <= 3), pasos = [];
+    const areaDe = { cobro: 'cobrar', entrega: 'entregar', compra: 'producir', taller: 'producir', deuda: 'cuentas', dato: 'cuentas', cierre: 'cuentas', manual: '' };
+    const base = { cobro: 80, entrega: 78, compra: 66, taller: 60, deuda: 72, dato: 45, cierre: 30, manual: 62 };
+    ag.forEach(a => {
+      const m = /\$([\d,]+)/.exec(a.texto), monto = m ? num(m[1]) : 0;
+      let sc = base[a.tipo] || 50; if (a.dias < 0) sc += Math.min(-a.dias * 3, 20); else sc -= a.dias * 6; if (a.tipo === 'cobro') sc += Math.min(monto / 2000, 12); const cuando = /^Cuando /.test(a.texto); if (cuando) sc = 40;
+      pasos.push({ k: 'ag:' + a.tipo + ':' + (a.pedido || a.deuda || a.id || a.texto), area: areaDe[a.tipo] || '', titulo: a.texto, porque: cuando ? 'Cuando pase eso; todavía no' : a.dias < 0 ? 'Atrasado ' + -a.dias + ' día' + (a.dias === -1 ? '' : 's') : a.dias === 0 ? 'Es para hoy' : 'En ' + a.dias + ' día' + (a.dias === 1 ? '' : 's'), href: a.pedido ? '#p=' + a.pedido : a.deuda ? '#d=' + a.deuda : '', manual: a.tipo === 'manual' ? a.id : '', sc });
+    });
+    // banco: ¿se cuadró hoy?
+    const cu = M.bitacora.find(x => x.accion === 'Cuadre de banco' && x.sistema != null), cuHoy = cu && ymd(new Date(cu.creado)) === hoy;
+    if (cu && cu.banco !== cu.sistema) pasos.push({ k: 'banco-mal', area: 'cuentas', titulo: 'El banco no cuadra por ' + pesos(Math.abs(cu.banco - cu.sistema)), porque: 'Falta registrar ' + (cu.banco < cu.sistema ? 'una salida' : 'una entrada') + '. Revisa Tkash y regístrala.', accion: 'cuadre', sc: 92 });
+    else if (!cuHoy) pasos.push({ k: 'banco', area: 'cuentas', titulo: 'Cuadrar el banco con Tkash', porque: cu ? 'Último cuadre: ' + ymd(new Date(cu.creado)) : 'Nunca se ha cuadrado', accion: 'cuadre', sc: (ahora || 12) >= 18 ? 74 : 52 });
+    if (T.porAclarar) pasos.push({ k: 'aclarar', area: 'cuentas', titulo: 'Aclarar ' + T.porAclarar + ' movimiento' + (T.porAclarar > 1 ? 's' : '') + ' dudoso' + (T.porAclarar > 1 ? 's' : ''), porque: 'Están en amarillo en Dinero. Mientras no se aclaren, los números pueden estar mal.', href: '#dinero', sc: 48 });
+    raros.filter(r => r.g === 1).forEach(r => { if (!pasos.some(p => r.ref.pedido && p.href === '#p=' + r.ref.pedido && /cobr/i.test(p.titulo) && /liquidar|debe/.test(r.t))) pasos.push({ k: 'raro:' + r.t, area: /cobr|liquidar|debe/i.test(r.t) ? 'cobrar' : /entrega/i.test(r.t) ? 'entregar' : 'cuentas', titulo: r.t, porque: r.d, href: r.ref.pedido ? '#p=' + r.ref.pedido : r.ref.deuda ? '#d=' + r.ref.deuda : '', sc: 70, raro: true }); });
+    const vistos = {}; const lista = pasos.filter(p => !vistos[p.k] && (vistos[p.k] = 1)).map(p => Object.assign(p, { sc: p.sc + (foco && p.area === foco ? 25 : 0) })).sort((a, b) => b.sc - a.sc);
+    lista.forEach(p => { p.nivel = p.sc >= 80 ? 'urgente' : p.sc >= 60 ? 'importante' : 'normal'; });
+    // consejos: lo que un socio te diría viendo los números
+    const c = [], deben = T.act.map(([p, st]) => [p, st]).filter(([, st]) => st.porCobrar > 0).sort((a, b) => b[1].porCobrar - a[1].porCobrar);
+    const nombres = l => l.slice(0, 2).map(([p, st]) => M.nomPedido(p) + ' (' + pesos(st.porCobrar) + ')').join(' y ');
+    if (T.porGastar > T.caja) c.push({ t: 'No alcanza para terminar los pedidos', d: 'Falta gastar ' + pesos(T.porGastar) + ' y tienes ' + pesos(T.caja) + '. Cobra antes de comprar: ' + (nombres(deben) || 'nadie debe ahorita') + '.', area: 'cobrar' });
+    if (T.debemos > 0 && T.debemos > T.caja - T.porGastar) c.push({ t: 'Ojo con lo que debemos', d: 'Debemos ' + pesos(T.debemos) + '. Después de terminar los pedidos te quedarían ' + pesos(T.caja - T.porGastar) + '. No tomes pedidos nuevos sin 50% de anticipo.', area: 'cuentas' });
+    const entregadas = T.act.filter(([, st]) => st.pasos[5].done && st.porCobrar > 0);
+    if (entregadas.length) c.push({ t: 'Cobra antes de entregar', d: entregadas.length + ' mesa' + (entregadas.length > 1 ? 's' : '') + ' entregada' + (entregadas.length > 1 ? 's' : '') + ' todavía debe' + (entregadas.length > 1 ? 'n' : '') + ' ' + pesos(entregadas.reduce((a, [, st]) => a + st.porCobrar, 0)) + '. Regla: liquidar al entregar, o antes de que salga el flete.', area: 'cobrar' });
+    if (T.perdidas > 0) c.push({ t: 'Las fallas ya costaron ' + pesos(T.perdidas), d: 'Protege mejor la piedra en el flete (esquineros, cobija, 2 personas) y cobra el flete aparte al cliente.', area: 'producir' });
+    const sinCosto = T.act.filter(([, st]) => st.precio && !st.costo); if (sinCosto.length) c.push({ t: sinCosto.length + ' pedido' + (sinCosto.length > 1 ? 's' : '') + ' sin costos estimados', d: 'Sin costos no se sabe cuánto ganas: ' + sinCosto.slice(0, 3).map(([p]) => M.nomPedido(p)).join(', ') + '.', area: 'cuentas' });
+    if (T.margenProm != null && T.margenProm < 0.3) c.push({ t: 'Ganas poco por mesa (' + pct(T.margenProm) + ')', d: 'Lo sano es 35% o más. Cotiza con la regla costo × ' + REGLA + ' y cobra flete, maniobras y cortes especiales aparte.', area: 'vender' });
+    const cj = M.saldoFondo('caja'); if (cj < 0) c.push({ t: 'Los gastos del taller salen de anticipos', d: pesos(-cj) + ' de material, propinas y comisiones se pagaron con dinero de clientes. Aparta un % de cada liquidación para gastos generales.', area: 'cuentas' });
+    Object.entries(T.porQuien).filter(([q, v]) => v > 0).forEach(([q, v]) => { const ef = M.movs.filter(m => (m.quien || '') === q && m.metodo === 'Efectivo').length; if (ef && q !== 'Zury') c.push({ t: q + ' debería tener ' + pesos(v), d: 'Pídele que cuente su efectivo y compáralo. Si no cuadra, algo falta por registrar.', area: 'cuentas' }); });
+    const ultPed = M.pedidos.map(p => p.fecha || '').sort().slice(-1)[0]; if (ultPed && entre(ultPed, hoy) >= 7) c.push({ t: 'Sin pedidos nuevos en ' + entre(ultPed, hoy) + ' días', d: 'Dedica un rato hoy a vender: contesta solicitudes, manda fotos de mesas entregadas y pide recomendaciones a clientes contentos.', area: 'vender' });
+    c.forEach(x => { x.sc = foco && x.area === foco ? 1 : 0; }); c.sort((a, b) => b.sc - a.sc);
+    return { pasos: lista, raros, consejos: c, T, cuadre: cu || null, cuadroHoy: !!(cuHoy && cu.banco === cu.sistema) };
+  }
+
+  const N = { AREAS, PRECIOS, C, COST, CAMPOS, PLACA, REGLA, lleno, pendientes, fraccionPlaca, costosSugeridos, catCosto, sobrantesDe, cuantasCaben, modelo, num, vacio, pesos, pct, ymd, mas, entre, esIn };
   if (typeof module !== 'undefined' && module.exports) module.exports = N; else root.DKAS_N = N;
 })(this);
 
@@ -297,6 +334,7 @@
   function pintarSync() { const t = syncMal ? 'Sin conexión · reintentando' : 'Sincronizado' + (ultimaSync ? ' · ' + new Date(ultimaSync).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : ''); $$('.sync').forEach(e => { e.classList.toggle('mal', syncMal); e.innerHTML = '<i></i>' + t; }); }
   setInterval(sincronizar, 12000); addEventListener('focus', sincronizar); document.addEventListener('visibilitychange', () => { if (!document.hidden) sincronizar(); });
   const recargar = async () => { await cargar(); ruta(); };
+  if ('serviceWorker' in navigator && !A.demo) { navigator.serviceWorker.register('panel-sw.js').catch(() => {}); navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.ir) location.hash = e.data.ir; }); }
   async function bitacora(accion, detalle) { try { await A.nodoAgrega('dinero/bitacora', { accion, detalle: String(detalle || '').slice(0, 300) }); } catch (e) {} }
 
   // ---------- rutas y menú ----------
@@ -341,22 +379,82 @@
   };
   const colorEstado = (p, s) => p.cerrado ? 'v' : s.diasEntrega != null && s.diasEntrega < 0 && !s.pasos[5].done ? 'r' : s.pasos[5].done ? 'a' : '';
 
-  // ================= DASHBOARD =================
+  // ================= DASHBOARD: el socio =================
+  const focoHoy = () => { const f = (M.bitacora || []).find(x => x.accion === 'Prioridad del día' && x.dia === hoy()); return f ? f.valor : ''; };
   function inicio() {
-    const T = M.totales(), nc = M.noCuadra(), ag = M.agenda().filter(a => a.grupo !== 'hecho');
-    const saludo = (new Date().getHours() < 12 ? 'Buenos días' : new Date().getHours() < 19 ? 'Buenas tardes' : 'Buenas noches') + ', ' + esc((me.nombre || '').split(' ')[0]);
-    const ya = ag.filter(a => a.grupo === 'vencido' || a.grupo === 'hoy'), semana = ag.filter(a => a.grupo === 'semana');
+    const foco = focoHoy(), S = M.socio(foco, new Date().getHours()), T = S.T, P = S.pasos, sem = M.agenda().filter(a => a.grupo === 'semana' && !a.hecho);
+    const h0 = new Date().getHours(), saludo = (h0 < 12 ? 'Buenos días' : h0 < 19 ? 'Buenas tardes' : 'Buenas noches') + ', ' + esc((me.nombre || '').split(' ')[0]);
+    const urg = P.filter(p => p.nivel === 'urgente').length, focoN = (N.AREAS.find(a => a[0] === foco) || [])[1];
+    const paso = (p, i) => '<li class="n-' + p.nivel + '"><button class="paso" data-paso="' + i + '"><i>' + (i + 1) + '</i><span><b>' + esc(p.titulo) + '</b><small>' + esc(p.porque) + '</small></span>' + (p.manual ? '' : '<em>›</em>') + '</button>' + (p.manual ? '<button class="chk" data-ag="' + esc(p.manual) + '" aria-label="Marcar hecha"></button>' : '') + '</li>';
+    const sig = P[0];
     main.innerHTML = tit(saludo, fC(hoy()), '<button class="b chico" id="x-todo">Exportar</button>')
+      + '<section class="socio">'
+        + '<div class="socio-t"><span class="socio-ic">◆</span><div><b>Tu socio</b><small>' + (P.length ? (urg ? urg + ' urgente' + (urg > 1 ? 's' : '') + ' · ' : '') + P.length + ' pendiente' + (P.length > 1 ? 's' : '') : 'Todo en orden') + (S.raros.length ? ' · ' + S.raros.length + ' cosa' + (S.raros.length > 1 ? 's' : '') + ' rara' + (S.raros.length > 1 ? 's' : '') : '') + '</small></div></div>'
+        + (foco ? '<p class="foco">Hoy nos enfocamos en <b>' + esc(focoN) + '</b> <button class="lnk" id="foco-c">cambiar</button></p>'
+          : '<div class="preg"><b>¿Qué prioridad tenemos hoy?</b><div class="chips" id="focos">' + N.AREAS.map(([k, t]) => '<button data-foco="' + k + '">' + t + '</button>').join('') + '</div></div>')
+        + (sig ? '<div class="sig n-' + sig.nivel + '"><small>Siguiente paso</small><b>' + esc(sig.titulo) + '</b><p>' + esc(sig.porque) + '</p><button class="b verde" data-paso="0">' + (sig.accion === 'cuadre' ? 'Cuadrar ahora' : sig.manual ? 'Ver' : 'Hacerlo ahora') + ' →</button></div>'
+          : '<div class="sig ok"><small>Siguiente paso</small><b>Nada urgente. Buen momento para vender.</b><p>Contesta solicitudes y manda fotos de mesas entregadas.</p></div>')
+        + (P.length > 1 ? '<ol class="pasos">' + P.slice(1, 6).map((p, i) => paso(p, i + 1)).join('') + '</ol>' : '')
+        + (P.length > 6 ? plegable('Ver los otros ' + (P.length - 6), '', '<ol class="pasos">' + P.slice(6).map((p, i) => paso(p, i + 6)).join('') + '</ol>') : '')
+        + '<div class="socio-b"><button class="b chico" id="ag-n">＋ Tarea</button><a class="lnk" href="#v/agenda">Agenda completa ›</a></div>'
+      + '</section>'
+      + avisoPush()
       + '<section class="kpis">' + kpi('Dinero hoy', pesos(T.caja), T.caja < 0 ? 'r' : '', Object.entries(T.porQuien).filter(([, v]) => v).map(([q, v]) => esc(q) + ' ' + pesos(v)).join(' · '), '#dinero', 'hero')
         + kpi('Nos deben', pesos(T.porCobrar), 'v', '', '#pedidos') + kpi('Debemos', T.sinDeudas ? 'Sin anotar' : pesos(T.debemos), T.sinDeudas ? 'a' : 'r', '', '#pedidos/deudas')
         + kpi('Falta gastar', pesos(T.porGastar), '', '', '#pedidos') + kpi('Posición real', pesos(T.posicion), cls(T.posicion), '', '#dinero') + '</section>' + lineaCuadre(T)
-      + '<section class="caja"><div class="caja-t"><h2>Hoy</h2><button class="b chico" id="ag-n">＋ Tarea</button></div>'
-        + (ya.length ? '<ul class="agenda">' + ya.map(itemAgenda).join('') + '</ul>' : vacioTxt('Nada pendiente para hoy.'))
-        + (semana.length ? plegable('Esta semana', semana.length + '', '<ul class="agenda">' + semana.map(itemAgenda).join('') + '</ul>') : '') + '<a class="lnk mas-ag" href="#v/agenda">Agenda completa (citas y visitas) ›</a></section>'
-      + (nc.length ? plegable('⚠ No cuadra', nc.length + '', '<ul class="nocuadra">' + nc.map(itemNoCuadra).join('') + '</ul>', false, 'mal') : '');
+      + (S.consejos.length ? plegable('💡 Consejos del socio', S.consejos.length + '', '<ul class="consejos">' + S.consejos.map(c => '<li><b>' + esc(c.t) + '</b><small>' + esc(c.d) + '</small></li>').join('') + '</ul>', true) : '')
+      + (S.raros.length ? plegable('⚠ Cosas raras', S.raros.length + '', '<p class="nota">Datos que no concuerdan. Tócalos para revisarlos.</p><ul class="nocuadra">' + S.raros.map(itemNoCuadra).join('') + '</ul>', false, 'mal') : '')
+      + (sem.length ? plegable('Esta semana', sem.length + '', '<ul class="agenda">' + sem.map(itemAgenda).join('') + '</ul>') : '');
     $('#x-todo').onclick = () => hoja('Exportar todo', '<p class="nota">Todo lo del sistema en un archivo, para los socios.</p><button class="b negro grande" id="x-pdf">PDF</button><button class="b grande" id="x-xls">Excel</button>', h => { $('#x-pdf', h).onclick = () => { cerrarHoja(); pdfGeneral(); }; $('#x-xls', h).onclick = () => { cerrarHoja(); xlsGeneral(); }; });
     $('#ag-n').onclick = () => tarea(); $('#cuadre').onclick = () => cuadrarBanco();
-    enlazarAgenda(); enlazarNC();
+    $$('[data-paso]').forEach(b => b.onclick = () => { const p = P[+b.dataset.paso]; if (!p) return; if (p.accion === 'cuadre') cuadrarBanco(); else if (p.href) location.hash = p.href; else if (p.manual) location.hash = '#v/agenda'; });
+    $$('[data-foco]').forEach(b => b.onclick = () => ponerFoco(b.dataset.foco));
+    if ($('#foco-c')) $('#foco-c').onclick = () => hoja('Prioridad de hoy', '<p class="nota">¿En qué nos enfocamos hoy? Lo de esa área sube al principio de la lista.</p><div class="chips grandes">' + N.AREAS.map(([k, t]) => '<button data-foco2="' + k + '"' + (k === foco ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div>', h => { $$('[data-foco2]', h).forEach(b => b.onclick = () => { cerrarHoja(); ponerFoco(b.dataset.foco2); }); });
+    enlazarAgenda(); enlazarNC(); enlazarPush();
+  }
+  function ponerFoco(k) { guardarYa(() => A.nodoAgrega('dinero/bitacora', { accion: 'Prioridad del día', valor: k, dia: hoy(), detalle: 'Hoy nos enfocamos en ' + ((N.AREAS.find(a => a[0] === k) || [])[1] || k) }), 'Listo: hoy nos enfocamos en ' + ((N.AREAS.find(a => a[0] === k) || [])[1] || k)); }
+
+  // ---------- avisos al iPhone (notificaciones push) ----------
+  const VAPID = 'BBu3yk2spGhkcGZ8VzUv_nuQA5FewT3sbRDDc1Z3vskuSvWisKDyDz6zl06F4PDfNna88fk9IhEAf_3-5-CoQvY';
+  const esIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const instalada = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  function estadoPush() {
+    if (A.demo) return 'demo';
+    if (esIOS() && !instalada()) return 'instalar';
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return 'no';
+    if (Notification.permission === 'denied') return 'bloqueado';
+    try { if (Notification.permission === 'granted' && localStorage.getItem('dkas-push') === '1') return 'activo'; } catch (e) {}
+    return 'apagado';
+  }
+  function avisoPush() {
+    const e = estadoPush(); let oculto = false; try { oculto = localStorage.getItem('dkas-push-oculto') === hoy(); } catch (x) {}
+    if (e === 'activo' || e === 'demo' || e === 'no' || oculto) return '';
+    return '<div class="push-card"><i>🔔</i><span><b>' + (e === 'bloqueado' ? 'Los avisos están bloqueados' : 'Activa los avisos en este teléfono') + '</b><small>' + (e === 'instalar' ? 'Primero agrega el panel a tu pantalla de inicio.' : e === 'bloqueado' ? 'Ve a Ajustes del iPhone → Notificaciones → DKAS.' : 'Tu socio te avisa qué sigue, cobros, cosas raras y el cuadre del banco.') + '</small></span><button class="b negro chico" id="push-on">' + (e === 'instalar' ? 'Cómo' : 'Activar') + '</button><button class="x" id="push-x" aria-label="Ahora no">✕</button></div>';
+  }
+  function enlazarPush() {
+    if ($('#push-on')) $('#push-on').onclick = () => activarPush();
+    if ($('#push-x')) $('#push-x').onclick = () => { try { localStorage.setItem('dkas-push-oculto', hoy()); } catch (e) {} ruta(); };
+  }
+  const b64 = s => { const p = '='.repeat((4 - s.length % 4) % 4), r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, c => c.charCodeAt(0)); };
+  const ab64 = b => btoa(String.fromCharCode.apply(null, new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  async function activarPush() {
+    const e = estadoPush();
+    if (e === 'instalar') return hoja('Activar avisos en el iPhone', '<ol class="pasos-ins"><li>Abre <b>dkas.mx/taller.html</b> en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> (el cuadrito con la flecha ↑).</li><li>Elige <b>"Agregar a inicio"</b> y luego <b>Agregar</b>.</li><li>Abre el panel desde el ícono nuevo <b>DKAS</b> de tu pantalla.</li><li>Vuelve a tocar <b>Activar avisos</b> y acepta.</li></ol><p class="nota">Apple solo deja mandar avisos a las apps que están en la pantalla de inicio.</p>', () => {});
+    if (e === 'bloqueado') return hoja('Avisos bloqueados', '<p class="nota">El iPhone tiene bloqueados los avisos del panel. Ve a <b>Ajustes → Notificaciones → DKAS</b> y activa "Permitir notificaciones". Luego vuelve aquí.</p>', () => {});
+    if (e === 'no') return aviso('Este navegador no permite avisos', true);
+    try {
+      const reg = await navigator.serviceWorker.register('panel-sw.js'); await navigator.serviceWorker.ready;
+      const perm = await Notification.requestPermission(); if (perm !== 'granted') { aviso('No se activaron los avisos', true); return ruta(); }
+      let sub = await reg.pushManager.getSubscription(); if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID) });
+      const id = ab64(new TextEncoder().encode(sub.endpoint).slice(-24)).replace(/[^A-Za-z0-9_-]/g, '').slice(-30) || String(Date.now());
+      await A.nodoPon('dinero/push/subs/' + id, { endpoint: sub.endpoint, p256dh: ab64(sub.getKey('p256dh')), auth: ab64(sub.getKey('auth')), quien: me.nombre || '', equipo: esIOS() ? 'iPhone' : 'Computadora', creado: Date.now() });
+      try { localStorage.setItem('dkas-push', '1'); localStorage.setItem('dkas-push-id', id); } catch (x) {}
+      reg.showNotification('DKAS · Avisos activados', { body: 'Listo. Tu socio te va a avisar qué sigue.', icon: 'img/panel-icono.png', data: { url: 'taller.html#inicio' } });
+      aviso('Avisos activados en este teléfono'); ruta();
+    } catch (x) { aviso('No se pudieron activar: ' + x.message, true); }
+  }
+  async function probarPush() {
+    try { const reg = await navigator.serviceWorker.ready; const S = M.socio(focoHoy(), new Date().getHours()), p = S.pasos[0]; reg.showNotification(p ? 'Siguiente paso' : 'DKAS', { body: p ? p.titulo : 'Todo en orden', icon: 'img/panel-icono.png', data: { url: 'taller.html' + (p && p.href ? p.href : '#inicio') } }); } catch (e) { aviso('No se pudo: ' + e.message, true); }
   }
 
   // ---------- cuadrar el banco: lo que dice Tkash vs lo que dice el sistema ----------
@@ -709,9 +807,11 @@
       + plegable('Ventas', 'cotizar y precios', '<ul class="links"><li><a href="#v/cotizar">Cotizador rápido</a></li><li><a href="#v/precios">Precios</a></li></ul>', true)
       + plegable('Taller', 'mesas, bases y diseño', '<ul class="links"><li><a href="#v/taller">Mesas en el taller<small>cortes, croquis y orden de compra</small></a></li><li><a href="#v/bases">Diseñar bases</a></li><li><a href="#v/estudio">Estudio de diseño</a></li></ul>')
       + plegable('Página web', 'portada, visitas y links', '<ul class="links"><li><a href="#v/portada">Presentación de la página</a></li><li><a href="#v/visitas">Auditoría y bloqueos<small>quién entra a dkas.mx</small></a></li><li><a href="#v/accesos">Links de acceso al 3D</a></li></ul>')
+      + plegable('Avisos al teléfono', { activo: 'activados', apagado: 'apagados', instalar: 'falta instalar', bloqueado: 'bloqueados', no: 'no disponible', demo: 'modo prueba' }[estadoPush()], '<p class="nota">Tu socio te manda avisos: en la mañana la prioridad del día, al mediodía lo que sigue, en la noche el cuadre del banco, y al momento cuando alguien registra dinero o aparece algo raro.</p>' + (estadoPush() === 'activo' ? '<p class="ok-g">✓ Activados en este teléfono</p><button class="b grande" id="push-prueba">Mandar aviso de prueba</button>' : '<button class="b negro grande" id="push-aj">Activar avisos aquí</button>'), estadoPush() !== 'activo')
       + plegable('Equipo', 'quién entra al panel', '<ul class="links"><li><a href="#v/equipo">Administradores</a></li></ul><p class="nota">Todo lo importante pide la clave 55 antes de guardarse. Para entrar al panel se usa el código de 6 números.</p>')
       + plegable('Registro de cambios', bit.length + '', (bit.length ? '<div class="tabla"><table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th></tr></thead><tbody>' + bit.slice(0, 200).map(b => { const d = new Date(b.creado || 0); return '<tr><td>' + fC(N.ymd(d)) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + '</td><td>' + esc(b.por || '') + '</td><td><b>' + esc(b.accion) + '</b><br><small>' + esc(b.detalle || '') + '</small></td></tr>'; }).join('') + '</tbody></table></div>' : vacioTxt('Todavía no hay nada registrado.')));
     $('#salir').onclick = () => { A.logout(); location.hash = ''; arrancar(); };
+    if ($('#push-aj')) $('#push-aj').onclick = () => activarPush(); if ($('#push-prueba')) $('#push-prueba').onclick = () => probarPush();
   }
 
   // ================= REGISTRAR DINERO (lo central: todo se conecta aquí) =================

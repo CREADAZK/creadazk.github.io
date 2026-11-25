@@ -10,3 +10,9 @@ self.addEventListener('notificationclick', e => {
     return self.clients.openWindow(url);
   }));
 });
+
+// avisos del socio (llegan aunque el panel esté cerrado)
+self.addEventListener('push', e => {
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (x) { d = { body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'DKAS', { body: d.body || '', icon: 'img/panel-icono.png', badge: 'img/panel-icono.png', tag: d.tag || undefined, data: { url: d.url || 'taller.html#inicio' } }));
+});

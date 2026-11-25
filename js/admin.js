@@ -62,13 +62,13 @@
   // pendientes de un pedido (incluye los datos de su cliente)
   const pendientes = (p, cli) => CAMPOS.filter(([, k]) => !lleno(['telefono', 'direccion'].includes(k) ? (cli || {}) : p, k)).map(x => x[2]);
 
-  // placa 3.20×1.60 = $9,000 + $500 de corte; MDF $650; base de comedor $6,000–7,000; flete $2,000 si no cabe en la minivan; regla de precio ×1.6
+  // placa 3.20×1.60 = $9,000 + $500 de corte; MDF $650; base de comedor $6,000–7,000; flete $4,500 si no cabe en la minivan; regla de precio ×1.6
   const PLACA = { w: 320, h: 160, precio: 9000, corte: 500 }, REGLA = 1.6, PRECIOS = { alaDeAvion: 3500, mdfYDemas: 1500 };
   function fraccionPlaca(L, W) { const a = Math.max(L, W), b = Math.min(L, W); if (!a || !b) return 0; if (a <= 80 && b <= 80) return 0.25; if ((a <= 160 && b <= 160) || (a <= 320 && b <= 80)) return 0.5; if (a <= 320 && b <= 160) return 1; return Math.ceil(a * b / (320 * 160) * 1.15); }
   function costosSugeridos(p) {
     const L = num(p.largo), W = p.forma === 'Redonda' ? num(p.largo) : num(p.ancho), q = Math.max(1, num(p.cantidad) || 1), f = fraccionPlaca(L, W), grande = Math.max(L, W) >= 140 || p.tipo === 'Comedor';
     const base = p.tipo === 'Comedor' ? (Math.max(L, W) >= 240 ? 7000 : 6000) : p.tipo === 'Periquera' ? 3000 : p.tipo === 'Escritorio' ? 3500 : 1500;
-    return { placa: Math.round(f * PLACA.precio + PLACA.corte) * q, base: base * q, corte: (p.canto === 'Ala de avión' ? PRECIOS.alaDeAvion : 0) * q, mdf: (grande ? PRECIOS.mdfYDemas : 0) * q, flete: grande ? 2000 : 0, entrega: grande ? 0 : 300, material: grande ? 0 : 300 * q, otros: 0, fraccion: f };
+    return { placa: Math.round(f * PLACA.precio + PLACA.corte) * q, base: base * q, corte: (p.canto === 'Ala de avión' ? PRECIOS.alaDeAvion : 0) * q, mdf: (grande ? PRECIOS.mdfYDemas : 0) * q, flete: grande ? 4500 : 0, entrega: grande ? 0 : 300, material: grande ? 0 : 300 * q, otros: 0, fraccion: f };
   }
   // a qué costo va un gasto (por su categoría y, si no, por la nota)
   function catCosto(m) {
@@ -474,7 +474,7 @@ const C = {
   mdf: { hoja: 650, w: 244, h: 122, corte: 50 },
   corteRecto: 150, corteCurvo: 350, canto: 100, // por metro lineal (estimado)
   margen: 1.6,
-  flete: 2000, minivanComedor: 800, minivanChica: 400,
+  flete: 4500, // dueño 25 nov 2026: el flete siempre es $4,500 minivanComedor: 800, minivanChica: 400,
   chiquita: 1125,                    // valor de un 0.80×0.80 que sale del sobrante
   pesoM2: 29,                        // kg por m² de sinterizado 12 mm
 };
@@ -2300,7 +2300,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       const sg = N.costosSugeridos(w), f = sg.fraccion;
       return '<p class="nota">' + (num(w.largo) ? 'Con esas medidas usa ' + (f === 0.25 ? '¼ de placa' : f === 0.5 ? 'media placa' : f === 1 ? 'una placa' : f + ' placas') + ' de 320×160.' : 'Pon las medidas para calcular la placa.') + '</p><button type="button" class="b" id="calc">Calcular costos sugeridos</button>'
         + '<div class="dos-i">' + N.COST.map(([k, n]) => caja(k === 'otros' ? '' : 'c_' + k, n + (k === 'otros' ? ' (opcional)' : ''), inp(k, 'inputmode="decimal" placeholder="' + (sg[k] ? pesos(sg[k]) : '$0') + '"', w.costos))).join('') + '</div>'
-        + '<p class="nota">Sugeridos con los costos del negocio: placa $9,000 + $500 de corte, corte ala de avión $3,500, MDF y demás $1,500, base de comedor $6,000–7,000, flete $2,000 si no cabe en la minivan. Si un costo no aplica, pon 0.</p>';
+        + '<p class="nota">Sugeridos con los costos del negocio: placa $9,000 + $500 de corte, corte ala de avión $3,500, MDF y demás $1,500, base de comedor $6,000–7,000, flete $4,500 si no cabe en la minivan. Si un costo no aplica, pon 0.</p>';
     }
     const leer = h => {
       $$('[data-k]', h).forEach(i => { const k = i.dataset.k, v = i.value.trim(); w[k] = NUMS.includes(k) ? (v === '' ? '' : ['largo', 'ancho', 'altura'].includes(k) ? PZ.cm(v) : num(v)) : v; });

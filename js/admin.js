@@ -1076,12 +1076,75 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       return ms.some(m => !m.chico) ? (ms.some(m => !m.minivan) ? P.C.flete : P.C.minivanComedor) : 0;
     }
     const totales = b => { const sub = b.items.reduce((a, it) => a + num(it.precio) * Math.max(1, num(it.cant) || 1), 0), ent = b.entregaAuto ? entregaAuto(b) : num(b.entrega), des = num(b.descuento), tot = Math.max(0, sub - des + ent); return { sub, ent, des, tot, ant: Math.round(tot / 2) }; };
+    // ===== APROVECHAR PLACAS: la cotización completa, junta por color =====
+    // por cada color: ¿sale del stock? (piedra ya pagada → $0) · si no, cuántas placas nuevas para TODAS las mesas de ese color,
+    // junto con otros pedidos que esperan esa piedra (se reparte), y lo que sobra cuenta como valor (se queda en stock, al 50%)
+    function analizarCot(its, AL) {
+      AL = AL || alertas(); const area = PLACA().w * PLACA().h, precioP = P.C.placa.precio, G = [];
+      its.forEach((it, i) => { const col = limpiaP(it.piedra); let g = G.find(x => col ? x.color && mismoColor(x.color, col) : !x.color); if (!g) G.push(g = { color: col, idx: [] }); g.idx.push(i); });
+      const pzU = new Array(its.length).fill(null);
+      G.forEach(g => {
+        if (!g.color) { g.sin = true; return; }
+        g.nombre = (catDe(g.color) || [])[1] || (/negr/.test(sinAc(g.color)) ? 'Negra' : g.color);
+        const ped = g.idx.map(i => { const it = its[i], red = it.forma === 'red'; return { pieza: { nombre: '#' + (i + 1), forma: red ? 'red' : 'rect', d: num(it.w), w: num(it.w), h: red ? num(it.w) : num(it.h) }, cant: Math.max(1, num(it.cant) || 1) }; });
+        const st = disponibles().filter(s => mismoColor(s.piedra, g.color)), inv = { placas: st.filter(s => s.tipo === 'placa').map(s => ({ id: s.id, w: num(s.w), h: num(s.h), cant: 1 })), retazos: st.filter(s => s.tipo !== 'placa').map(s => ({ id: s.id, w: num(s.w), h: num(s.h) })) };
+        let r; try { r = K.meCabe(ped, inv, CFG, PLACA()); } catch (e) { r = { estado: 'error', msg: e.message }; }
+        if (r.estado === 'error') { g.error = r.msg; return; }
+        const aQ = g.idx.reduce((a, i) => a + huellaIt(its[i]) * Math.max(1, num(its[i].cant) || 1), 0);
+        if (r.estado !== 'falta') { g.stock = true; g.costo = 0; g.de = r.espacios.map(e => pieza(e.esp.id)).filter(Boolean); }
+        else {
+          const nuevas = r.espacios.filter(e => e.esp.nueva); g.placas = r.placasFaltan; g.deStock = r.espacios.filter(e => !e.esp.nueva).map(e => pieza(e.esp.id)).filter(Boolean);
+          g.usa = Math.round(nuevas.reduce((a, e) => a + e.pct, 0) / Math.max(1, nuevas.length));
+          const sob = [].concat(...nuevas.map(e => e.sobrantes)).filter(x => Math.min(x.w, x.h) >= 40); g.sobra = sob.sort((a, b) => b.w * b.h - a.w * a.h)[0] || null;
+          const credito = sob.reduce((a, x) => a + x.w * x.h, 0) / area * precioP * 0.5;
+          g.costo = Math.max(0, g.placas * precioP - credito);
+          // ¿otros pedidos esperan esa piedra? si caben en las mismas placas, se reparte
+          const comp = AL.compras.find(c => mismoColor(c.color, g.color));
+          if (comp) { const otros = [].concat(...comp.l.map(f => f.g.reqs.map(q => ({ pieza: { nombre: X.M().nomPedido(f.p), forma: q.forma, d: q.d, w: q.w, h: q.h }, cant: q.cant || 1 }))));
+            let r2; try { r2 = K.meCabe(ped.concat(otros), inv, CFG, PLACA()); } catch (e) { r2 = null; }
+            if (r2 && r2.estado === 'falta' && r2.placasFaltan === g.placas) { const aO = comp.l.reduce((a, f) => a + f.g.reqs.reduce((b2, q) => b2 + (q.forma === 'red' ? q.d * q.d : q.w * q.h) * (q.cant || 1), 0), 0); g.junta = comp.l.map(f => X.M().nomPedido(f.p).replace(/ #\d+$/, '') + ' ' + f.g.t.replace(/^Mesa (de )?/i, '')); g.costo = g.costo * aQ / (aQ + aO); } }
+        }
+        g.idx.forEach(i => { pzU[i] = g.costo * huellaIt(its[i]) / aQ; });
+      });
+      let total = 0;
+      its.forEach((it, i) => { let m; try { m = P.calcular({ uso: it.uso || 'centro', forma: it.forma || 'rect', w: num(it.w), h: it.forma === 'red' ? num(it.w) : num(it.h) }); } catch (e) { m = null; }
+        if (!m || !(num(it.w) > 0)) return; const ns = m.costo - m.piedra, pz = pzU[i] == null ? m.piedra : pzU[i];
+        it.normal = m.precio; it.auto = P.up100((ns + pz) * P.C.margen); if (!it.manual) it.precio = it.auto; total += it.auto * Math.max(1, num(it.cant) || 1); });
+      return { G, total };
+    }
+    const huellaIt = it => it.forma === 'red' ? num(it.w) * num(it.w) : num(it.w) * num(it.h);
+    // consejo: ¿y si todas fueran de un solo color? (uno que ya tengas o que comparta placa)
+    function mejorColor(its, actual, AL) {
+      if (its.length < 2) return null;
+      const cands = [...new Set(disponibles().map(s => s.piedra).concat(its.map(it => limpiaP(it.piedra))).filter(Boolean))];
+      let mejor = null;
+      cands.forEach(c => { const cl = JSON.parse(JSON.stringify(its)).map(it => Object.assign(it, { piedra: c, manual: false })); const t = analizarCot(cl, AL).total; if (!mejor || t < mejor.t) mejor = { c, t }; });
+      return mejor && mejor.t < actual - 300 ? { color: mejor.c, total: mejor.t, ahorro: actual - mejor.t } : null;
+    }
+    function panelPiedraCot(b, AN, sug) {
+      if (!b.items.length) return '';
+      const nuevosColores = AN.G.filter(g => g.placas).length;
+      const filas = AN.G.map(g => {
+        const n = g.idx.reduce((a, i) => a + Math.max(1, num(b.items[i].cant) || 1), 0), cual = g.idx.map(i => '#' + (i + 1)).join(', ');
+        if (g.sin) return '<li class="mala"><i>!</i><span><b>Mesas ' + cual + ': elige la piedra</b><small>Sin color no puedo revisar tu stock. Toca la mesa → piedra.</small></span></li>';
+        if (g.error) return '<li class="mala"><i>!</i><span><b>' + esc(g.nombre) + '</b><small>' + esc(g.error) + '</small></span></li>';
+        if (g.stock) return '<li class="corta"><i>✓</i><span><b>' + esc(g.nombre) + ' · ' + n + (n === 1 ? ' mesa' : ' mesas') + ': sale de tu stock</b><small>De ' + esc(g.de.map(nomPieza).join(' + ')) + '. La piedra ya está pagada: el precio baja.</small></span></li>';
+        return '<li class="compra"><i>🛒</i><span><b>' + esc(g.nombre) + ' · ' + n + (n === 1 ? ' mesa' : ' mesas') + ': comprar ' + g.placas + ' placa' + (g.placas > 1 ? 's' : '') + '</b><small>' + (n > 1 ? 'Todas salen de la misma placa' + (g.placas > 1 ? 's' : '') + '. ' : '') + 'Se usa ' + g.usa + '%' + (g.sobra ? '; sobra ' + Math.floor(Math.max(g.sobra.w, g.sobra.h)) + '×' + Math.floor(Math.min(g.sobra.w, g.sobra.h)) + ' que se queda en tu stock' : '') + '. A esta cotización le toca ≈ ' + pesos(g.costo) + ' de piedra.'
+          + (g.deStock && g.deStock.length ? ' Parte sale de tu ' + esc(g.deStock.map(nomPieza).join(', ')) + '.' : '') + (g.junta ? '<br>💡 Júntala con ' + esc(g.junta.join(' + ')) + ': esperan esa misma piedra, la placa se reparte y baja el precio.' : '') + '</small></span></li>';
+      }).join('');
+      return '<section class="caja hacer' + (AN.G.some(g => g.sin || g.error) ? ' mal' : nuevosColores ? ' pend' : ' ok') + '"><div class="caja-t"><h2>Piedra de esta cotización</h2></div><ul class="hacer-l">' + filas + '</ul>'
+        + (nuevosColores > 1 ? '<p class="nota">Son ' + nuevosColores + ' colores distintos: cada uno necesita su propia placa, por eso sube el precio.</p>' : '')
+        + (sug ? '<div class="compra"><b>💡 Si todas son ' + esc(sug.color) + ': ' + pesos(sug.total) + ' (ahorras ' + pesos(sug.ahorro) + ')</b><p>Se aprovecha mejor la placa' + (disponibles().some(s => mismoColor(s.piedra, sug.color)) ? ' y ya tienes esa piedra' : '') + '.</p><button class="b chico negro" id="cc-sug">Usar ' + esc(sug.color) + ' en todas</button></div>' : '')
+        + '</section>';
+    }
     let entregaVista = 0;
     function cliente(id) {
       let b = id ? (() => { const c = cotis().find(x => x.id === id); return c ? Object.assign(vacia(), JSON.parse(JSON.stringify(c)), { entregaAuto: false }) : null; })() : borrador();
+      if (b && id) b.items.forEach(it => { it.manual = true; });
       if (!b) { location.hash = '#piedras/cotizar'; return; }
       const guardar = () => { if (!id) guardarBorrador(b); };
       const pintar = () => {
+        const AL = alertas(), AN = analizarCot(b.items, AL), sug = mejorColor(b.items, AN.total, AL); guardar();
         const T = totales(b), clientes = X.M().clientes; entregaVista = T.ent;
         X.main().innerHTML = '<a class="volver" href="#piedras/cotizar">‹ Cotizar</a>' + X.tit('Cotizar al cliente', id ? 'Cotización C-' + esc(b.folio) + ' · ' + esc(fC(b.fecha)) : 'Llena, revisa y manda el PDF', '')
           + '<section class="caja"><h2>1 · Cliente</h2><div class="dos-i"><label class="campo">Nombre<input id="cc-n" maxlength="80" value="' + esc(b.cliente) + '" placeholder="ej. David Shamy"></label><label class="campo">WhatsApp<input id="cc-t" inputmode="tel" maxlength="20" value="' + esc(b.tel) + '" placeholder="55 1234 5678"></label></div>'
@@ -1090,20 +1153,23 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
             + (b.items.length ? '<ol class="cot-items">' + b.items.map((it, i) => '<li><div class="ci-t"><b>' + (i + 1) + '</b><textarea data-i="' + i + '" data-f="desc" maxlength="300">' + esc(it.desc) + '</textarea><button type="button" class="x" data-del="' + i + '" aria-label="Quitar">✕</button></div>'
               + '<div class="dos-i"><label class="campo">Cuántas<input data-i="' + i + '" data-f="cant" inputmode="numeric" value="' + esc(it.cant) + '"></label><label class="campo">Precio c/u<input data-i="' + i + '" data-f="precio" inputmode="decimal" value="' + esc(it.precio) + '"></label></div>'
               + '<div class="ci-sub"><span data-sub="' + i + '">' + subTxt(it) + '</span><button type="button" class="b chico" data-dup="' + i + '">⧉ Duplicar</button></div>'
-              + (num(it.auto) && num(it.auto) !== num(it.precio) ? '<button type="button" class="sug" data-auto="' + i + '">El calculador dice ' + pesos(it.auto) + ' · usar</button>' : '') + '</li>').join('') + '</ol>' : X.vacioTxt('Agrega las mesas que quiere el cliente.'))
+              + (num(it.auto) && num(it.auto) !== num(it.precio) ? '<button type="button" class="sug" data-auto="' + i + '">El sistema sugiere ' + pesos(it.auto) + (num(it.normal) && num(it.normal) !== num(it.auto) ? ' (normal ' + pesos(it.normal) + ')' : '') + ' · usar</button>' : '') + '</li>').join('') + '</ol>' : X.vacioTxt('Agrega las mesas que quiere el cliente.'))
             + '<button class="b negro grande" id="cc-add">＋ Agregar mesas</button><p class="nota">Puedes meter varias seguidas: en la hoja toca “＋ Agregar y meter otra”.</p></section>'
+          + panelPiedraCot(b, AN, sug)
           + '<section class="caja"><h2>3 · Entrega, descuento y condiciones</h2><div class="dos-i"><label class="campo">Entrega e instalación' + (b.entregaAuto ? ' <small>(automática)</small>' : '') + '<input id="cc-e" inputmode="decimal" value="' + esc(b.entregaAuto ? T.ent : b.entrega) + '"></label><label class="campo">Descuento ($)<input id="cc-d" inputmode="decimal" placeholder="$0" value="' + esc(b.descuento) + '"></label></div>'
             + '<div class="dos-i"><label class="campo">Tiempo de entrega<input id="cc-ti" maxlength="80" value="' + esc(b.tiempo) + '"></label><label class="campo">Vigencia (días)<input id="cc-v" inputmode="numeric" value="' + esc(b.vigencia) + '"></label></div>'
             + '<label class="campo">Notas para el cliente (opcional)<textarea id="cc-no" maxlength="400" placeholder="ej. Incluye instalación en CDMX">' + esc(b.notas) + '</textarea></label></section>'
           + '<section class="caja precio-g"><small>Total</small><b>' + pesos(T.tot) + '</b><p>Mesas ' + pesos(T.sub) + (T.des ? ' − descuento ' + pesos(T.des) : '') + (T.ent ? ' + entrega ' + pesos(T.ent) : ' · entrega incluida') + '</p><p>Anticipo 50%: <b>' + pesos(T.ant) + '</b> · saldo contra entrega ' + pesos(T.tot - T.ant) + '</p></section>'
           + '<div class="botones col"><button class="b verde grande" id="cc-pdf"' + (b.items.length && b.cliente ? '' : ' disabled') + '>📄 PDF para el cliente</button><button class="b negro grande" id="cc-g"' + (b.items.length && b.cliente ? '' : ' disabled') + '>' + (id ? 'Guardar cambios' : 'Guardar cotización') + '</button>' + (b.tel ? '<button class="b grande" id="cc-wa">Mandar mensaje por WhatsApp</button>' : '') + (b.items.length ? '<button class="b grande" id="cc-ped">Pasar a pedido</button>' : '') + (id ? '' : '<button class="b" id="cc-nueva">Empezar una nueva</button>') + (id ? '<button class="b rojo" id="cc-b">Borrar cotización</button>' : '') + '</div>'
           + (!b.cliente || !b.items.length ? '<p class="nota">Para sacar el PDF: pon el nombre del cliente y al menos una mesa.</p>' : '');
-        const leer = () => { b.cliente = $('#cc-n').value.trim(); b.tel = $('#cc-t').value.trim(); b.descuento = $('#cc-d').value.replace(/[^\d.]/g, ''); b.tiempo = $('#cc-ti').value; b.vigencia = Math.max(1, Math.floor(num($('#cc-v').value) || 15)); b.notas = $('#cc-no').value; $$('[data-i]').forEach(x => { const it = b.items[+x.dataset.i]; if (!it) return; it[x.dataset.f] = x.dataset.f === 'desc' ? x.value : x.value.replace(/[^\d.]/g, ''); }); const e = $('#cc-e').value.replace(/[^\d.]/g, ''); if (!b.entregaAuto || num(e) !== entregaVista) { b.entregaAuto = false; b.entrega = e; } guardar(); };
+        const leer = () => { b.cliente = $('#cc-n').value.trim(); b.tel = $('#cc-t').value.trim(); b.descuento = $('#cc-d').value.replace(/[^\d.]/g, ''); b.tiempo = $('#cc-ti').value; b.vigencia = Math.max(1, Math.floor(num($('#cc-v').value) || 15)); b.notas = $('#cc-no').value; $$('[data-i]').forEach(x => { const it = b.items[+x.dataset.i]; if (!it) return; const v = x.dataset.f === 'desc' ? x.value : x.value.replace(/[^\d.]/g, ''); if (x.dataset.f === 'precio' && num(v) !== num(it.precio)) it.manual = true; it[x.dataset.f] = v; }); const e = $('#cc-e').value.replace(/[^\d.]/g, ''); if (!b.entregaAuto || num(e) !== entregaVista) { b.entregaAuto = false; b.entrega = e; } guardar(); };
         const vivo = () => { leer(); const T2 = totales(b), pg = $('.precio-g'); if (pg) { pg.querySelector('b').textContent = pesos(T2.tot); pg.querySelectorAll('p')[0].textContent = 'Mesas ' + pesos(T2.sub) + (T2.des ? ' − descuento ' + pesos(T2.des) : '') + (T2.ent ? ' + entrega ' + pesos(T2.ent) : ' · entrega incluida'); pg.querySelectorAll('p')[1].innerHTML = 'Anticipo 50%: <b>' + pesos(T2.ant) + '</b> · saldo contra entrega ' + pesos(T2.tot - T2.ant); } $$('[data-sub]').forEach(x => { const it = b.items[+x.dataset.sub]; if (it) x.textContent = subTxt(it); }); if ($('#cc-suma')) $('#cc-suma').textContent = piezasTxt(b); const ok = b.items.length && b.cliente; ['#cc-pdf', '#cc-g'].forEach(s => { if ($(s)) $(s).disabled = !ok; }); };
         $$('#app input, #app textarea').forEach(i => i.addEventListener('input', vivo));
         $$('#cc-cl [data-v]').forEach(x => x.onclick = () => { leer(); const c = X.M().cli(x.dataset.v); b.cliente = c.nombre; b.tel = c.telefono || b.tel; b.clienteId = c.id; guardar(); pintar(); });
         $$('[data-del]').forEach(x => x.onclick = () => { leer(); b.items.splice(+x.dataset.del, 1); guardar(); pintar(); });
-        $$('[data-auto]').forEach(x => x.onclick = () => { leer(); const it = b.items[+x.dataset.auto]; it.precio = it.auto; guardar(); pintar(); });
+        $$('[data-f="cant"]').forEach(x => x.addEventListener('change', () => { leer(); pintar(); }));
+        if ($('#cc-sug')) $('#cc-sug').onclick = () => { leer(); b.items.forEach(it => { it.piedra = sug.color; it.manual = false; if (it.uso) it.desc = descDe(it.uso, it.forma, num(it.w), num(it.h), num(it.alto), sug.color, it.base || ''); }); guardar(); pintar(); X.aviso('Todas en ' + sug.color + ': precios recalculados'); };
+        $$('[data-auto]').forEach(x => x.onclick = () => { leer(); const it = b.items[+x.dataset.auto]; it.manual = false; it.precio = it.auto; guardar(); pintar(); });
         $$('[data-dup]').forEach(x => x.onclick = () => { leer(); const i = +x.dataset.dup; b.items.splice(i + 1, 0, JSON.parse(JSON.stringify(b.items[i]))); guardar(); pintar(); X.aviso('Mesa duplicada: cámbiale lo que necesites'); });
         $('#cc-add').onclick = () => { leer(); mesaNueva(it => { b.items.push(it); guardar(); pintar(); }, () => ({ n: b.items.length, t: piezasTxt(b) })); };
         $('#cc-pdf').onclick = () => { leer(); pdfCliente(b); };
@@ -1137,14 +1203,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
           const c0 = cuenta ? cuenta() : null;
           $('#mn', h).innerHTML = (c0 && c0.n ? '<p class="ok-g">Ya van ' + esc(c0.t) + '</p>' : '') + '<div class="campo">¿Qué mesa?' + chipsH('uso', USOS, q.uso) + '</div><div class="campo">Forma' + chipsH('forma', FORMAS, q.forma) + '</div>'
             + '<div class="campo">Medidas (cm)<div class="tres-i"><input data-k="w" inputmode="decimal" placeholder="' + (q.forma === 'red' ? 'Diámetro' : 'Largo') + '" value="' + esc(q.w) + '">' + (q.forma === 'red' ? '' : '<input data-k="h" inputmode="decimal" placeholder="Ancho" value="' + esc(q.h) + '">') + '<input data-k="alto" inputmode="decimal" placeholder="Alto (' + (P.ALTO[q.uso] || 75) + ')" value="' + esc(q.alto) + '"><input data-k="cant" inputmode="numeric" placeholder="Cuántas" value="' + esc(q.cant) + '"></div></div>' + (comunes(q.uso, q.forma).length ? '<div class="campo">Medidas que más se venden (toca una)' + comunesH(comunes(q.uso, q.forma), 'data-mmed') + '</div>' : '')
-            + '<div class="campo">Piedra' + chipsPiedra('piedra', q.piedra, { conOtra: true }) + (otraAbierta(q.piedra) ? '<input data-k="piedra" maxlength="40" placeholder="Nombre de la piedra" value="' + esc(limpiaP(q.piedra)) + '">' : '') + '</div>'
+            + '<div class="campo">¿De qué piedra? <small class="nota">(para revisar tu stock)</small>' + chipsPiedra('piedra', q.piedra, { conOtra: true }) + (otraAbierta(q.piedra) ? '<input data-k="piedra" maxlength="40" placeholder="Nombre de la piedra" value="' + esc(limpiaP(q.piedra)) + '">' : '') + '</div>'
             + '<label class="campo">Base (opcional)<input data-k="base" maxlength="60" placeholder="ej. estructura oro mate" value="' + esc(q.base) + '"></label>'
             + (r ? (r.error ? '<p class="aviso r">' + esc(r.error) + '</p>' : '<div class="vivo"><div>Precio c/u<b>' + pesos(r.m.precio) + '</b></div><div>Costo<b>' + pesos(r.conStock ? r.m.costo - r.m.piedra : r.m.costo) + '</b></div><div>' + (r.conStock ? 'Piedra<b class="v">en stock ✓</b>' : 'Piedra<b>hay que comprar</b>') + '</div></div>') : '')
-            + '<button class="b verde grande" id="mn-otra"' + (r && !r.error ? '' : ' disabled') + '>＋ Agregar y meter otra</button><button class="b negro grande" id="mn-ok"' + (r && !r.error ? '' : ' disabled') + '>Agregar y terminar</button>';
+            + (limpiaP(q.piedra) ? '' : '<p class="aviso">Elige de qué piedra es para poder agregarla.</p>') + '<button class="b verde grande" id="mn-otra"' + (r && !r.error && limpiaP(q.piedra) ? '' : ' disabled') + '>＋ Agregar y meter otra</button><button class="b negro grande" id="mn-ok"' + (r && !r.error && limpiaP(q.piedra) ? '' : ' disabled') + '>Agregar y terminar</button>';
           $$('[data-q]', h).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; leerMN(); q[g.dataset.q] = b.dataset.v; pintar(); });
           $$('[data-k]', h).forEach(i => i.onchange = () => { leerMN(); pintar(); });
           $$('[data-mmed]', h).forEach(b => b.onclick = () => { leerMN(); const [a, c] = b.dataset.mmed.split(','); q.w = a; q.h = q.forma === 'red' ? '' : c; pintar(); });
-          $$('[data-k]', h).forEach(i => i.oninput = () => { leerMN(); const ok2 = num(q.w) && (q.forma === 'red' || num(q.h)); $('#mn-ok', h).disabled = !ok2; $('#mn-otra', h).disabled = !ok2; });
+          $$('[data-k]', h).forEach(i => i.oninput = () => { leerMN(); const ok2 = num(q.w) && (q.forma === 'red' || num(q.h)) && limpiaP(q.piedra); $('#mn-ok', h).disabled = !ok2; $('#mn-otra', h).disabled = !ok2; });
           const hacer = () => { leerMN(); const r2 = calcula(q); if (r2.error) { X.aviso(r2.error, true); return null; } const it = itemDe(q, r2); it.base = q.base.trim(); it.desc = descDe(q.uso, q.forma, it.w, it.h, it.alto, it.piedra, it.base); return it; };
           $('#mn-ok', h).onclick = () => { const it = hacer(); if (!it) return; X.cerrarHoja(); listo(it); };
           // se queda abierta: misma mesa, piedra y base; solo cambias la medida

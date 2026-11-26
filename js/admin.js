@@ -2183,7 +2183,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
   function filaMov(m) {
     const de = m.pedido ? M.nomPed(m.pedido) : m.deuda ? ((M.deu(m.deuda) || {}).nombre || '') : 'General', i = N.esIn(m);
     const cred = !i && (m.fondo || '').slice(0, 3) === 'pd:';
-    return '<button class="mov ' + (i ? 'in' : 'out') + '" data-mov="' + esc(m.id) + '"><i>' + (i ? '+' : '−') + '</i><span><b>' + (m.revisar ? pill('aclarar', 'a') + ' ' : '') + (cred ? pill('se debe · no salió dinero', 'a') + ' ' : '') + esc(m.cat || '') + ' · ' + esc(de) + '</b><small>' + (cred ? [M.nomFondo(m.fondo), m.nota] : [m.quien, m.metodo || 'sin decir cómo', !i ? 'de: ' + M.nomFondo(m.fondo) : '', m.nota]).filter(Boolean).map(esc).join(' · ') + '</small></span><em>' + (i ? '+' : '−') + pesos(m.monto).replace('−', '') + '<small>' + fC(m.fecha) + '</small></em></button>';
+    return '<button class="mov ' + (i ? 'in' : 'out') + '" data-mov="' + esc(m.id) + '"><i>' + (i ? '+' : '−') + '</i><span><b>' + (m.revisar ? pill('aclarar', 'a') + ' ' : '') + (cred ? pill('se debe · no salió dinero', 'a') + ' ' : '') + esc(m.cat || '') + ' · ' + esc(de) + '</b><small>' + (cred ? [M.nomFondo(m.fondo), m.nota] : [!i && m.a ? '→ ' + m.a : '', m.quien, m.metodo || 'sin decir cómo', !i ? 'de: ' + M.nomFondo(m.fondo) : '', m.nota]).filter(Boolean).map(esc).join(' · ') + '</small></span><em>' + (i ? '+' : '−') + pesos(m.monto).replace('−', '') + '<small>' + fC(m.fecha) + '</small></em></button>';
   }
   function enlazarMovs() { $$('[data-mov]').forEach(b => b.onclick = () => registrar(M.movs.find(m => m.id === b.dataset.mov))); }
 
@@ -2273,8 +2273,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
   function registrar(ed, pre) {
     pre = pre || {};
     const d = ed ? { tipo: ed.tipo, monto: String(ed.monto), cat: ed.cat || '', fecha: ed.fecha, quien: ed.quien || '', metodo: ed.metodo || '', nota: ed.nota || '', pedido: ed.pedido || '', deuda: ed.deuda || '', fondo: ed.fondo || '',
-      origen: ed.tipo === 'in' ? (ed.pedido ? 'pedido' : ed.deuda ? 'prestamo' : ed.revisar ? '' : 'otro') : '', para: ed.tipo === 'out' ? (ed.pedido ? 'pedido' : ed.deuda ? 'deuda' : ed.revisar ? '' : 'general') : '', nuevoPrest: '' }
-      : { tipo: pre.tipo || '', monto: pre.monto ? String(pre.monto) : '', cat: '', fecha: hoy(), quien: (() => { try { return localStorage.getItem('dkas-quien') || ''; } catch (e) { return ''; } })(), metodo: pre.metodo || '', nota: pre.nota || '', pedido: pre.pedido || '', deuda: pre.deuda || '', fondo: '', origen: pre.origen || (pre.pedido && pre.tipo === 'in' ? 'pedido' : ''), para: pre.para || (pre.pedido ? 'pedido' : ''), nuevoPrest: '' };
+      origen: ed.tipo === 'in' ? (ed.pedido ? 'pedido' : ed.deuda ? 'prestamo' : ed.revisar ? '' : 'otro') : '', para: ed.tipo === 'out' ? (ed.pedido ? 'pedido' : ed.deuda ? 'deuda' : ed.revisar ? '' : 'general') : '', nuevoPrest: '', a: ed.a || '', q: '' }
+      : { tipo: pre.tipo || '', monto: pre.monto ? String(pre.monto) : '', cat: '', fecha: hoy(), quien: (() => { try { return localStorage.getItem('dkas-quien') || ''; } catch (e) { return ''; } })(), metodo: pre.metodo || '', nota: pre.nota || '', pedido: pre.pedido || '', deuda: pre.deuda || '', fondo: '', origen: pre.origen || (pre.pedido && pre.tipo === 'in' ? 'pedido' : ''), para: pre.para || (pre.pedido ? 'pedido' : ''), nuevoPrest: '', a: pre.a || '', q: '' };
     if (pre.pedido && !pre.tipo) d.tipo = '';
     const gente = [...new Set(['Zury', 'David'].concat(M.movs.filter(m => (m.fondo || '').slice(0, 3) !== 'pd:').map(m => m.quien).filter(Boolean)))];
     const activos = M.pedidos.filter(p => !p.cerrado || p.id === d.pedido);
@@ -2282,9 +2282,27 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     const nomPedX = id => id.startsWith(OTRA) ? 'Otra mesa de ' + ((M.cli(id.slice(OTRA.length)) || {}).nombre || '') : M.nomPed(id);
     const chips = (k, l, val) => '<div class="chips" data-k="' + k + '">' + l.map(([v, t, sub]) => '<button data-v="' + esc(v) + '"' + (val === v ? ' class="on"' : '') + '>' + esc(t) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>').join('') + '</div>';
     d.entrega = d.entrega || '';
-    const pideEnt = () => d.tipo === 'in' && d.origen === 'pedido' && d.pedido && (d.pedido.startsWith('__otra:') || (M.ped(d.pedido) && sinFecha(M.ped(d.pedido))));
+    // ---------- salidas: ideas de en qué se fue el dinero (escribes o tocas y se llena solo) ----------
+    const COST_A_CAT = { placa: 'Placa', base: 'Base', corte: 'Corte ala de avión', mdf: 'MDF', flete: 'Flete', entrega: 'Entrega', material: 'Material', otros: 'Otro' };
+    const PISTA = { base: ' herrero herreria soldador enrique', placa: ' piedra jaime', flete: ' fletero richard camioneta', entrega: ' gasolina', material: ' tornillos pegamento discos pintura' };
+    const sinAc = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const nom1 = s => String(s || '').split(/[ (]/)[0];
+    const deudasVivas = () => M.deudas.map(x => [x, M.statsDeuda(x)]).filter(([, s]) => s.falta > 0);
+    function ideasSalida() {
+      const l = [];
+      deudasVivas().forEach(([x, s]) => l.push({ t: 'Pagarle a ' + x.nombre, sub: 'le debemos ' + pesos(s.falta), falta: s.falta, set: { para: 'deuda', deuda: x.id, pedido: '', cat: 'Pago de deuda', a: nom1(x.nombre) }, k: x.nombre + ' ' + (x.notas || '') + ' pago deuda debo' }));
+      M.pedidos.filter(p => !p.cerrado).forEach(p => { const s = M.statsPedido(p), c = p.costos || {};
+        Object.keys(COST_A_CAT).forEach(k => { const plan = num(c[k]), van = s.real[k] || 0; if (plan > van) l.push({ t: COST_A_CAT[k] + ' · ' + M.nomPedido(p), sub: (van ? 'van ' + pesos(van) + ' de ' : 'presupuesto ') + pesos(plan), set: { para: 'pedido', pedido: p.id, deuda: '', cat: COST_A_CAT[k] }, k: k + ' ' + (p.notas || '') + ' ' + (p.color || '') + (PISTA[k] || '') }); }); });
+      const vistos = new Set(); M.movs.filter(m => !N.esIn(m) && !m.pedido && !m.deuda && m.cat).slice().reverse().forEach(m => { if (vistos.has(m.cat) || vistos.size >= 4) return; vistos.add(m.cat); l.push({ t: m.cat + ' · gasto general', sub: 'la última vez: ' + pesos(m.monto), set: { para: 'general', pedido: '', deuda: '', cat: m.cat }, k: (m.nota || '') + ' ' + (m.a || '') }); });
+      const q = sinAc(d.q).split(/\s+/).filter(Boolean);
+      return q.length ? l.filter(x => { const t = sinAc(x.t + ' ' + x.sub + ' ' + x.k); return q.every(w => t.includes(w)); }) : l;
+    }
+    const ideaOn = x => Object.keys(x.set).every(k => k === 'a' || (d[k] || '') === (x.set[k] || ''));
+    const aQuienes = () => [...new Set(deudasVivas().map(([x]) => nom1(x.nombre)).concat(M.movs.slice().reverse().map(m => m.a).filter(Boolean)))].slice(0, 8);
+    const deudaDe = a => { const w = sinAc(a).trim(); return w.length > 2 ? deudasVivas().find(([x]) => sinAc(x.nombre).split(/[ (),]+/).includes(w) || sinAc(x.nombre).startsWith(w)) : null; };
+    const pideEnt =() => d.tipo === 'in' && d.origen === 'pedido' && d.pedido && (d.pedido.startsWith('__otra:') || (M.ped(d.pedido) && sinFecha(M.ped(d.pedido))));
     const falta = () => [!N.num(d.monto) && 'cantidad', pideEnt() && !d.entrega && 'fecha de entrega', d.tipo === 'in' && !d.origen && 'de dónde viene', d.tipo === 'in' && d.origen === 'pedido' && !d.pedido && 'de qué pedido', d.tipo === 'in' && d.origen === 'prestamo' && !d.deuda && !d.nuevoPrest.trim() && 'quién prestó',
-      d.tipo === 'out' && !d.para && 'para qué es', d.tipo === 'out' && d.para === 'pedido' && !d.pedido && 'de qué pedido', d.tipo === 'out' && d.para === 'deuda' && !d.deuda && 'a qué deuda', !d.cat && 'concepto',
+      d.tipo === 'out' && !d.para && 'para qué es', d.tipo === 'out' && d.para === 'pedido' && !d.pedido && 'de qué pedido', d.tipo === 'out' && d.para === 'deuda' && !d.deuda && 'a qué deuda', !d.cat && 'concepto', d.tipo === 'out' && d.para === 'pedido' && !ed && !d.a.trim() && 'a quién se le pagó',
       d.tipo === 'out' && !d.fondo && 'de qué dinero sale', d.tipo === 'out' && d.fondo === 'pd:' && !d.nuevoPrest.trim() && 'quién lo pagó', !d.quien && (d.tipo === 'in' ? 'quién lo recibió' : 'quién lo pagó'), !d.metodo && 'cómo', !d.fecha && 'fecha'].filter(Boolean);
     hoja(ed ? 'Corregir movimiento' : 'Registrar dinero', '<div id="rg"></div>', h => {
       const pintar = () => {
@@ -2292,9 +2310,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
         if (d.tipo === 'in' && d.origen === 'pedido' && cliOtra() && !d.cat) d.cat = 'Anticipo';
         const cS = S && M.cli(M.ped(d.pedido).cliente), deMas = d.tipo === 'in' && cS && cS.tipo === 'arquitecto' && S.precio && N.num(d.monto) > Math.max(S.porCobrar, 0);
         if (d.tipo === 'in' && d.origen === 'pedido' && S && !d.cat) d.cat = S.ent === 0 ? 'Anticipo' : (S.precio && S.ent + N.num(d.monto) >= S.precio ? 'Liquidación' : 'Abono');
-        const conceptos = d.tipo === 'in' ? (d.origen === 'pedido' ? ['Anticipo', 'Abono', 'Liquidación'] : d.origen === 'prestamo' ? ['Préstamo'] : ['Otro ingreso', 'Saldo inicial'])
+        let conceptos = d.tipo === 'in' ? (d.origen === 'pedido' ? ['Anticipo', 'Abono', 'Liquidación'] : d.origen === 'prestamo' ? ['Préstamo'] : ['Otro ingreso', 'Saldo inicial'])
           : d.para === 'deuda' ? ['Pago de deuda'] : d.para === 'general' ? C.GASTO_GENERAL : C.GASTO_PEDIDO;
         if (conceptos.length === 1) d.cat = conceptos[0];
+        if (d.cat && !conceptos.includes(d.cat)) conceptos = conceptos.concat([d.cat]);
+        if (d.tipo === 'out' && d.para === 'deuda' && d.deuda && !d.a && M.deu(d.deuda)) d.a = nom1(M.deu(d.deuda).nombre);
+        const dA = d.tipo === 'out' && d.para !== 'deuda' ? deudaDe(d.a) : null;
         const fondos = M.fondos().filter(f => f.saldo > 0 || f.f === d.fondo).sort((a, b) => (b.f === 'p:' + d.pedido) - (a.f === 'p:' + d.pedido) || b.saldo - a.saldo);
         const montoN = N.num(d.monto), fSel = fondos.find(f => f.f === d.fondo), sobregiro = d.tipo === 'out' && fSel && montoN > fSel.saldo + (ed && ed.fondo === d.fondo ? N.num(ed.monto) : 0);
         const f = d.tipo ? falta() : [];
@@ -2307,10 +2328,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
                 + (deMas ? '<p class="aviso">' + esc(cS.nombre) + ' es arquitecto y este pedido solo debe ' + pesos(Math.max(S.porCobrar, 0)) + '. Si este dinero es de <b>otra mesa</b>, toca «＋ Otra mesa de ' + esc(cS.nombre) + '».</p>' : '')
                 + (cliOtra() ? '<p class="aviso v">Se abre un <b>pedido nuevo</b> de ' + esc(cliOtra().nombre) + ' con este pago. Luego le llenas la mesa y el precio.</p>' : '') + '</div>' : '')
               + (d.origen === 'prestamo' ? '<div class="campo">¿Quién nos prestó?' + chips('deuda', M.deudas.map(x => [x.id, x.nombre, 'le debemos ' + pesos(M.statsDeuda(x).falta)]).concat([['__nuevo', '＋ Prestamista nuevo']]), d.deuda || (d.nuevoPrest ? '__nuevo' : '')) + (d.deuda === '__nuevo' || (!d.deuda && d.nuevoPrest) ? '<input id="r-np" placeholder="Nombre de quien prestó (se le crea su panel)" value="' + esc(d.nuevoPrest) + '">' : '') + '</div>' : '')
-            : '<div class="campo">¿Para qué es?' + chips('para', [['pedido', 'Gasto de un pedido'], ['deuda', 'Pagar una deuda'], ['general', 'Gasto general']], d.para) + '</div>'
+            : '<div class="campo ideas">💡 ¿En qué se fue? <small class="nota">escribe o toca una opción y se llena solo</small><input id="r-q" type="search" autocomplete="off" placeholder="ej. base enrique · gasolina · pago jaime" value="' + esc(d.q) + '"><div class="ideas-l" id="r-il"></div></div>'
+              + '<div class="campo">¿Para qué es?' + chips('para', [['pedido', 'Gasto de un pedido'], ['deuda', 'Pagar una deuda'], ['general', 'Gasto general']], d.para) + '</div>'
               + (d.para === 'pedido' ? '<div class="campo">¿De qué pedido?' + chips('pedido', activos.map(p => [p.id, M.nomPedido(p), piezaTxt(p).slice(0, 34)]), d.pedido) + '</div>' : '')
               + (d.para === 'deuda' ? '<div class="campo">¿A quién le pagamos?' + chips('deuda', M.deudas.map(x => [x.id, x.nombre, 'le debemos ' + pesos(M.statsDeuda(x).falta)]), d.deuda) + (M.deudas.length ? '' : '<p class="nota">No hay deudas anotadas. Anótala primero en Pedidos → A quién le debemos.</p>') + '</div>' : ''))
           + '<div class="campo">Concepto' + chips('cat', conceptos.map(x => [x, x]), d.cat) + '</div>'
+          + (d.tipo === 'out' && d.para ? '<div class="campo">¿A quién se le pagó?' + (d.para === 'pedido' && !ed ? '' : ' <small class="nota">opcional</small>') + chips('a', aQuienes().map(x => [x, x]), d.a) + '<input id="r-a" maxlength="40" placeholder="Otro nombre (herrero, fletero, tienda…)" value="' + esc(aQuienes().includes(d.a) ? '' : d.a) + '">'
+              + (dA ? '<p class="aviso">Le debemos <b>' + pesos(dA[1].falta) + '</b> a ' + esc(dA[0].nombre) + '. ¿Este dinero es para <b>pagarle esa deuda</b>? Si sí, se descuenta de lo que le debemos. <button class="b chico negro" id="r-esd">Sí, es pago de su deuda</button></p>' : '') + '</div>' : '')
           + (d.tipo === 'out' ? '<div class="campo">¿De qué dinero sale?' + chips('fondo', fondos.map(x => [x.f, x.nombre, 'hay ' + pesos(x.saldo)]).concat([['caja', 'Caja general', 'hay ' + pesos(M.saldoFondo('caja'))], ['pd:', 'A crédito / lo pagó alguien por nosotros', 'NO sale del banco: queda como deuda']]).filter((x, i, a) => a.findIndex(y => y[0] === x[0]) === i), d.fondo.slice(0, 3) === 'pd:' ? 'pd:' : d.fondo)
               + (d.fondo.slice(0, 3) === 'pd:' ? chips('pdq', M.deudas.map(x => ['pd:' + x.id, x.nombre]).concat([['pd:__nuevo', '＋ Alguien nuevo']]), d.fondo === 'pd:' && d.nuevoPrest ? 'pd:__nuevo' : d.fondo) + (d.fondo === 'pd:' || d.fondo === 'pd:__nuevo' ? '<input id="r-np" placeholder="¿Quién lo pagó? (se le crea su panel de deuda)" value="' + esc(d.nuevoPrest) + '">' : '') : '')
               + (sobregiro ? '<p class="aviso r">' + esc(fSel.nombre) + ' solo tiene ' + pesos(fSel.saldo) + '. Quedaría en ' + pesos(fSel.saldo - montoN) + ': se estaría usando dinero de otro.</p>' : '')
@@ -2323,6 +2347,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
           + '<button class="b negro grande" id="r-ok"' + (f.length ? ' disabled' : '') + '>Guardar</button>' + (ed ? '<button class="b rojo" id="r-b">Borrar este movimiento</button>' : ''));
         $$('[data-t]', h).forEach(b => b.onclick = () => { d.tipo = b.dataset.t; d.cat = ''; d.fondo = ''; if (d.tipo === 'in') { d.para = ''; } else { d.origen = ''; if (d.pedido) d.para = 'pedido'; } pintar(); if ($('#r-m', h) && !d.monto) $('#r-m', h).focus(); });
         if (!d.tipo) return;
+        const il = $('#r-il', h);
+        if (il) {
+          const pintaIdeas = () => { const l = ideasSalida(), on = l.findIndex(ideaOn), v = (on > 5 ? [l[on]].concat(l.slice(0, 5)) : l.slice(0, 6));
+            il.innerHTML = v.map(x => '<button data-idea="' + l.indexOf(x) + '"' + (ideaOn(x) ? ' class="on"' : '') + '><b>' + esc(x.t) + '</b><small>' + esc(x.sub) + '</small></button>').join('') + (l.length ? (l.length > v.length ? '<p class="nota">' + (l.length - v.length) + ' opciones más: escribe para buscar.</p>' : '') : '<p class="nota">' + (d.q ? 'Nada parecido. Llénalo abajo.' : 'Sin ideas por ahora. Llénalo abajo.') + '</p>');
+            $$('[data-idea]', il).forEach(b => b.onclick = () => { const x = l[+b.dataset.idea]; Object.assign(d, x.set); if (x.set.para === 'deuda' && !N.num(d.monto)) d.monto = String(x.falta); pintar(); const c = $('.ideas', h); if (c) c.nextElementSibling.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }); };
+          pintaIdeas(); $('#r-q', h).oninput = e => { d.q = e.target.value; pintaIdeas(); };
+        }
+        const ra = $('#r-a', h); if (ra) { ra.oninput = () => { d.a = ra.value; $('#r-ok', h).disabled = falta().length > 0; }; ra.onchange = () => pintar(); }
+        const esd = $('#r-esd', h); if (esd) esd.onclick = () => { Object.assign(d, { para: 'deuda', deuda: dA[0].id, pedido: '', cat: 'Pago de deuda' }); if (!N.num(d.monto)) d.monto = String(dA[1].falta); pintar(); };
         $$('[data-k]', h).forEach(g => g.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; const k = g.dataset.k, v = b.dataset.v;
           if (k === 'pdq') { d.fondo = v === 'pd:__nuevo' ? 'pd:' : v; if (v !== 'pd:__nuevo') d.nuevoPrest = ''; }
           else if (k === 'deuda' && v === '__nuevo') { d.deuda = ''; d.nuevoPrest = d.nuevoPrest || ' '; }
@@ -2344,6 +2377,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
         const nuevo = d.nuevoPrest.trim(), quien = d.tipo === 'in' ? (d.origen === 'pedido' ? nomPedX(d.pedido) : d.origen === 'prestamo' ? (deudaId ? M.deu(deudaId).nombre : nuevo + ' (nuevo)') : 'Otro ingreso') : (d.para === 'pedido' ? 'Pedido de ' + M.nomPed(d.pedido) : d.para === 'deuda' ? 'Pago a ' + M.deu(d.deuda).nombre : 'Gasto general');
         const lin = [['Cantidad', pesos(monto)], [d.tipo === 'in' ? 'De' : 'Para', quien], ['Concepto', d.cat]];
         if (pideEnt() && d.entrega) lin.push(['Entrega', fC(d.entrega)]);
+        if (d.tipo === 'out' && d.a.trim()) lin.push(['Se le pagó a', d.a.trim()]);
         if (d.tipo === 'out') lin.push(['Sale de', fondo === 'pd:' ? 'A crédito: se le deberá a ' + nuevo + ' (nuevo)' : M.nomFondo(fondo)]);
         lin.push([d.tipo === 'in' ? 'Lo recibió' : 'Lo pagó', d.quien], ['Cómo', d.metodo], ['Fecha', fC(d.fecha)]);
         if (!await clave((ed ? 'Corregir: ' : '') + (d.tipo === 'in' ? 'Entró dinero' : 'Salió dinero'), lin)) return;
@@ -2357,7 +2391,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
             d.pedido = await A.nodoAgrega('dinero/pedidos', { cliente: c.id, folio, fecha: d.fecha, entrega: d.entrega || null, notas: 'Otra mesa de ' + c.nombre + ' (arquitecto). Llegó un pago de ' + pesos(monto) + '. Falta llenar la mesa y el precio.' }); }
           else if (pideEnt() && d.entrega) await A.nodoCambia('dinero/pedidos/' + d.pedido, { entrega: d.entrega });
           const x = { tipo: d.tipo, monto, cat: d.cat.slice(0, 30), fecha: d.fecha, quien: d.quien.slice(0, 30), metodo: d.metodo, nota: d.nota.trim().slice(0, 80) || null,
-            pedido: (d.tipo === 'in' ? d.origen === 'pedido' : d.para === 'pedido') ? d.pedido : null, deuda: (d.tipo === 'in' ? d.origen === 'prestamo' : d.para === 'deuda') ? deudaId : null, fondo: d.tipo === 'out' ? fondo : null, revisar: null, cliente: null };
+            pedido: (d.tipo === 'in' ? d.origen === 'pedido' : d.para === 'pedido') ? d.pedido : null, deuda: (d.tipo === 'in' ? d.origen === 'prestamo' : d.para === 'deuda') ? deudaId : null, fondo: d.tipo === 'out' ? fondo : null, a: d.tipo === 'out' ? d.a.trim().slice(0, 40) || null : null, revisar: null, cliente: null };
           try { localStorage.setItem('dkas-quien', x.quien); } catch (e) {}
           if (ed) await A.nodoCambia('dinero/movs/' + ed.id, x); else { Object.keys(x).forEach(k => x[k] == null && delete x[k]); await A.nodoAgrega('dinero/movs', x); }
         }, (d.tipo === 'in' ? 'Entrada' : 'Salida') + ' de ' + pesos(monto) + ' guardada', (ed ? 'Corrigió ' : 'Registró ') + (d.tipo === 'in' ? 'entrada ' : 'salida ') + pesos(monto) + ' · ' + d.cat + ' · ' + quien);

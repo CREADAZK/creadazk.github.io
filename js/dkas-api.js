@@ -136,7 +136,7 @@
       email = emailOk(email); save('dazk-correo', email);
       try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email, password: pass, returnSecureToken: true })); }
       catch (e) { throw new Error(/INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND/.test(e.code) ? 'Correo o contraseña incorrectos. Si es tu primera vez, toca «Primera vez: crear mi clave».' : authErr(e)); }
-      const me = await this.yo(); if (!me) { setSes(null); throw new Error('Tu cuenta todavía no está aprobada, o este correo no tiene acceso. Avísale a Zury.'); }
+      const me = await this.yo(); if (!me) { await db('pendientes/' + ses.uid, 'PUT', { email: email, creado: TS }, true).catch(() => {}); setSes(null); throw new Error('Tu cuenta todavía no está aprobada, o este correo no tiene acceso. Avísale a Zury.'); }
       return me;
     },
     // Google's own page lets the person type the new password; an email that never signed in has no account yet, so it gets the entry link instead
@@ -145,9 +145,13 @@
       email = emailOk(email); pass = String(pass || ''); if (pass.length < 6) throw new Error('La clave debe tener al menos 6 caracteres.'); save('dazk-correo', email);
       try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signUp', { email, password: pass, returnSecureToken: true })); }
       catch (e) { throw new Error(/EMAIL_EXISTS/.test(e.code) ? 'Ese correo ya tiene su clave. Regresa y entra con tu correo y tu clave.' : authErr(e)); }
-      const me = await this.yo(); if (!me) { setSes(null); throw new Error('Listo, tu clave quedó creada. Falta que Zury apruebe tu cuenta; en cuanto la apruebe entras con tu correo y tu clave.'); }
+      const me = await this.yo(); if (!me) { await db('pendientes/' + ses.uid, 'PUT', { email: email, creado: TS }, true).catch(() => {}); setSes(null); throw new Error('Listo, tu clave quedó creada. Falta que Zury apruebe tu cuenta; en cuanto la apruebe entras con tu correo y tu clave.'); }
       return me;
     },
+    // quién puede entrar: correos autorizados (admins/), cuentas aprobadas (claves/<uid>) y las que esperan aprobación (pendientes/<uid>)
+    async accesoPanel() { const [ad, cl, pe] = await Promise.all(['admins', 'claves', 'pendientes'].map(p => db(p, 'GET', undefined, true).catch(() => null))); return { admins: Object.fromEntries(Object.entries(ad || {}).map(([k, a]) => [k, Object.assign({}, a, { duenio: a.email === OWNER })])), claves: cl || {}, pendientes: pe || {} }; },
+    async aprobar(uid, email, nombre) { await db('claves/' + uid, 'PUT', { email, nombre: String(nombre || email).slice(0, 60), aprobado: TS }, true); await db('pendientes/' + uid, 'DELETE', undefined, true).catch(() => {}); },
+    async quitarClave(uid) { await db('claves/' + uid, 'DELETE', undefined, true); },
     async crearClave(email) {
       email = emailOk(email); save('dazk-correo', email);
       try { await jfetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + FB.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Firebase-Locale': 'es' }, body: JSON.stringify({ requestType: 'PASSWORD_RESET', email, continueUrl: SITE + 'taller.html' }) }); }
@@ -344,6 +348,7 @@
     async conEnlace() { return who(); },
     async entrarConClave(email) { return this.pedirEnlace(email); },
     async crearCuenta(email) { return this.pedirEnlace(email); },
+    async accesoPanel() { return { admins: {}, claves: {}, pendientes: {} }; }, async aprobar() {}, async quitarClave() {},
     // demo: any 6 digits; the real code lives only in Firebase
     async entrarConCodigo(code) { if (!/^[0-9]{6}$/.test(String(code))) throw new Error('Código incorrecto.'); return this.pedirEnlace(OWNER); },
     async crearClave(email) { emailOk(email); },

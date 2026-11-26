@@ -715,32 +715,26 @@
     $('#salir2').onclick = e => { e.preventDefault(); $('#salir').click(); };
   }
   // ---------- Administradores: el dueño crea cuentas, cada quien entra con su propio código ----------
-  async function equipo(nuevo) {
+  // quién entra: el dueño con su código principal; los demás con su correo autorizado y su clave, después de que el dueño los aprueba
+  async function equipo() {
     const jefe = me && (me.jefe || me.duenio);
     main.innerHTML = '<h1>Administradores</h1><p class="sub">Cargando…</p>';
-    let l = []; try { l = await A.equipo(); } catch (e) { main.innerHTML = '<h1>Administradores</h1><p class="err">' + esc(e.message) + '</p>'; return; }
-    const msj = (n, c) => 'Hola ' + n.split(' ')[0] + ', ya tienes acceso al panel de DKAS. Entra aquí: https://dkas.mx/taller.html y escribe tu código: ' + c + '. Es solo tuyo, no lo compartas.';
-    main.innerHTML = '<a class="volver" href="#mas">← Más</a><h1>Administradores</h1><p class="sub">Cada persona entra con su propio código de 6 números. Todo lo que hace queda con su nombre en la auditoría.</p>'
-      + (nuevo ? '<div class="sec eq-nuevo"><p class="tit">Listo: ' + esc(nuevo.nombre) + '</p><p>Su código es</p><p class="eq-cod">' + nuevo.codigo + '</p><p class="nota">Apúntalo o mándaselo ahora: por seguridad no se vuelve a mostrar. Si lo pierde, le quitas el acceso y le creas uno nuevo.</p>'
-        + '<div class="botones"><button class="btn verde" id="eq-wa">Mandárselo por WhatsApp</button><button class="btn" id="eq-cp">Copiar mensaje</button></div></div>' : '')
-      + (jefe ? '<div class="sec"><p class="tit">Nuevo administrador</p><div class="precio-c"><label>Nombre<input id="eq-nom" placeholder="Ej. Daniel"></label><button class="btn negro" id="eq-crear">Crear</button></div></div>'
-        : '<p class="nota">Solo el dueño (con el código principal) puede crear o quitar administradores.</p>')
-      + '<div class="sec"><p class="tit">Quién tiene acceso</p><ul class="eq-lista"><li><div><b>Dueño</b><small>Código principal</small></div><span class="eq-on">Siempre</span></li>'
-      + l.map(a => '<li><div><b>' + esc(a.nombre) + '</b><small>Desde ' + A.fecha(a.creado) + (a.por ? ' · lo creó ' + esc(a.por) : '') + '</small></div>'
-        + (a.activo ? '<span class="eq-on">Con acceso</span>' : '<span class="eq-off">Sin acceso</span>')
-        + (jefe ? '<button class="btn chico' + (a.activo ? '' : ' negro') + '" data-eq="' + a.uid + '" data-on="' + (a.activo ? 0 : 1) + '" data-n="' + esc(a.nombre) + '">' + (a.activo ? 'Quitar acceso' : 'Devolver acceso') + '</button>' : '') + '</li>').join('')
-      + '</ul></div>';
-    if (nuevo) {
-      $('#eq-wa').onclick = () => { const u = 'https://wa.me/?text=' + encodeURIComponent(msj(nuevo.nombre, nuevo.codigo)); if (!window.open(u, '_blank')) location.href = u; };
-      $('#eq-cp').onclick = async () => { try { await navigator.clipboard.writeText(msj(nuevo.nombre, nuevo.codigo)); toast('Mensaje copiado'); } catch (e) { alerta(msj(nuevo.nombre, nuevo.codigo)); } };
-    }
+    let x; try { x = await A.accesoPanel(); } catch (e) { main.innerHTML = '<h1>Administradores</h1><p class="err">' + esc(e.message) + '</p>'; return; }
+    const cl = Object.entries(x.claves), pe = Object.entries(x.pendientes);
+    const fila = (n, sub, est, btn) => '<li><div><b>' + esc(n) + '</b><small>' + esc(sub) + '</small></div>' + est + (btn || '') + '</li>';
+    const filas = Object.values(x.admins).filter(a => !a.duenio).map(a => {
+      const ok = cl.find(([, c]) => c.email === a.email), p = pe.find(([, c]) => c.email === a.email);
+      return ok ? fila(a.nombre, a.email + ' · entra con su correo y su clave', '<span class="eq-on">Con acceso</span>', jefe ? '<button class="btn chico" data-quita="' + ok[0] + '" data-n="' + esc(a.nombre) + '">Quitar acceso</button>' : '')
+        : p ? fila(a.nombre, a.email + ' · ya creó su clave', '<span class="eq-off">Esperando aprobación</span>', jefe ? '<button class="btn chico negro" data-ok="' + p[0] + '" data-e="' + esc(a.email) + '" data-n="' + esc(a.nombre) + '">Aprobar</button>' : '')
+        : fila(a.nombre, a.email + ' · todavía no crea su clave', '<span class="eq-off">Sin clave</span>');
+    }).join('');
+    main.innerHTML = '<a class="volver" href="#mas">← Más</a><h1>Administradores</h1><p class="sub">Se entra con correo y clave. La primera vez cada persona toca «Primera vez: crear mi clave» y aquí aparece para que la apruebes. Tú (dueño) entras también con tu código principal.</p>'
+      + '<div class="sec"><p class="tit">Quién tiene acceso</p><ul class="eq-lista">' + fila('Dueño', 'Código principal', '<span class="eq-on">Siempre</span>') + filas
+      + fila('Robot de avisos', 'manda las notificaciones al teléfono', '<span class="eq-on">Con acceso</span>') + '</ul></div>'
+      + '<p class="nota">Para autorizar un correo nuevo, pídeselo a Claude.</p>';
     if (!jefe) return;
-    $('#eq-crear').onclick = async () => { const b = $('#eq-crear'); b.disabled = true; b.textContent = 'Creando…';
-      try { const r = await A.crearAdmin($('#eq-nom').value); equipo(r); } catch (e) { alerta(e.message); b.disabled = false; b.textContent = 'Crear'; } };
-    $$('[data-eq]').forEach(b => b.onclick = async () => {
-      const on = b.dataset.on === '1'; if (!on && !confirm('¿Quitarle el acceso a ' + b.dataset.n + '? Ya no podrá entrar al panel.')) return;
-      b.disabled = true; try { await A.accesoAdmin(b.dataset.eq, on); toast(on ? 'Acceso devuelto' : 'Acceso quitado'); equipo(); } catch (e) { alerta(e.message); b.disabled = false; }
-    });
+    $$('[data-ok]').forEach(b => b.onclick = async () => { b.disabled = true; try { await A.aprobar(b.dataset.ok, b.dataset.e, b.dataset.n); toast('Aprobado: ' + b.dataset.n); equipo(); } catch (e) { alerta(e.message); b.disabled = false; } });
+    $$('[data-quita]').forEach(b => b.onclick = async () => { if (!confirm('¿Quitarle el acceso a ' + b.dataset.n + '?')) return; b.disabled = true; try { await A.quitarClave(b.dataset.quita); toast('Acceso quitado'); equipo(); } catch (e) { alerta(e.message); b.disabled = false; } });
   }
   // ---------- Clientes: todo el camino de cada cliente en un solo lugar ----------
   // solicitud (nombre + WhatsApp) → apruebas → diseña (su mesa se guarda sola) → la envía (pedido). El sistema nunca le pone precio.

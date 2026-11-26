@@ -29,6 +29,8 @@ async function correr(d, patch, del, seco) {
     if (!S.cuadroHoy) msgs.push({ title: 'Antes de cerrar: cuadra el banco', body: 'Abre Tkash y compara. El sistema dice ' + pesos(S.T.porMetodo.Banco) + ' en el banco.' + (ms.length ? ' Hoy entraron ' + pesos(e) + ' y salieron ' + pesos(s) + '.' : ''), url: 'taller.html#inicio', tag: 'noche' });
     est.noche = hoy;
   }
+  // 3b) noche: qué hacer mañana
+  if (hora >= 20 && est.manana2 !== hoy) { const R = M.resumen(); if (R.ya.length) msgs.push({ title: 'Mañana: ' + R.ya.length + ' cosa' + (R.ya.length > 1 ? 's' : '') + ' por hacer', body: R.ya.slice(0, 3).map(a => a.texto).join(' · ') + (R.ya.length > 3 ? ' · y ' + (R.ya.length - 3) + ' más' : ''), url: 'taller.html#manana', tag: 'manana' }); est.manana2 = hoy; }
   // 4) dinero nuevo que registró alguien
   const ult = Math.max(0, ...M.movs.map(m => m.creado || 0));
   if (!primera) M.movs.filter(m => (m.creado || 0) > est.ultMov).forEach(m => { const de = m.pedido ? M.nomPed(m.pedido) : m.deuda ? ((M.deu(m.deuda) || {}).nombre || '') : 'general'; msgs.push({ title: (m.por || 'Alguien') + ' registró ' + (N.esIn(m) ? 'una entrada' : 'una salida'), body: (N.esIn(m) ? '+' : '−') + pesos(m.monto).replace('−', '') + ' · ' + (m.cat || '') + ' · ' + de + ((m.fondo || '').slice(0, 3) === 'pd:' ? ' (a crédito, se debe)' : ''), url: 'taller.html#dinero', tag: 'mov-' + m.id, excluir: m.por }); });

@@ -122,6 +122,7 @@
     };
     M.totales = () => totales(M);
     M.agenda = () => agenda(M);
+    M.resumen = deHoy => resumen(M, deHoy);
     M.noCuadra = () => noCuadra(M);
     M.socio = (foco, ahora) => socio(M, foco, ahora);
     M.nomPedido = nomP;
@@ -200,6 +201,19 @@
     M.agendaMan.forEach(a => l.push({ fecha: a.fecha || hoy, texto: a.texto, tipo: 'manual', id: a.id, hecho: !!a.hecho, pedido: a.pedido }));
     l.forEach(a => { a.dias = entre(hoy, a.fecha); a.grupo = a.hecho ? 'hecho' : a.dias < 0 ? 'vencido' : a.dias === 0 ? 'hoy' : a.dias <= 7 ? 'semana' : 'despues'; });
     return l.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  }
+
+  // ---------- resumen para mañana: lo mismo que diría el socio, en 4 bloques ----------
+  function resumen(M, deHoy) {
+    const nomP = M.nomPedido;
+    const hoy = M.hoy, man = deHoy ? hoy : mas(hoy, 1), ag = agenda(M).filter(a => !a.hecho), T = totales(M);
+    const ya = ag.filter(a => a.dias <= (deHoy ? 0 : 1) && !/^Cuando /.test(a.texto) && !(a.tipo === 'cobro' && a.pedido && (M.ped(a.pedido).pasos || {}).entregado) && a.tipo !== 'cierre' && !a.sinFecha).sort((a, b) => 'manual entrega taller compra cobro dato'.indexOf(a.tipo) - 'manual entrega taller compra cobro dato'.indexOf(b.tipo));
+    const semana = ag.filter(a => a.dias >= 2 && a.dias <= 7 && (a.tipo === 'entrega' || a.tipo === 'cobro' || a.tipo === 'taller' || a.tipo === 'manual'));
+    const cobros = T.act.filter(([p, s]) => s.porCobrar > 0 && ((p.pasos || {}).entregado || (s.precio && s.ent < s.antAc))).map(([p, s]) => ({ texto: nomP(p) + ': ' + pesos((p.pasos || {}).entregado ? s.porCobrar : s.antAc - s.ent), porque: (p.pasos || {}).entregado ? 'ya se le entregó' : 'falta para el 50% de anticipo', pedido: p.id }));
+    const faltan = [];
+    T.act.forEach(([p, s]) => { const f = []; if (!s.precio) f.push('precio'); if (!p.entrega && !(p.pasos || {}).entregado) f.push('fecha de entrega'); Object.keys(p.pend || {}).filter(k => p.pend[k]).forEach(k => f.push(k === 'medidas' ? 'medida (pendiente)' : k.replace(/^c_/, 'costo de '))); if (f.length) faltan.push({ texto: nomP(p) + ': ' + f.slice(0, 3).join(', '), pedido: p.id }); });
+    if (T.porAclarar) faltan.push({ texto: T.porAclarar + ' movimiento' + (T.porAclarar > 1 ? 's' : '') + ' en amarillo en Dinero', href: '#dinero' });
+    return { man, ya, semana, cobros, faltan };
   }
 
   // ---------- lo que no cuadra: cada dato que no concuerda, con su detalle ----------

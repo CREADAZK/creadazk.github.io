@@ -122,6 +122,7 @@
     };
     M.totales = () => totales(M);
     M.agenda = () => agenda(M);
+    M.resumen = deHoy => resumen(M, deHoy);
     M.noCuadra = () => noCuadra(M);
     M.socio = (foco, ahora) => socio(M, foco, ahora);
     M.nomPedido = nomP;
@@ -200,6 +201,19 @@
     M.agendaMan.forEach(a => l.push({ fecha: a.fecha || hoy, texto: a.texto, tipo: 'manual', id: a.id, hecho: !!a.hecho, pedido: a.pedido }));
     l.forEach(a => { a.dias = entre(hoy, a.fecha); a.grupo = a.hecho ? 'hecho' : a.dias < 0 ? 'vencido' : a.dias === 0 ? 'hoy' : a.dias <= 7 ? 'semana' : 'despues'; });
     return l.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  }
+
+  // ---------- resumen para mañana: lo mismo que diría el socio, en 4 bloques ----------
+  function resumen(M, deHoy) {
+    const nomP = M.nomPedido;
+    const hoy = M.hoy, man = deHoy ? hoy : mas(hoy, 1), ag = agenda(M).filter(a => !a.hecho), T = totales(M);
+    const ya = ag.filter(a => a.dias <= (deHoy ? 0 : 1) && !/^Cuando /.test(a.texto) && !(a.tipo === 'cobro' && a.pedido && (M.ped(a.pedido).pasos || {}).entregado) && a.tipo !== 'cierre' && !a.sinFecha).sort((a, b) => 'manual entrega taller compra cobro dato'.indexOf(a.tipo) - 'manual entrega taller compra cobro dato'.indexOf(b.tipo));
+    const semana = ag.filter(a => a.dias >= 2 && a.dias <= 7 && (a.tipo === 'entrega' || a.tipo === 'cobro' || a.tipo === 'taller' || a.tipo === 'manual'));
+    const cobros = T.act.filter(([p, s]) => s.porCobrar > 0 && ((p.pasos || {}).entregado || (s.precio && s.ent < s.antAc))).map(([p, s]) => ({ texto: nomP(p) + ': ' + pesos((p.pasos || {}).entregado ? s.porCobrar : s.antAc - s.ent), porque: (p.pasos || {}).entregado ? 'ya se le entregó' : 'falta para el 50% de anticipo', pedido: p.id }));
+    const faltan = [];
+    T.act.forEach(([p, s]) => { const f = []; if (!s.precio) f.push('precio'); if (!p.entrega && !(p.pasos || {}).entregado) f.push('fecha de entrega'); Object.keys(p.pend || {}).filter(k => p.pend[k]).forEach(k => f.push(k === 'medidas' ? 'medida (pendiente)' : k.replace(/^c_/, 'costo de '))); if (f.length) faltan.push({ texto: nomP(p) + ': ' + f.slice(0, 3).join(', '), pedido: p.id }); });
+    if (T.porAclarar) faltan.push({ texto: T.porAclarar + ' movimiento' + (T.porAclarar > 1 ? 's' : '') + ' en amarillo en Dinero', href: '#dinero' });
+    return { man, ya, semana, cobros, faltan };
   }
 
   // ---------- lo que no cuadra: cada dato que no concuerda, con su detalle ----------
@@ -1709,6 +1723,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     if (h === 'pedidos') return pedidos('pedidos');
     if (h === 'pedidos/clientes') return pedidos('clientes');
     if (h === 'pedidos/fechas') return fechas();
+    if (h === 'manana') return manana();
     if (h === 'pedidos/deudas') return pedidos('deudas');
     if (h === 'pedidos/solicitudes') return solicitudes();
     if (h === 'pedidos/sobrantes' || h === 'sobrantes') { location.replace('#piedras'); return; }
@@ -1748,7 +1763,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     const sig = P[0];
     main.innerHTML = tit(saludo, fC(hoy()), '<button class="b chico" id="x-todo">Exportar</button>')
       + '<section class="rapido"><a class="r-cot" href="#piedras/cliente"><b>💲</b><span>Cotizar a un cliente</span></a><button class="r-din" id="r-din"><b>＋</b><span>Registrar dinero</span></button><button class="r-ped" id="r-ped"><b>＋</b><span>Nuevo pedido</span></button><a class="r-pla" href="#piedras/planes"><b>🧩</b><span>Planear placas</span></a></section>'
-      + sinFechaHTML()
+      + '<a class="mn-link" href="#manana"><b>📋</b><span>' + (new Date().getHours() < 14 ? '¿Qué hago hoy?' : '¿Qué hago mañana?') + '</span><i>›</i></a>' + sinFechaHTML()
       + '<section class="socio">'
         + '<div class="socio-t"><span class="socio-ic">◆</span><div><b>Tu socio</b><small>' + (P.length ? (urg ? urg + ' urgente' + (urg > 1 ? 's' : '') + ' · ' : '') + P.length + ' pendiente' + (P.length > 1 ? 's' : '') : 'Todo en orden') + (S.raros.length ? ' · ' + S.raros.length + ' cosa' + (S.raros.length > 1 ? 's' : '') + ' rara' + (S.raros.length > 1 ? 's' : '') : '') + '</small></div></div>'
         + (foco ? '<p class="foco">Hoy nos enfocamos en <b>' + esc(focoN) + '</b> <button class="lnk" id="foco-c">cambiar</button></p>'
@@ -1917,6 +1932,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       pintar();
     }
     if ($('#nuevo')) $('#nuevo').onclick = () => alta();
+  }
+
+  // ---------- ¿qué hago mañana? ----------
+  function manana() {
+    const deHoy = new Date().getHours() < 14, R = M.resumen(deHoy), Q = deHoy ? 'Hoy' : 'Mañana', dia = new Date(R.man + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' });
+    const li = (x, sub) => { const href = x.href || (x.pedido ? '#p=' + x.pedido : ''); return '<li>' + (href ? '<a href="' + esc(href) + '">' : '<span>') + '<b>' + esc(x.texto) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + (href ? '</a>' : '</span>') + '</li>'; };
+    const bloque = (t, l, f) => l.length ? '<section class="caja"><h2>' + t + '</h2><ol class="mn-l">' + l.map(f).join('') + '</ol></section>' : '';
+    main.innerHTML = '<a class="volver" href="#inicio">← Dashboard</a>' + tit(Q + ' · ' + esc(dia), 'Lo que el sistema ve en tus pedidos. Si quedaste en algo más, agrégalo como tarea en el Dashboard.', '')
+      + (R.ya.length ? bloque(Q, R.ya, a => li(a, a.dias < 0 ? 'atrasado · era para ' + fC(a.fecha) : a.dias === 0 && !deHoy ? 'quedó pendiente de hoy' : '')) : '<section class="caja"><h2>' + Q + '</h2><p class="nota">Nada pendiente. 🎉</p></section>')
+      + bloque('Esta semana', R.semana, a => li(a, fC(a.fecha) + ' · ' + enDias(a.dias)))
+      + bloque('Cobros pendientes', R.cobros, c => li(c, c.porque))
+      + bloque('Datos que faltan', R.faltan, f => li(f, ''));
   }
 
   // ---------- fechas de entrega: aviso y encuesta ----------

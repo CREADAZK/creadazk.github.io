@@ -135,11 +135,19 @@
     async entrarConClave(email, pass) {
       email = emailOk(email); save('dazk-correo', email);
       try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signInWithPassword', { email, password: pass, returnSecureToken: true })); }
-      catch (e) { throw new Error(/INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND/.test(e.code) ? 'Correo o contraseña incorrectos. Si todavía no tienes contraseña, toca «Crear o cambiar mi contraseña».' : authErr(e)); }
-      const me = await this.yo(); if (!me) { setSes(null); throw new Error('Este correo no tiene acceso al panel de DAZK. Pídele al dueño que te agregue.'); }
+      catch (e) { throw new Error(/INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND/.test(e.code) ? 'Correo o contraseña incorrectos. Si es tu primera vez, toca «Primera vez: crear mi clave».' : authErr(e)); }
+      const me = await this.yo(); if (!me) { setSes(null); throw new Error('Tu cuenta todavía no está aprobada, o este correo no tiene acceso. Avísale a Zury.'); }
       return me;
     },
     // Google's own page lets the person type the new password; an email that never signed in has no account yet, so it gets the entry link instead
+    // primera vez: la persona autorizada crea su propia clave (sin correos); solo sirve si su correo está autorizado
+    async crearCuenta(email, pass) {
+      email = emailOk(email); pass = String(pass || ''); if (pass.length < 6) throw new Error('La clave debe tener al menos 6 caracteres.'); save('dazk-correo', email);
+      try { setSes(await idp('identitytoolkit.googleapis.com/v1/accounts:signUp', { email, password: pass, returnSecureToken: true })); }
+      catch (e) { throw new Error(/EMAIL_EXISTS/.test(e.code) ? 'Ese correo ya tiene su clave. Regresa y entra con tu correo y tu clave.' : authErr(e)); }
+      const me = await this.yo(); if (!me) { setSes(null); throw new Error('Listo, tu clave quedó creada. Falta que Zury apruebe tu cuenta; en cuanto la apruebe entras con tu correo y tu clave.'); }
+      return me;
+    },
     async crearClave(email) {
       email = emailOk(email); save('dazk-correo', email);
       try { await jfetch('https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=' + FB.apiKey, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Firebase-Locale': 'es' }, body: JSON.stringify({ requestType: 'PASSWORD_RESET', email, continueUrl: SITE + 'taller.html' }) }); }
@@ -335,6 +343,7 @@
       const me = { email, key: ekey(email), duenio, nombre: a ? a.nombre : '' }; save('dazk-demo-yo', me); return me; },
     async conEnlace() { return who(); },
     async entrarConClave(email) { return this.pedirEnlace(email); },
+    async crearCuenta(email) { return this.pedirEnlace(email); },
     // demo: any 6 digits; the real code lives only in Firebase
     async entrarConCodigo(code) { if (!/^[0-9]{6}$/.test(String(code))) throw new Error('Código incorrecto.'); return this.pedirEnlace(OWNER); },
     async crearClave(email) { emailOk(email); },

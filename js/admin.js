@@ -1708,6 +1708,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     if (h === 'inicio') return inicio();
     if (h === 'pedidos') return pedidos('pedidos');
     if (h === 'pedidos/clientes') return pedidos('clientes');
+    if (h === 'pedidos/fechas') return fechas();
     if (h === 'pedidos/deudas') return pedidos('deudas');
     if (h === 'pedidos/solicitudes') return solicitudes();
     if (h === 'pedidos/sobrantes' || h === 'sobrantes') { location.replace('#piedras'); return; }
@@ -1747,6 +1748,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     const sig = P[0];
     main.innerHTML = tit(saludo, fC(hoy()), '<button class="b chico" id="x-todo">Exportar</button>')
       + '<section class="rapido"><a class="r-cot" href="#piedras/cliente"><b>💲</b><span>Cotizar a un cliente</span></a><button class="r-din" id="r-din"><b>＋</b><span>Registrar dinero</span></button><button class="r-ped" id="r-ped"><b>＋</b><span>Nuevo pedido</span></button><a class="r-pla" href="#piedras/planes"><b>🧩</b><span>Planear placas</span></a></section>'
+      + sinFechaHTML()
       + '<section class="socio">'
         + '<div class="socio-t"><span class="socio-ic">◆</span><div><b>Tu socio</b><small>' + (P.length ? (urg ? urg + ' urgente' + (urg > 1 ? 's' : '') + ' · ' : '') + P.length + ' pendiente' + (P.length > 1 ? 's' : '') : 'Todo en orden') + (S.raros.length ? ' · ' + S.raros.length + ' cosa' + (S.raros.length > 1 ? 's' : '') + ' rara' + (S.raros.length > 1 ? 's' : '') : '') + '</small></div></div>'
         + (foco ? '<p class="foco">Hoy nos enfocamos en <b>' + esc(focoN) + '</b> <button class="lnk" id="foco-c">cambiar</button></p>'
@@ -1904,16 +1906,40 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
         const todos = M.pedidos.map(p => [p, M.statsPedido(p)]);
         const F = { activos: ([p]) => !p.cerrado, cobrar: ([p, s]) => !p.cerrado && s.porCobrar > 0, atrasados: ([p, s]) => !p.cerrado && s.diasEntrega != null && s.diasEntrega < 0 && !s.pasos[5].done, finalizados: ([p]) => p.cerrado, todos: () => true };
         const l = todos.filter(F[filtro]).sort((a, b) => (a[0].entrega || '9999').localeCompare(b[0].entrega || '9999') || num(a[0].folio) - num(b[0].folio));
-        $('#lista-p').innerHTML = l.length ? l.map(([p, s]) => filaPedido(p, s)).join('') : vacioTxt('Nada aquí.');
+        const sf = l.filter(([p]) => sinFecha(p)), cf = l.filter(x => !sf.includes(x));
+        $('#lista-p').innerHTML = l.length ? (sf.length ? '<p class="grupo-f r">Sin fecha de entrega</p>' + sf.map(([p, s]) => filaPedido(p, s)).join('') + (cf.length ? '<p class="grupo-f">Por fecha de entrega</p>' : '') : '') + cf.map(([p, s]) => filaPedido(p, s)).join('') : vacioTxt('Nada aquí.');
         $$('[data-f]').forEach(b => b.classList.toggle('on', b.dataset.f === filtro)); enlazarFilas();
       };
-      main.innerHTML = tit('Pedidos', '', '<button class="b negro" id="nuevo">＋ Nuevo</button>') + tabs
+      main.innerHTML = tit('Pedidos', 'Ordenados por fecha de entrega', '<div class="tit-b"><a class="b" href="#pedidos/fechas">📅 Fechas</a><button class="b negro" id="nuevo">＋ Nuevo</button></div>') + tabs + sinFechaHTML()
         + '<div class="chips filtros">' + [['activos', 'Activos'], ['cobrar', 'Por cobrar'], ['atrasados', 'Atrasados'], ['finalizados', 'Finalizados'], ['todos', 'Todos']].map(([k, t]) => '<button data-f="' + k + '">' + t + '</button>').join('') + '</div>'
         + '<section class="caja"><div class="lista" id="lista-p"></div></section>';
       $$('[data-f]').forEach(b => b.onclick = () => { filtro = b.dataset.f; pintar(); });
       pintar();
     }
     if ($('#nuevo')) $('#nuevo').onclick = () => alta();
+  }
+
+  // ---------- fechas de entrega: aviso y encuesta ----------
+  const sinFecha = p => !p.cerrado && !p.entrega && !(p.pasos || {}).entregado;
+  function sinFechaHTML() {
+    const n = M.pedidos.filter(p => sinFecha(p)).length;
+    return n ? '<a class="sin-fecha" href="#pedidos/fechas"><b>📅</b><span><b>' + n + ' pedido' + (n === 1 ? '' : 's') + ' sin fecha de entrega</b><small>Ponles fecha para ordenarlos por prioridad →</small></span></a>' : '';
+  }
+  function fechas() {
+    const l = M.pedidos.filter(p => !p.cerrado && !(p.pasos || {}).entregado).sort((a, b) => !!a.entrega - !!b.entrega || (a.entrega || '').localeCompare(b.entrega || '') || num(a.folio) - num(b.folio));
+    const nuevo = {}, mas = n => N.mas(hoy(), n);
+    main.innerHTML = '<a class="volver" href="#pedidos">← Pedidos</a>' + tit('Fechas de entrega', 'Pon cuándo se entrega cada pedido. Así quedan ordenados por prioridad.', '')
+      + '<section class="caja"><div class="lista fechas-l">' + (l.map(p => { const c = M.cli(p.cliente) || {};
+        return '<div class="fe-f' + (p.entrega ? '' : ' sin') + '" data-p="' + esc(p.id) + '"><div class="fe-t"><b>' + esc(c.nombre || 'Sin cliente') + ' <span class="folio">#' + esc(p.folio || '—') + '</span></b><small>' + esc(piezaTxt(p) || 'Falta decir qué mesa es') + '</small></div>'
+          + '<div class="fe-i"><input type="date" value="' + esc(p.entrega || '') + '"><div class="chips mini">' + [[7, '1 semana'], [14, '2 semanas'], [21, '3 semanas'], [30, '1 mes']].map(([n, t]) => '<button data-d="' + mas(n) + '">' + t + '</button>').join('') + '</div></div></div>'; }).join('') || vacioTxt('No hay pedidos activos.')) + '</div></section>'
+      + (l.length ? '<button class="b negro grande" id="fe-ok" disabled>Guardar fechas</button>' : '');
+    const listo = () => { const n = Object.keys(nuevo).length; const b = $('#fe-ok'); if (b) { b.disabled = !n; b.textContent = n ? 'Guardar ' + n + ' fecha' + (n === 1 ? '' : 's') : 'Guardar fechas'; } };
+    $$('.fe-f').forEach(f => { const p = M.ped(f.dataset.p), i = $('input', f);
+      const pon = v => { i.value = v; if (v && v !== (p.entrega || '')) nuevo[p.id] = v; else delete nuevo[p.id]; f.classList.toggle('sin', !v); f.classList.toggle('cambio', !!nuevo[p.id]); listo(); };
+      i.onchange = () => pon(i.value); $$('[data-d]', f).forEach(b => b.onclick = () => pon(b.dataset.d)); });
+    if ($('#fe-ok')) $('#fe-ok').onclick = async () => { const ids = Object.keys(nuevo); if (!ids.length) return;
+      if (!await clave('Guardar fechas de entrega', ids.map(id => [M.nomPed(id), fC(nuevo[id])]))) return;
+      await guardarYa(async () => { for (const id of ids) await A.nodoCambia('dinero/pedidos/' + id, { entrega: nuevo[id] }); }, 'Fechas guardadas', 'Puso fecha de entrega a ' + ids.map(id => M.nomPed(id) + ' (' + nuevo[id] + ')').join(', ')); location.hash = '#pedidos'; };
   }
 
   function pedido(p) {
@@ -2201,7 +2227,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     const arqs = M.clientes.filter(c => c.tipo === 'arquitecto'), OTRA = '__otra:', cliOtra = () => d.pedido.startsWith(OTRA) ? M.cli(d.pedido.slice(OTRA.length)) : null;
     const nomPedX = id => id.startsWith(OTRA) ? 'Otra mesa de ' + ((M.cli(id.slice(OTRA.length)) || {}).nombre || '') : M.nomPed(id);
     const chips = (k, l, val) => '<div class="chips" data-k="' + k + '">' + l.map(([v, t, sub]) => '<button data-v="' + esc(v) + '"' + (val === v ? ' class="on"' : '') + '>' + esc(t) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>').join('') + '</div>';
-    const falta = () => [!N.num(d.monto) && 'cantidad', d.tipo === 'in' && !d.origen && 'de dónde viene', d.tipo === 'in' && d.origen === 'pedido' && !d.pedido && 'de qué pedido', d.tipo === 'in' && d.origen === 'prestamo' && !d.deuda && !d.nuevoPrest.trim() && 'quién prestó',
+    d.entrega = d.entrega || '';
+    const pideEnt = () => d.tipo === 'in' && d.origen === 'pedido' && d.pedido && (d.pedido.startsWith('__otra:') || (M.ped(d.pedido) && sinFecha(M.ped(d.pedido))));
+    const falta = () => [!N.num(d.monto) && 'cantidad', pideEnt() && !d.entrega && 'fecha de entrega', d.tipo === 'in' && !d.origen && 'de dónde viene', d.tipo === 'in' && d.origen === 'pedido' && !d.pedido && 'de qué pedido', d.tipo === 'in' && d.origen === 'prestamo' && !d.deuda && !d.nuevoPrest.trim() && 'quién prestó',
       d.tipo === 'out' && !d.para && 'para qué es', d.tipo === 'out' && d.para === 'pedido' && !d.pedido && 'de qué pedido', d.tipo === 'out' && d.para === 'deuda' && !d.deuda && 'a qué deuda', !d.cat && 'concepto',
       d.tipo === 'out' && !d.fondo && 'de qué dinero sale', d.tipo === 'out' && d.fondo === 'pd:' && !d.nuevoPrest.trim() && 'quién lo pagó', !d.quien && (d.tipo === 'in' ? 'quién lo recibió' : 'quién lo pagó'), !d.metodo && 'cómo', !d.fecha && 'fecha'].filter(Boolean);
     hoja(ed ? 'Corregir movimiento' : 'Registrar dinero', '<div id="rg"></div>', h => {
@@ -2235,6 +2263,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
               + (d.para === 'pedido' && d.pedido && d.fondo && d.fondo !== 'p:' + d.pedido && d.fondo.slice(0, 2) === 'p:' ? '<p class="aviso">Quedará anotado: <b>' + esc(M.nomFondo(d.fondo)) + ' se usó para pagar el pedido de ' + esc(M.nomPed(d.pedido)) + '</b>.</p>' : '') + '</div>' : '')
           + '<div class="campo">' + (d.tipo === 'in' ? '¿Quién lo recibió?' : '¿Quién lo pagó?') + chips('quien', gente.map(x => [x, x]), d.quien) + '</div>'
           + '<div class="campo">' + (d.tipo === 'in' ? '¿Cómo pagó?' : '¿Con qué se pagó?') + chips('metodo', C.METODOS.map(x => [x, x]), d.metodo) + '</div>'
+          + (pideEnt() ? '<label class="campo ent-f">📅 ¿Para cuándo es la entrega? <small class="nota">este pedido no tiene fecha</small><input id="r-e" type="date" value="' + esc(d.entrega) + '"></label>' : '')
           + '<div class="dos-i"><label class="campo">Fecha<input id="r-f" type="date" value="' + esc(d.fecha) + '"></label><label class="campo">Nota (opcional)<input id="r-n" maxlength="80" value="' + esc(d.nota) + '" placeholder="ej. flete de ida"></label></div>'
           + (f.length ? '<p class="falta">Falta: ' + esc(f.join(', ')) + '</p>' : '')
           + '<button class="b negro grande" id="r-ok"' + (f.length ? ' disabled' : '') + '>Guardar</button>' + (ed ? '<button class="b rojo" id="r-b">Borrar este movimiento</button>' : ''));
@@ -2248,6 +2277,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
         const m = $('#r-m', h); m.oninput = () => { d.monto = m.value.replace(/[^\d.,]/g, ''); const f2 = falta(); $('#r-ok', h).disabled = f2.length > 0; };
         m.onchange = () => pintar();
         $('#r-f', h).onchange = e => { d.fecha = e.target.value; };
+        const re = $('#r-e', h); if (re) re.onchange = () => { d.entrega = re.value; pintar(); };
         $('#r-n', h).oninput = e => { d.nota = e.target.value; };
         const np = $('#r-np', h); if (np) np.oninput = () => { d.nuevoPrest = np.value; $('#r-ok', h).disabled = falta().length > 0; };
         $('#r-ok', h).onclick = guardar;
@@ -2259,6 +2289,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
         let deudaId = d.deuda && d.deuda !== '__nuevo' ? d.deuda : '', fondo = d.fondo;
         const nuevo = d.nuevoPrest.trim(), quien = d.tipo === 'in' ? (d.origen === 'pedido' ? nomPedX(d.pedido) : d.origen === 'prestamo' ? (deudaId ? M.deu(deudaId).nombre : nuevo + ' (nuevo)') : 'Otro ingreso') : (d.para === 'pedido' ? 'Pedido de ' + M.nomPed(d.pedido) : d.para === 'deuda' ? 'Pago a ' + M.deu(d.deuda).nombre : 'Gasto general');
         const lin = [['Cantidad', pesos(monto)], [d.tipo === 'in' ? 'De' : 'Para', quien], ['Concepto', d.cat]];
+        if (pideEnt() && d.entrega) lin.push(['Entrega', fC(d.entrega)]);
         if (d.tipo === 'out') lin.push(['Sale de', fondo === 'pd:' ? 'A crédito: se le deberá a ' + nuevo + ' (nuevo)' : M.nomFondo(fondo)]);
         lin.push([d.tipo === 'in' ? 'Lo recibió' : 'Lo pagó', d.quien], ['Cómo', d.metodo], ['Fecha', fC(d.fecha)]);
         if (!await clave((ed ? 'Corregir: ' : '') + (d.tipo === 'in' ? 'Entró dinero' : 'Salió dinero'), lin)) return;
@@ -2269,7 +2300,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
           if (d.tipo === 'out' && fondo === 'pd:') { const id = await A.nodoAgrega('dinero/deudas', { nombre: nuevo.slice(0, 60), tipo: 'prestamo' }); fondo = 'pd:' + id; }
           // otra mesa de un arquitecto: se crea su pedido nuevo y el pago queda ahí
           if (d.tipo === 'in' && d.origen === 'pedido' && cliOtra()) { const c = cliOtra(), folio = M.pedidos.reduce((m, p) => Math.max(m, num(p.folio)), 0) + 1;
-            d.pedido = await A.nodoAgrega('dinero/pedidos', { cliente: c.id, folio, fecha: d.fecha, notas: 'Otra mesa de ' + c.nombre + ' (arquitecto). Llegó un pago de ' + pesos(monto) + '. Falta llenar la mesa y el precio.' }); }
+            d.pedido = await A.nodoAgrega('dinero/pedidos', { cliente: c.id, folio, fecha: d.fecha, entrega: d.entrega || null, notas: 'Otra mesa de ' + c.nombre + ' (arquitecto). Llegó un pago de ' + pesos(monto) + '. Falta llenar la mesa y el precio.' }); }
+          else if (pideEnt() && d.entrega) await A.nodoCambia('dinero/pedidos/' + d.pedido, { entrega: d.entrega });
           const x = { tipo: d.tipo, monto, cat: d.cat.slice(0, 30), fecha: d.fecha, quien: d.quien.slice(0, 30), metodo: d.metodo, nota: d.nota.trim().slice(0, 80) || null,
             pedido: (d.tipo === 'in' ? d.origen === 'pedido' : d.para === 'pedido') ? d.pedido : null, deuda: (d.tipo === 'in' ? d.origen === 'prestamo' : d.para === 'deuda') ? deudaId : null, fondo: d.tipo === 'out' ? fondo : null, revisar: null, cliente: null };
           try { localStorage.setItem('dkas-quien', x.quien); } catch (e) {}
@@ -2289,7 +2321,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     let cli = Object.assign({}, M.cli(w.cliente || cliId) || cliPre || {}), nuevoCli = !cli.id, paso = cli.id && !p0.id ? 1 : 0;
     const costoW = () => N.COST.reduce((a, [k]) => a + num(w.costos[k]), 0);
     const vivo = () => { const co = costoW(), pr = num(w.precio), g = pr && co ? pr - co : null; return '<div class="vivo"><div>Costo<b>' + (co ? pesos(co) : '—') + '</b></div><div>Precio<b>' + (pr ? pesos(pr) : '—') + '</b></div><div>Ganancia<b class="' + (g != null ? cls(g) : '') + '">' + (g != null ? pesos(g) + ' · ' + pct(g / pr) : '—') + '</b></div></div>'; };
-    const noTengo = k => '<button type="button" class="nt' + (w.pend[k] ? ' on' : '') + '" data-nt="' + k + '">' + (w.pend[k] ? 'Pendiente ✓' : 'No lo tengo aún') + '</button>';
+    const noTengo = k => k === 'entrega' ? '<small class="oblig">obligatoria</small>' : '<button type="button" class="nt' + (w.pend[k] ? ' on' : '') + '" data-nt="' + k + '">' + (w.pend[k] ? 'Pendiente ✓' : 'No lo tengo aún') + '</button>';
     const caja = (k, lbl, html) => '<div class="campo-a" data-req="' + k + '"><div class="campo-t"><span>' + lbl + '</span>' + (k ? noTengo(k) : '') + '</div>' + html + '</div>';
     const inp = (k, extra, obj) => '<input data-' + (obj ? 'ck' : 'k') + '="' + k + '" value="' + esc(((obj || w)[k]) == null ? '' : (obj || w)[k]) + '" ' + (extra || '') + '>';
     const area = (k, ph) => '<textarea data-k="' + k + '" maxlength="300" placeholder="' + (ph || '') + '">' + esc(w[k] || '') + '</textarea>';
@@ -2322,7 +2354,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       $$('[data-ck]', h).forEach(i => { const v = i.value.trim(); w.costos[i.dataset.ck] = v === '' ? '' : num(v); });
       if ($('#c-nom', h)) { cli.nombre = $('#c-nom', h).value.trim(); cli.telefono = $('#c-tel', h).value.trim(); cli.email = $('#c-em', h).value.trim(); cli.direccion = $('#c-dir', h).value.trim(); }
     };
-    const faltan = () => paso === 6 ? [] : N.CAMPOS.filter(([pp, k]) => pp === paso && !N.lleno(paso === 0 ? cli : w, k) && !w.pend[k]).map(x => x[1]);
+    const faltan = () => paso === 6 ? [] : N.CAMPOS.filter(([pp, k]) => pp === paso && !N.lleno(paso === 0 ? cli : w, k) && (!w.pend[k] || k === 'entrega')).map(x => x[1]);
     hoja(p0.id ? 'Editar pedido' : 'Nuevo pedido', '<div id="al"></div>', h => {
       const pintar = () => {
         $('#al', h).innerHTML = '<div class="pasos-w">' + PASOS_ALTA.map((x, i) => '<span class="' + (i <= paso ? 'on' : '') + '"></span>').join('') + '</div><p class="eti">' + (paso + 1) + ' de ' + PASOS_ALTA.length + ' · ' + PASOS_ALTA[paso] + '</p>'

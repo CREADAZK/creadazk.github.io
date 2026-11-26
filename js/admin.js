@@ -1656,6 +1656,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
   // ---------- arranque y datos ----------
   async function arrancar() {
     main = $('#app');
+    // el enlace del correo regresa aquí: ?mode=signIn&oobCode=…&e=<correo>
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('mode') === 'signIn' && qs.get('oobCode')) {
+      const em = qs.get('e') || A.load('dazk-correo', ''); history.replaceState(null, '', location.pathname + location.hash);
+      main.innerHTML = '<p class="cargando">Entrando…</p>';
+      try { await A.conEnlace(em, qs.get('oobCode')); } catch (e) { return login(e.message); }
+    }
     try { me = await A.yo(); } catch (e) { me = null; }
     if (!me) return login();
     if (!me.nombre) return nombre();
@@ -1665,11 +1672,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     await cargar(); if (!location.hash) history.replaceState(null, '', '#inicio'); ruta();
     A.listar().then(l => { SOL = l; }).catch(() => {});
   }
-  function login(err) {
+  // solo entran los correos autorizados: el dueño y los que estén en admins/ (te llega un enlace al correo)
+  function login(err, enviado) {
     document.body.classList.remove('dentro');
-    main.innerHTML = '<div class="login"><img src="img/dkas-oscuro.png" alt="DKAS"><h1>Admin</h1><p class="sub">Escribe el código de 6 números.</p><input id="cod" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••"><p class="err"' + (err ? '' : ' hidden') + '>' + esc(err || '') + '</p></div>';
-    const i = $('#cod'); i.focus();
-    i.oninput = async () => { i.value = i.value.replace(/\D/g, ''); if (i.value.length === 6) { i.disabled = true; try { await A.entrarConCodigo(i.value); arrancar(); } catch (e) { login(e.message); } } };
+    main.innerHTML = '<div class="login"><img src="img/dkas-oscuro.png" alt="DKAS"><h1>Admin</h1>'
+      + (enviado ? '<p class="sub">Te mandamos un enlace a <b>' + esc(enviado) + '</b>. Ábrelo en este mismo teléfono o computadora para entrar. Si no llega, revisa en Spam.</p><button class="b" id="otro">Usar otro correo</button>'
+        : '<p class="sub">Escribe tu correo autorizado. Te llega un enlace para entrar.</p><input id="mail" type="email" autocomplete="email" placeholder="tu@correo.com" value="' + esc(A.load('dazk-correo', '')) + '"><button class="b negro grande" id="mok">Mandarme el enlace</button>')
+      + '<p class="err"' + (err ? '' : ' hidden') + '>' + esc(err || '') + '</p></div>';
+    if (enviado) { $('#otro').onclick = () => login(); return; }
+    const i = $('#mail'), b = $('#mok'); i.focus();
+    const ir = async () => { b.disabled = true; b.textContent = 'Mandando…'; try { await A.pedirEnlace(i.value); login('', i.value.trim().toLowerCase()); } catch (e) { login(e.message); } };
+    b.onclick = ir; i.onkeydown = e => { if (e.key === 'Enter') ir(); };
   }
   function nombre() {
     main.innerHTML = '<div class="login"><h1>¿Quién eres?</h1><p class="sub">Tu nombre queda en todo lo que registres.</p><input id="nom" placeholder="Tu nombre"><button class="b negro grande" id="nok">Entrar</button></div>';
@@ -2236,7 +2249,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
       + plegable('Taller', 'mesas, bases y diseño', '<ul class="links"><li><a href="#v/taller">Mesas en el taller<small>cortes, croquis y orden de compra</small></a></li><li><a href="#v/bases">Diseñar bases</a></li><li><a href="#v/estudio">Estudio de diseño</a></li></ul>')
       + plegable('Página web', 'portada, visitas y links', '<ul class="links"><li><a href="#v/portada">Presentación de la página</a></li><li><a href="#v/visitas">Auditoría y bloqueos<small>quién entra a dkas.mx</small></a></li><li><a href="#v/accesos">Links de acceso al 3D</a></li></ul>')
       + plegable('Avisos al teléfono', { activo: 'activados', apagado: 'apagados', instalar: 'falta instalar', bloqueado: 'bloqueados', no: 'no disponible', demo: 'modo prueba' }[estadoPush()], '<p class="nota">Tu socio te manda avisos: en la mañana la prioridad del día, al mediodía lo que sigue, en la noche el cuadre del banco, y al momento cuando alguien registra dinero o aparece algo raro.</p>' + (estadoPush() === 'activo' ? '<p class="ok-g">✓ Activados en este teléfono</p><button class="b grande" id="push-prueba">Mandar aviso de prueba</button>' : '<button class="b negro grande" id="push-aj">Activar avisos aquí</button>'), estadoPush() !== 'activo')
-      + plegable('Equipo', 'quién entra al panel', '<ul class="links"><li><a href="#v/equipo">Administradores</a></li></ul><p class="nota">Todo lo importante pide la clave 55 antes de guardarse. Para entrar al panel se usa el código de 6 números.</p>')
+      + plegable('Equipo', 'quién entra al panel', '<ul class="links"><li><a href="#v/equipo">Administradores</a></li></ul><p class="nota">Todo lo importante pide la clave 55 antes de guardarse. Al panel solo se entra con un correo autorizado (te llega un enlace).</p>')
       + plegable('Registro de cambios', bit.length + '', (bit.length ? '<div class="tabla"><table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th></tr></thead><tbody>' + bit.slice(0, 200).map(b => { const d = new Date(b.creado || 0); return '<tr><td>' + fC(N.ymd(d)) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + '</td><td>' + esc(b.por || '') + '</td><td><b>' + esc(b.accion) + '</b><br><small>' + esc(b.detalle || '') + '</small></td></tr>'; }).join('') + '</tbody></table></div>' : vacioTxt('Todavía no hay nada registrado.')));
     $('#salir').onclick = () => { A.logout(); location.hash = ''; arrancar(); };
     if ($('#push-aj')) $('#push-aj').onclick = () => activarPush(); if ($('#push-prueba')) $('#push-prueba').onclick = () => probarPush();

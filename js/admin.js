@@ -1675,14 +1675,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
   // solo entran los correos autorizados: el dueño y los que estén en admins/ (te llega un enlace al correo)
   function login(err, enviado) {
     document.body.classList.remove('dentro');
+    if (enviado === 'codigo') { // solo el dueño: su código principal (los códigos del equipo ya no tienen acceso)
+      main.innerHTML = '<div class="login"><img src="img/dkas-oscuro.png" alt="DKAS"><h1>Dueño</h1><p class="sub">Escribe tu código principal.</p><input id="cod" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••"><button class="b" id="otro">Entrar con correo</button><p class="err"' + (err ? '' : ' hidden') + '>' + esc(err || '') + '</p></div>';
+      $('#otro').onclick = () => login(); const c = $('#cod'); c.focus();
+      c.oninput = async () => { c.value = c.value.replace(/\D/g, ''); if (c.value.length === 6) { c.disabled = true; try { await A.entrarConCodigo(c.value); arrancar(); } catch (e) { login(e.message, 'codigo'); } } };
+      return;
+    }
     main.innerHTML = '<div class="login"><img src="img/dkas-oscuro.png" alt="DKAS"><h1>Admin</h1>'
       + (enviado ? '<p class="sub">Te mandamos un enlace a <b>' + esc(enviado) + '</b>. Ábrelo en este mismo teléfono o computadora para entrar. Si no llega, revisa en Spam.</p><button class="b" id="otro">Usar otro correo</button>'
-        : '<p class="sub">Escribe tu correo autorizado. Te llega un enlace para entrar.</p><input id="mail" type="email" autocomplete="email" placeholder="tu@correo.com" value="' + esc(A.load('dazk-correo', '')) + '"><button class="b negro grande" id="mok">Mandarme el enlace</button>')
+        : '<p class="sub">Escribe tu correo autorizado. Te llega un enlace para entrar.</p><input id="mail" type="email" autocomplete="email" placeholder="tu@correo.com" value="' + esc(A.load('dazk-correo', '')) + '"><button class="b negro grande" id="mok">Mandarme el enlace</button><button class="b" id="duenio" style="margin-top:18px;opacity:.75">Soy el dueño: entrar con código</button>')
       + '<p class="err"' + (err ? '' : ' hidden') + '>' + esc(err || '') + '</p></div>';
     if (enviado) { $('#otro').onclick = () => login(); return; }
     const i = $('#mail'), b = $('#mok'); i.focus();
     const ir = async () => { b.disabled = true; b.textContent = 'Mandando…'; try { await A.pedirEnlace(i.value); login('', i.value.trim().toLowerCase()); } catch (e) { login(e.message); } };
     b.onclick = ir; i.onkeydown = e => { if (e.key === 'Enter') ir(); };
+    $('#duenio').onclick = () => login('', 'codigo');
   }
   function nombre() {
     main.innerHTML = '<div class="login"><h1>¿Quién eres?</h1><p class="sub">Tu nombre queda en todo lo que registres.</p><input id="nom" placeholder="Tu nombre"><button class="b negro grande" id="nok">Entrar</button></div>';

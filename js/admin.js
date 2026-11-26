@@ -207,7 +207,7 @@
     const hoy = M.hoy, l = [], add = (g, t, d, ref) => l.push({ g, t, d, ref });
     M.pedidos.forEach(p => {
       const s = M.statsPedido(p), n = M.nomPedido(p), ref = { pedido: p.id };
-      if (s.precio && s.ent > s.precio) add(1, n + ': pagó de más', 'Precio ' + pesos(s.precio) + ' y lleva pagado ' + pesos(s.ent) + ' (' + pesos(s.ent - s.precio) + ' de más). Revisa el precio o algún pago repetido.', ref);
+      if (s.precio && s.ent > s.precio) add(1, n + ': pagó de más', 'Precio ' + pesos(s.precio) + ' y lleva pagado ' + pesos(s.ent) + ' (' + pesos(s.ent - s.precio) + ' de más). ' + ((M.cli(p.cliente) || {}).tipo === 'arquitecto' ? 'Es arquitecto: si es otra mesa, abre ese pago, toca Corregir y elige «＋ Otra mesa».' : 'Revisa el precio o algún pago repetido.'), ref);
       if (!s.precio && s.ent > 0) add(2, n + ': tiene pagos pero no tiene precio', 'Lleva ' + pesos(s.ent) + ' pagados. Sin precio no se sabe cuánto falta.', ref);
       if (s.fallas.length && !p.cerrado) { const f = s.fallas[s.fallas.length - 1]; add(1, n + ': mesa en reposición por falla técnica', (f.motivo || 'Falla') + ' el ' + f.fecha + '. Pérdida hasta hoy ' + pesos(s.perdida) + ' · la paga: ' + (f.paga || 'por definir') + '.', ref); }
       if (s.costo && s.salMesa > s.costo * 1.1) add(2, n + ': se gastó más de lo estimado', 'Estimado ' + pesos(s.costo) + ', gastado ' + pesos(s.salMesa) + ' (' + pesos(s.salMesa - s.costo) + ' más).', ref);
@@ -474,7 +474,7 @@ const C = {
   mdf: { hoja: 650, w: 244, h: 122, corte: 50 },
   corteRecto: 150, corteCurvo: 350, canto: 100, // por metro lineal (estimado)
   margen: 1.6,
-  flete: 4500, // dueño 25 nov 2026: el flete siempre es $4,500 minivanComedor: 800, minivanChica: 400,
+  flete: 4500, minivanComedor: 800, minivanChica: 400, // dueño 25 nov 2026: el flete siempre es $4,500
   chiquita: 1125,                    // valor de un 0.80×0.80 que sale del sobrante
   pesoM2: 29,                        // kg por m² de sinterizado 12 mm
 };
@@ -1891,7 +1891,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     if (tab === 'clientes') {
       const l = M.clientes.map(c => [c, M.statsCliente(c)]).sort((a, b) => b[1].activos - a[1].activos || (a[0].nombre || '').localeCompare(b[0].nombre || ''));
       main.innerHTML = tit('Pedidos', '', '<button class="b negro" id="nuevo">＋ Nuevo</button>') + tabs
-        + '<section class="caja">' + (l.length ? '<div class="lista">' + l.map(([c, s]) => '<a class="fila fila-a" href="#c=' + esc(c.id) + '"><span class="fila-c"><b>' + esc(c.nombre) + (s.frecuente ? ' ' + pill('frecuente', 'v') : '') + '</b><small>' + s.ps.length + ' pedido' + (s.ps.length === 1 ? '' : 's') + (s.activos ? ' · ' + s.activos + ' activo' + (s.activos === 1 ? '' : 's') : '') + (c.telefono ? ' · ' + esc(c.telefono) : '') + '</small></span><span class="fila-d"><small>Pagó ' + pesos(s.pagado) + '</small><small>' + (s.debe ? 'Debe <b>' + pesos(s.debe) + '</b>' : '<span class="v">Al corriente</span>') + '</small></span></a>').join('') + '</div>' : vacioTxt('Sin clientes.')) + '</section>';
+        + '<section class="caja">' + (l.length ? '<div class="lista">' + l.map(([c, s]) => '<a class="fila fila-a" href="#c=' + esc(c.id) + '"><span class="fila-c"><b>' + esc(c.nombre) + (c.tipo === 'arquitecto' ? ' ' + pill('arquitecto', 'a') : '') + (s.frecuente ? ' ' + pill('frecuente', 'v') : '') + '</b><small>' + s.ps.length + ' pedido' + (s.ps.length === 1 ? '' : 's') + (s.activos ? ' · ' + s.activos + ' activo' + (s.activos === 1 ? '' : 's') : '') + (c.telefono ? ' · ' + esc(c.telefono) : '') + '</small></span><span class="fila-d"><small>Pagó ' + pesos(s.pagado) + '</small><small>' + (s.debe ? 'Debe <b>' + pesos(s.debe) + '</b>' : '<span class="v">Al corriente</span>') + '</small></span></a>').join('') + '</div>' : vacioTxt('Sin clientes.')) + '</section>';
     } else if (tab === 'deudas') {
       const l = M.deudas.map(x => [x, M.statsDeuda(x)]).sort((a, b) => b[1].falta - a[1].falta);
       main.innerHTML = tit('Pedidos', '', '<button class="b negro" id="nueva-d">＋ Deuda</button>') + tabs
@@ -1994,16 +1994,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
 
   function cliente(c) {
     const s = M.statsCliente(c);
-    main.innerHTML = '<a class="volver" href="#pedidos/clientes">← Clientes</a>' + tit(esc(c.nombre) + (s.frecuente ? ' ' + pill('frecuente', 'v') : ''), [c.telefono, c.email, c.direccion].filter(Boolean).map(esc).join(' · ') || 'Sin datos de contacto', '<div class="tit-b"><button class="b" id="ed-c">Editar datos</button><button class="b negro" id="np">＋ Nuevo pedido para ' + esc(c.nombre.split(' ')[0]) + '</button></div>')
+    main.innerHTML = '<a class="volver" href="#pedidos/clientes">← Clientes</a>' + tit(esc(c.nombre) + (c.tipo === 'arquitecto' ? ' ' + pill('arquitecto', 'a') : '') + (s.frecuente ? ' ' + pill('frecuente', 'v') : ''), [c.telefono, c.email, c.direccion].filter(Boolean).map(esc).join(' · ') || 'Sin datos de contacto', '<div class="tit-b"><button class="b" id="ed-c">Editar datos</button><button class="b negro" id="np">＋ Nuevo pedido para ' + esc(c.nombre.split(' ')[0]) + '</button></div>')
       + '<section class="kpis tres">' + kpi('Ha comprado', pesos(s.precio), '', s.ps.length + ' pedido' + (s.ps.length === 1 ? '' : 's')) + kpi('Nos ha pagado', pesos(s.pagado), 'v') + kpi('Nos debe', pesos(s.debe), s.debe ? 'r' : 'v') + '</section>'
       + '<section class="caja"><h2>Sus pedidos</h2><div class="lista">' + (s.ps.map(([p, x]) => filaPedido(p, x)).join('') || vacioTxt('Sin pedidos.')) + '</div></section>'
       + '<section class="caja"><h2>Todos sus pagos</h2>' + (() => { const ms = M.movs.filter(m => N.esIn(m) && s.ps.some(([p]) => p.id === m.pedido)); return ms.length ? '<div class="lista">' + ms.slice().reverse().map(filaMov).join('') + '</div>' : vacioTxt('Sin pagos.'); })() + '</section>';
     $('#np').onclick = () => alta(null, c.id); $('#ed-c').onclick = () => hojaCliente(c); enlazarFilas(); enlazarMovs();
   }
   function hojaCliente(c) {
-    hoja('Datos del cliente', '<label class="campo">Nombre<input id="c-n" value="' + esc(c.nombre) + '"></label><label class="campo">Teléfono<input id="c-t" inputmode="tel" value="' + esc(c.telefono || '') + '"></label><label class="campo">Email<input id="c-e" value="' + esc(c.email || '') + '"></label><label class="campo">Dirección<input id="c-d" value="' + esc(c.direccion || '') + '"></label><button class="b negro grande" id="c-ok">Guardar</button>', h => {
-      $('#c-ok', h).onclick = async () => { const x = { nombre: $('#c-n', h).value.trim(), telefono: $('#c-t', h).value.trim() || null, email: $('#c-e', h).value.trim() || null, direccion: $('#c-d', h).value.trim() || null }; if (!x.nombre) return aviso('Escribe el nombre.');
-        if (!await clave('Guardar datos del cliente', [['Cliente', x.nombre], ['Teléfono', x.telefono || '—'], ['Dirección', x.direccion || '—']])) return; cerrarHoja(); await guardarYa(() => A.nodoCambia('dinero/clientes/' + c.id, x), 'Cliente guardado', 'Editó cliente ' + x.nombre); };
+    let tipoC = c.tipo === 'arquitecto' ? 'arquitecto' : 'personal';
+    hoja('Datos del cliente', '<div class="campo">¿Qué tipo de cliente?<div class="chips" id="c-tp"><button data-v="personal"' + (tipoC === 'personal' ? ' class="on"' : '') + '>Personal<small>paga su mesa y ya</small></button><button data-v="arquitecto"' + (tipoC === 'arquitecto' ? ' class="on"' : '') + '>Arquitecto<small>nos compra muchas mesas</small></button></div></div><label class="campo">Nombre<input id="c-n" value="' + esc(c.nombre) + '"></label><label class="campo">Teléfono<input id="c-t" inputmode="tel" value="' + esc(c.telefono || '') + '"></label><label class="campo">Email<input id="c-e" value="' + esc(c.email || '') + '"></label><label class="campo">Dirección<input id="c-d" value="' + esc(c.direccion || '') + '"></label><button class="b negro grande" id="c-ok">Guardar</button>', h => {
+      $('#c-tp', h).onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; tipoC = b.dataset.v; $$('#c-tp button', h).forEach(x => x.classList.toggle('on', x === b)); };
+      $('#c-ok', h).onclick = async () => { const x = { tipo: tipoC === 'arquitecto' ? 'arquitecto' : null, nombre: $('#c-n', h).value.trim(), telefono: $('#c-t', h).value.trim() || null, email: $('#c-e', h).value.trim() || null, direccion: $('#c-d', h).value.trim() || null }; if (!x.nombre) return aviso('Escribe el nombre.');
+        if (!await clave('Guardar datos del cliente', [['Cliente', x.nombre], ['Tipo', x.tipo ? 'Arquitecto' : 'Personal'], ['Teléfono', x.telefono || '—'], ['Dirección', x.direccion || '—']])) return; cerrarHoja(); await guardarYa(() => A.nodoCambia('dinero/clientes/' + c.id, x), 'Cliente guardado', 'Editó cliente ' + x.nombre); };
     });
   }
 
@@ -2196,6 +2198,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     if (pre.pedido && !pre.tipo) d.tipo = '';
     const gente = [...new Set(['Zury', 'David'].concat(M.movs.filter(m => (m.fondo || '').slice(0, 3) !== 'pd:').map(m => m.quien).filter(Boolean)))];
     const activos = M.pedidos.filter(p => !p.cerrado || p.id === d.pedido);
+    const arqs = M.clientes.filter(c => c.tipo === 'arquitecto'), OTRA = '__otra:', cliOtra = () => d.pedido.startsWith(OTRA) ? M.cli(d.pedido.slice(OTRA.length)) : null;
+    const nomPedX = id => id.startsWith(OTRA) ? 'Otra mesa de ' + ((M.cli(id.slice(OTRA.length)) || {}).nombre || '') : M.nomPed(id);
     const chips = (k, l, val) => '<div class="chips" data-k="' + k + '">' + l.map(([v, t, sub]) => '<button data-v="' + esc(v) + '"' + (val === v ? ' class="on"' : '') + '>' + esc(t) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</button>').join('') + '</div>';
     const falta = () => [!N.num(d.monto) && 'cantidad', d.tipo === 'in' && !d.origen && 'de dónde viene', d.tipo === 'in' && d.origen === 'pedido' && !d.pedido && 'de qué pedido', d.tipo === 'in' && d.origen === 'prestamo' && !d.deuda && !d.nuevoPrest.trim() && 'quién prestó',
       d.tipo === 'out' && !d.para && 'para qué es', d.tipo === 'out' && d.para === 'pedido' && !d.pedido && 'de qué pedido', d.tipo === 'out' && d.para === 'deuda' && !d.deuda && 'a qué deuda', !d.cat && 'concepto',
@@ -2203,6 +2207,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
     hoja(ed ? 'Corregir movimiento' : 'Registrar dinero', '<div id="rg"></div>', h => {
       const pintar = () => {
         const S = (d.pedido && M.ped(d.pedido)) ? M.statsPedido(M.ped(d.pedido)) : null;
+        if (d.tipo === 'in' && d.origen === 'pedido' && cliOtra() && !d.cat) d.cat = 'Anticipo';
+        const cS = S && M.cli(M.ped(d.pedido).cliente), deMas = d.tipo === 'in' && cS && cS.tipo === 'arquitecto' && S.precio && N.num(d.monto) > Math.max(S.porCobrar, 0);
         if (d.tipo === 'in' && d.origen === 'pedido' && S && !d.cat) d.cat = S.ent === 0 ? 'Anticipo' : (S.precio && S.ent + N.num(d.monto) >= S.precio ? 'Liquidación' : 'Abono');
         const conceptos = d.tipo === 'in' ? (d.origen === 'pedido' ? ['Anticipo', 'Abono', 'Liquidación'] : d.origen === 'prestamo' ? ['Préstamo'] : ['Otro ingreso', 'Saldo inicial'])
           : d.para === 'deuda' ? ['Pago de deuda'] : d.para === 'general' ? C.GASTO_GENERAL : C.GASTO_PEDIDO;
@@ -2215,7 +2221,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
           + (!d.tipo ? '' : '<label class="campo monto">Cantidad<input id="r-m" inputmode="decimal" placeholder="$0" value="' + esc(d.monto) + '"></label>'
           + (d.tipo === 'in'
             ? '<div class="campo">¿De dónde viene?' + chips('origen', [['pedido', 'Pago de un cliente'], ['prestamo', 'Préstamo'], ['otro', 'Otro ingreso']], d.origen) + '</div>'
-              + (d.origen === 'pedido' ? '<div class="campo">¿De qué pedido?' + chips('pedido', activos.map(p => { const s = M.statsPedido(p); return [p.id, M.nomPedido(p), s.precio ? 'debe ' + pesos(Math.max(s.porCobrar, 0)) : 'sin precio']; }), d.pedido) + '</div>' : '')
+              + (d.origen === 'pedido' ? '<div class="campo">¿De qué pedido?' + chips('pedido', activos.map(p => { const s = M.statsPedido(p); return [p.id, M.nomPedido(p), s.precio ? 'debe ' + pesos(Math.max(s.porCobrar, 0)) : 'sin precio']; }).concat(arqs.map(c => [OTRA + c.id, '＋ Otra mesa de ' + c.nombre, 'arquitecto · pedido nuevo'])), d.pedido)
+                + (deMas ? '<p class="aviso">' + esc(cS.nombre) + ' es arquitecto y este pedido solo debe ' + pesos(Math.max(S.porCobrar, 0)) + '. Si este dinero es de <b>otra mesa</b>, toca «＋ Otra mesa de ' + esc(cS.nombre) + '».</p>' : '')
+                + (cliOtra() ? '<p class="aviso v">Se abre un <b>pedido nuevo</b> de ' + esc(cliOtra().nombre) + ' con este pago. Luego le llenas la mesa y el precio.</p>' : '') + '</div>' : '')
               + (d.origen === 'prestamo' ? '<div class="campo">¿Quién nos prestó?' + chips('deuda', M.deudas.map(x => [x.id, x.nombre, 'le debemos ' + pesos(M.statsDeuda(x).falta)]).concat([['__nuevo', '＋ Prestamista nuevo']]), d.deuda || (d.nuevoPrest ? '__nuevo' : '')) + (d.deuda === '__nuevo' || (!d.deuda && d.nuevoPrest) ? '<input id="r-np" placeholder="Nombre de quien prestó (se le crea su panel)" value="' + esc(d.nuevoPrest) + '">' : '') + '</div>' : '')
             : '<div class="campo">¿Para qué es?' + chips('para', [['pedido', 'Gasto de un pedido'], ['deuda', 'Pagar una deuda'], ['general', 'Gasto general']], d.para) + '</div>'
               + (d.para === 'pedido' ? '<div class="campo">¿De qué pedido?' + chips('pedido', activos.map(p => [p.id, M.nomPedido(p), piezaTxt(p).slice(0, 34)]), d.pedido) + '</div>' : '')
@@ -2249,7 +2257,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
         if (falta().length) return pintar();
         const monto = N.num(d.monto); if (!(monto > 0)) return aviso('Escribe la cantidad.');
         let deudaId = d.deuda && d.deuda !== '__nuevo' ? d.deuda : '', fondo = d.fondo;
-        const nuevo = d.nuevoPrest.trim(), quien = d.tipo === 'in' ? (d.origen === 'pedido' ? M.nomPed(d.pedido) : d.origen === 'prestamo' ? (deudaId ? M.deu(deudaId).nombre : nuevo + ' (nuevo)') : 'Otro ingreso') : (d.para === 'pedido' ? 'Pedido de ' + M.nomPed(d.pedido) : d.para === 'deuda' ? 'Pago a ' + M.deu(d.deuda).nombre : 'Gasto general');
+        const nuevo = d.nuevoPrest.trim(), quien = d.tipo === 'in' ? (d.origen === 'pedido' ? nomPedX(d.pedido) : d.origen === 'prestamo' ? (deudaId ? M.deu(deudaId).nombre : nuevo + ' (nuevo)') : 'Otro ingreso') : (d.para === 'pedido' ? 'Pedido de ' + M.nomPed(d.pedido) : d.para === 'deuda' ? 'Pago a ' + M.deu(d.deuda).nombre : 'Gasto general');
         const lin = [['Cantidad', pesos(monto)], [d.tipo === 'in' ? 'De' : 'Para', quien], ['Concepto', d.cat]];
         if (d.tipo === 'out') lin.push(['Sale de', fondo === 'pd:' ? 'A crédito: se le deberá a ' + nuevo + ' (nuevo)' : M.nomFondo(fondo)]);
         lin.push([d.tipo === 'in' ? 'Lo recibió' : 'Lo pagó', d.quien], ['Cómo', d.metodo], ['Fecha', fC(d.fecha)]);
@@ -2259,6 +2267,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = PRECIOS; e
           // prestamista nuevo: se le crea su panel de deuda en este momento
           if (d.tipo === 'in' && d.origen === 'prestamo' && !deudaId) deudaId = await A.nodoAgrega('dinero/deudas', { nombre: nuevo.slice(0, 60), tipo: 'prestamo' });
           if (d.tipo === 'out' && fondo === 'pd:') { const id = await A.nodoAgrega('dinero/deudas', { nombre: nuevo.slice(0, 60), tipo: 'prestamo' }); fondo = 'pd:' + id; }
+          // otra mesa de un arquitecto: se crea su pedido nuevo y el pago queda ahí
+          if (d.tipo === 'in' && d.origen === 'pedido' && cliOtra()) { const c = cliOtra(), folio = M.pedidos.reduce((m, p) => Math.max(m, num(p.folio)), 0) + 1;
+            d.pedido = await A.nodoAgrega('dinero/pedidos', { cliente: c.id, folio, fecha: d.fecha, notas: 'Otra mesa de ' + c.nombre + ' (arquitecto). Llegó un pago de ' + pesos(monto) + '. Falta llenar la mesa y el precio.' }); }
           const x = { tipo: d.tipo, monto, cat: d.cat.slice(0, 30), fecha: d.fecha, quien: d.quien.slice(0, 30), metodo: d.metodo, nota: d.nota.trim().slice(0, 80) || null,
             pedido: (d.tipo === 'in' ? d.origen === 'pedido' : d.para === 'pedido') ? d.pedido : null, deuda: (d.tipo === 'in' ? d.origen === 'prestamo' : d.para === 'deuda') ? deudaId : null, fondo: d.tipo === 'out' ? fondo : null, revisar: null, cliente: null };
           try { localStorage.setItem('dkas-quien', x.quien); } catch (e) {}

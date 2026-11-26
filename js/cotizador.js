@@ -9,7 +9,7 @@ const C = {
   mdf: { hoja: 650, w: 244, h: 122, corte: 50 },
   corteRecto: 150, corteCurvo: 350, canto: 100, // por metro lineal (estimado)
   margen: 1.6,
-  flete: 2000, minivanComedor: 800, minivanChica: 400,
+  flete: 4500, minivanComedor: 800, minivanChica: 400, // dueño 25 nov 2026: el flete siempre es $4,500
   chiquita: 1125,                    // valor de un 0.80×0.80 que sale del sobrante
   pesoM2: 29,                        // kg por m² de sinterizado 12 mm
 };
